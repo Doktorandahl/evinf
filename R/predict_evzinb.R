@@ -73,6 +73,13 @@ predict.evzinb <- function(
     )
   )
 
+  if (multicore) {
+    if (is.null(ncores)) {
+      ncores <- parallel::detectCores() - 1
+    }
+    foreach::registerDoParallel(cores = ncores)
+  }
+
   if (type %in% c('states', 'all') & confint) {
     stop('Confidence interval prediction only available for vector outputs')
   }
@@ -85,17 +92,17 @@ predict.evzinb <- function(
     if (is.null(newdata)) {
       newdata <- object$data$data
     }
-    prbs_boot <- foreach::foreach(i = 1:nboots) %do%
+    prbs_boot <- foreach::foreach(i = 1:nboots) %dopar%
       dplyr::bind_cols(
         prob_from_evzinb(object$bootstraps[[i]], newdata = newdata),
         tibble::tibble(id = 1:nrow(newdata))
       )
-    cnts_boot <- foreach::foreach(i = 1:nboots) %do%
+    cnts_boot <- foreach::foreach(i = 1:nboots) %dopar%
       dplyr::bind_cols(
         counts_from_evzinb(object$bootstraps[[i]], newdata = newdata),
         tibble::tibble(id = 1:nrow(newdata))
       )
-    alphs_boot <- foreach::foreach(i = 1:nboots) %do%
+    alphs_boot <- foreach::foreach(i = 1:nboots) %dopar%
       dplyr::bind_cols(
         fitted_alpha_from_evzinb(object$bootstraps[[i]], newdata = newdata),
         tibble::tibble(id = 1:nrow(newdata))
@@ -108,15 +115,14 @@ predict.evzinb <- function(
       if (type == 'quantile' & is.null(quantile)) {
         stop('quantile must be provided for quantile prediction')
       } else if (!is.null(quantile)) {
-        q_boot <- foreach::foreach(i = 1:nboots) %do%
+        q_boot <- foreach::foreach(i = 1:nboots) %dopar%
           tibble::tibble(
             q = quantiles_from_evzinb(
               object$bootstraps[[i]],
               quantile,
               newdata = newdata,
               return_data = F,
-              multicore = multicore,
-              ncores = ncores
+              multicore = F
             ),
             id = 1:nrow(newdata)
           )
@@ -126,7 +132,7 @@ predict.evzinb <- function(
     } else {
       q_boot <- NULL
     }
-    harmonic_boot <- foreach::foreach(i = 1:nboots) %do%
+    harmonic_boot <- foreach::foreach(i = 1:nboots) %dopar%
       tibble::tibble(
         harmonic = harmonic_calc(
           prbs_boot[[i]]$pr_count,
@@ -138,7 +144,7 @@ predict.evzinb <- function(
         id = 1:nrow(newdata)
       )
 
-    explog_boot <- foreach::foreach(i = 1:nboots) %do%
+    explog_boot <- foreach::foreach(i = 1:nboots) %dopar%
       tibble::tibble(
         explog = explog_calc(
           prbs_boot[[i]]$pr_count,
@@ -161,8 +167,7 @@ predict.evzinb <- function(
           quantile,
           newdata = newdata,
           return_data = F,
-          multicore = multicore,
-          ncores = ncores
+          multicore = F
         )
       } else {
         q <- NULL
@@ -492,6 +497,13 @@ predict.evinb <- function(
     stop('Confidence interval prediction only available for vector outputs')
   }
 
+  if (multicore) {
+    if (is.null(ncores)) {
+      ncores <- parallel::detectCores() - 1
+    }
+    foreach::registerDoParallel(cores = ncores)
+  }
+
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
     object$bootstraps <- object$bootstraps %>%
       purrr::discard(~ 'try-error' %in% class(.x))
@@ -500,17 +512,17 @@ predict.evinb <- function(
     if (is.null(newdata)) {
       newdata <- object$data$data
     }
-    prbs_boot <- foreach::foreach(i = 1:nboots) %do%
+    prbs_boot <- foreach::foreach(i = 1:nboots) %dopar%
       dplyr::bind_cols(
         prob_from_evinb(object$bootstraps[[i]], newdata = newdata),
         tibble::tibble(id = 1:nrow(newdata))
       )
-    cnts_boot <- foreach::foreach(i = 1:nboots) %do%
+    cnts_boot <- foreach::foreach(i = 1:nboots) %dopar%
       dplyr::bind_cols(
         counts_from_evzinb(object$bootstraps[[i]], newdata = newdata),
         tibble::tibble(id = 1:nrow(newdata))
       )
-    alphs_boot <- foreach::foreach(i = 1:nboots) %do%
+    alphs_boot <- foreach::foreach(i = 1:nboots) %dopar%
       dplyr::bind_cols(
         fitted_alpha_from_evzinb(object$bootstraps[[i]], newdata = newdata),
         tibble::tibble(id = 1:nrow(newdata))
@@ -523,15 +535,14 @@ predict.evinb <- function(
       if (type == 'quantile' & is.null(quantile)) {
         stop('quantile must be provided for quantile prediction')
       } else if (!is.null(quantile)) {
-        q_boot <- foreach::foreach(i = 1:nboots) %do%
+        q_boot <- foreach::foreach(i = 1:nboots) %dopar%
           tibble::tibble(
             q = quantiles_from_evinb(
               object$bootstraps[[i]],
               quantile,
               newdata = newdata,
               return_data = F,
-              multicore = multicore,
-              ncores = ncores
+              multicore = F
             ),
             id = 1:nrow(newdata)
           )
@@ -541,7 +552,7 @@ predict.evinb <- function(
     } else {
       q_boot <- NULL
     }
-    harmonic_boot <- foreach::foreach(i = 1:nboots) %do%
+    harmonic_boot <- foreach::foreach(i = 1:nboots) %dopar%
       tibble::tibble(
         harmonic = harmonic_calc(
           prbs_boot[[i]]$pr_count,
@@ -553,7 +564,7 @@ predict.evinb <- function(
         id = 1:nrow(newdata)
       )
 
-    explog_boot <- foreach::foreach(i = 1:nboots) %do%
+    explog_boot <- foreach::foreach(i = 1:nboots) %dopar%
       tibble::tibble(
         explog = explog_calc(
           prbs_boot[[i]]$pr_count,
@@ -576,8 +587,7 @@ predict.evinb <- function(
           quantile,
           newdata = newdata,
           return_data = F,
-          multicore = multicore,
-          ncores = ncores
+          multicore = F
         )
       } else {
         q <- NULL
