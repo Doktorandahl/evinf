@@ -19,6 +19,7 @@ explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
 #' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
 #' @param conf_level What confidence level should be used for confidence intervals
+#' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
 #'
 #' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
 #'
@@ -53,6 +54,7 @@ predict.evzinb <- function(
   conf_level = 0.9,
   multicore = FALSE,
   ncores = NULL,
+  return_bootstraps = FALSE,
   ...
 ) {
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
@@ -301,7 +303,14 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$harmonic, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci),
+          bootstraps = harmonic_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci))
+      }
     }
     if (type == 'explog') {
       ci <- explog_boot %>%
@@ -312,7 +321,14 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$explog, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(explog = explog), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(explog = explog), ci),
+          bootstraps = explog_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(explog = explog), ci))
+      }
     }
     if (type == 'counts') {
       ci <- cnts_boot %>%
@@ -323,7 +339,14 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$count, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(count = cnts$count), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(count = cnts$count), ci),
+          bootstraps = cnts_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(count = cnts$count), ci))
+      }
     }
     if (type == 'pareto_alpha') {
       ci <- alphs_boot %>%
@@ -334,10 +357,20 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$pareto_alpha, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(
-        tibble::tibble(pareto_alpha = alphs$pareto_alpha),
-        ci
-      ))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(
+            tibble::tibble(pareto_alpha = alphs$pareto_alpha),
+            ci
+          ),
+          bootstraps = alphs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(
+          tibble::tibble(pareto_alpha = alphs$pareto_alpha),
+          ci
+        ))
+      }
     }
     if (type == 'zi') {
       ci <- prbs_boot %>%
@@ -348,7 +381,14 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$pr_zc, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci),
+          bootstraps = prbs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci))
+      }
     }
     if (type == 'evinf') {
       ci <- prbs_boot %>%
@@ -359,7 +399,14 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$pr_pareto, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
+          bootstraps = prbs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
+      }
     }
     if (type == 'count_state') {
       ci <- prbs_boot %>%
@@ -370,7 +417,14 @@ predict.evzinb <- function(
           ci_ub = quantile(.data$pr_count, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
+          bootstraps = prbs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
+      }
     }
     if (type == 'quantile') {
       warning(
@@ -385,7 +439,14 @@ predict.evzinb <- function(
         ) %>%
         dplyr::select(-.data$id)
       q_name <- paste0('q', 100 * quantile)
-      return(dplyr::bind_cols(tibble::tibble(!!q_name := q), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(!!q_name := q), ci),
+          bootstraps = q_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(!!q_name := q), ci))
+      }
     }
   } else {
     if (type == "harmonic") {
@@ -441,6 +502,7 @@ predict.evzinb <- function(
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
 #' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
 #' @param conf_level What confidence level should be used for confidence intervals
+#' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
 #'
 #' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
 #' @export
@@ -473,6 +535,7 @@ predict.evinb <- function(
   conf_level = 0.9,
   multicore = FALSE,
   ncores = NULL,
+  return_bootstraps = FALSE,
   ...
 ) {
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
@@ -721,7 +784,14 @@ predict.evinb <- function(
           ci_ub = quantile(.data$harmonic, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci),
+          bootstraps = harmonic_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci))
+      }
     }
     if (type == 'explog') {
       ci <- explog_boot %>%
@@ -732,7 +802,14 @@ predict.evinb <- function(
           ci_ub = quantile(.data$explog, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(explog = explog), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(explog = explog), ci),
+          bootstraps = explog_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(explog = explog), ci))
+      }
     }
     if (type == 'counts') {
       ci <- cnts_boot %>%
@@ -743,7 +820,14 @@ predict.evinb <- function(
           ci_ub = quantile(.data$count, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(count = cnts$count), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(count = cnts$count), ci),
+          bootstraps = cnts_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(count = cnts$count), ci))
+      }
     }
     if (type == 'pareto_alpha') {
       ci <- alphs_boot %>%
@@ -754,10 +838,20 @@ predict.evinb <- function(
           ci_ub = quantile(.data$pareto_alpha, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(
-        tibble::tibble(pareto_alpha = alphs$pareto_alpha),
-        ci
-      ))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(
+            tibble::tibble(pareto_alpha = alphs$pareto_alpha),
+            ci
+          ),
+          bootstraps = alphs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(
+          tibble::tibble(pareto_alpha = alphs$pareto_alpha),
+          ci
+        ))
+      }
     }
 
     if (type == 'evinf') {
@@ -769,7 +863,14 @@ predict.evinb <- function(
           ci_ub = quantile(.data$pr_pareto, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
+          bootstraps = prbs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
+      }
     }
     if (type == 'count_state') {
       ci <- prbs_boot %>%
@@ -780,7 +881,14 @@ predict.evinb <- function(
           ci_ub = quantile(.data$pr_count, qs[2])
         ) %>%
         dplyr::select(-.data$id)
-      return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
+          bootstraps = prbs_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
+      }
     }
     if (type == 'quantile') {
       warning(
@@ -795,7 +903,14 @@ predict.evinb <- function(
         ) %>%
         dplyr::select(-.data$id)
       q_name <- paste0('q', 100 * quantile)
-      return(dplyr::bind_cols(tibble::tibble(!!q_name := q), ci))
+      if (return_bootstraps) {
+        return(list(
+          ci = dplyr::bind_cols(tibble::tibble(!!q_name := q), ci),
+          bootstraps = q_boot
+        ))
+      } else {
+        return(dplyr::bind_cols(tibble::tibble(!!q_name := q), ci))
+      }
     }
   } else {
     if (type == "harmonic") {
