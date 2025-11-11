@@ -77,7 +77,7 @@ predict.evzinb <- function(
     if (is.null(ncores)) {
       ncores <- parallel::detectCores() - 1
     }
-    foreach::registerDoParallel(cores = ncores)
+    doParallel::registerDoParallel(cores = ncores)
   }
 
   if (type %in% c('states', 'all') & confint) {
@@ -501,7 +501,7 @@ predict.evinb <- function(
     if (is.null(ncores)) {
       ncores <- parallel::detectCores() - 1
     }
-    foreach::registerDoParallel(cores = ncores)
+    doParallel::registerDoParallel(cores = ncores)
   }
 
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
