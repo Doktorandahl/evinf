@@ -8,6 +8,7 @@
 #' @param max.no.em.steps Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached
 #' @param max.no.em.steps.warmup Number of EM steps in the warmup rounds
 #' @param c.lim Integer range defining the possible values of C
+#' @param prune.c.range The pruning fraction for the C range. Useful if there are many unique values in c.lim and the model is slow to fit. If FALSE, no pruning is done. If numeric [0-1], the C range is pruned to approximately length(c.lim)*prune.c.range
 #' @param max.upd.par.pl.multinomial Maximum parameter change step size in the extreme value inflation component
 #' @param max.upd.par.nb Maximum parameter change step size in the count component
 #' @param max.upd.par.pl Maximum parameter change step size in the pareto component
@@ -33,6 +34,7 @@ run_evinb <- function(
   max.no.em.steps = 200,
   max.no.em.steps.warmup = 5,
   c.lim = c(70, 300),
+  prune.c.range = FALSE,
   max.upd.par.pl.multinomial = 0.5,
   max.upd.par.nb = 0.5,
   max.upd.par.pl = 0.5,
@@ -81,7 +83,8 @@ run_evinb <- function(
     no.m.bfgs.steps.nb = no.m.bfgs.steps.nb,
     no.m.bfgs.steps.pl = no.m.bfgs.steps.pl,
     pdf.pl.type = pdf.pl.type,
-    eta.int = eta.int
+    eta.int = eta.int,
+    prune.c.range = prune.c.range
   )
 
   Ini.Val <- list()
@@ -336,6 +339,7 @@ bootrun_evinb <- function(
 #' @param max.no.em.steps Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached
 #' @param max.no.em.steps.warmup Number of EM steps in the warmup rounds
 #' @param c.lim Integer range defining the possible values of C
+#' @param prune.c.range The pruning fraction for the C range. Useful if there are many unique values in c.lim and the model is slow to fit. If FALSE, no pruning is done. If numeric [0-1], the C range is pruned to approximately length(c.lim)*(1-prune.c.range)
 #' @param max.upd.par.pl.multinomial Maximum parameter change step size in the extreme value inflation component
 #' @param max.upd.par.nb Maximum parameter change step size in the count component
 #' @param max.upd.par.pl Maximum parameter change step size in the pareto component
@@ -376,6 +380,7 @@ evinb <- function(
   max.no.em.steps = 500,
   max.no.em.steps.warmup = 5,
   c.lim = c(50, 1000),
+  prune.c.range = FALSE,
   max.upd.par.pl.multinomial = 0.5,
   max.upd.par.nb = 0.5,
   max.upd.par.pl = 0.5,
@@ -409,19 +414,20 @@ evinb <- function(
     max.no.em.steps = max.no.em.steps,
     max.no.em.steps.warmup = max.no.em.steps.warmup,
     c.lim = c.lim,
+    prune.c.range = prune.c.range,
     max.upd.par.pl.multinomial = max.upd.par.pl.multinomial,
     max.upd.par.nb = max.upd.par.nb,
     max.upd.par.pl = max.upd.par.pl,
-    no.m.bfgs.steps.multinomial,
-    no.m.bfgs.steps.nb,
-    no.m.bfgs.steps.pl,
-    pdf.pl.type,
-    eta.int,
-    init.Beta.multinom.PL,
-    init.Beta.NB,
-    init.Beta.PL,
-    init.Alpha.NB,
-    init.C,
+    no.m.bfgs.steps.multinomial = no.m.bfgs.steps.multinomial,
+    no.m.bfgs.steps.nb = no.m.bfgs.steps.nb,
+    no.m.bfgs.steps.pl = no.m.bfgs.steps.pl,
+    pdf.pl.type = pdf.pl.type,
+    eta.int = eta.int,
+    init.Beta.multinom.PL = init.Beta.multinom.PL,
+    init.Beta.NB = init.Beta.NB,
+    init.Beta.PL = init.Beta.PL,
+    init.Alpha.NB = init.Alpha.NB,
+    init.C = init.C,
     verbose = verbose
   )
   runtime <- difftime(Sys.time(), t1)

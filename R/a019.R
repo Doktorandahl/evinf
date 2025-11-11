@@ -560,6 +560,34 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
     unique(sort(y)) >= control$c.lim[1] & unique(sort(y)) <= control$c.lim[2]
   ]
 
+  if (length(c.range) > 100 && control$prune.c.range == FALSE) {
+    warning(
+      "The c.range contains more than 100 values. If the estimation is slow consider reducing the c-range with the c.lim argument of the function, or pruning the c-range using the prune.c.range argument."
+    )
+  }
+  if (is.numeric(control$prune.c.range)) {
+    if (control$prune.c.range < 0 || control$prune.c.range > 1) {
+      stop("The prune.c.range argument must be FALSE or be between 0 and 1")
+    }
+    gaps <- diff(c.range)
+    sample.size <- ceiling(length(c.range) * (1 - control$prune.c.range)) - 2
+    keep.indicies <- c(
+      1,
+      sample(
+        seq(2, length(c.range) - 1),
+        size = sample.size,
+        prob = gaps[-c(length(c.range) - 1)] / sum(gaps)
+      ),
+      length(c.range)
+    )
+    c.range <- c.range[sort(keep.indicies)]
+    if (length(c.range) > 100) {
+      warning(
+        "The pruned c.range still contains more than 100 values. If the estimation is slow consider reducing the c-range with the c.lim argument of the function, or increasing the prune.c.range argument."
+      )
+    }
+  }
+
   ###When c is not well known we only run short versions of zerinfl.nb.pl.reg.cond.c.fun() in order to save time
   control.warmup <- control
   control.warmup$max.no.em.steps <- control$max.no.em.steps.warmup
