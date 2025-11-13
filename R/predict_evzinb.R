@@ -384,7 +384,8 @@ predict.evzinb <- function(
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci),
-          bootstraps = prbs_boot
+          bootstraps = prbs_boot %>%
+            purrr::map(~ dplyr::select(.data$pr_zc, .data$id))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci))
@@ -402,7 +403,8 @@ predict.evzinb <- function(
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
-          bootstraps = prbs_boot
+          bootstraps = prbs_boot %>%
+            purrr::map(~ dplyr::select(.data$pr_pareto, .data$id))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
@@ -420,7 +422,8 @@ predict.evzinb <- function(
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
-          bootstraps = prbs_boot
+          bootstraps = prbs_boot %>%
+            purrr::map(~ dplyr::select(.data$pr_count, .data$id))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
@@ -866,7 +869,8 @@ predict.evinb <- function(
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
-          bootstraps = prbs_boot
+          bootstraps = prbs_boot %>%
+            purrr::map(~ dplyr::select(.data$pr_pareto, .data$id))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
@@ -884,7 +888,8 @@ predict.evinb <- function(
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
-          bootstraps = prbs_boot
+          bootstraps = prbs_boot %>%
+            purrr::map(~ dplyr::select(.data$pr_count, .data$id))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))

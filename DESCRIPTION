@@ -1,7 +1,7 @@
 Package: evinf
 Type: Package
 Title: Inference with Extreme Value Inflated Count Data
-Version: 0.9.1
+Version: 0.9.2
 Description: Allows users to model and draw inferences from extreme value inflated count data, and to evaluate these models and compare to non extreme-value inflated counterparts. The package is built to be compatible with standard presentation tools such as 'broom', 'tidy', and 'modelsummary'.
 License: MIT + file LICENSE
 Encoding: UTF-8
