@@ -6,7 +6,7 @@
 \usage{
 \method{tidy}{zinbboot}(
   x,
-  component = c("zi", "count", "all"),
+  component = c("all", "count", "zero"),
   coef_type = c("original", "bootstrap_mean", "bootstrap_median"),
   standard_error = TRUE,
   p_value = c("bootstrapped", "approx", "none"),
@@ -45,9 +45,10 @@ A tidy function for a bootstrapped zinb model
 Tidy function for zinbboot
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 zinb_comp <- compare_models(model)
 tidy(zinb_comp$zinb)
-
+}
 }

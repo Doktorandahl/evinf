@@ -8,10 +8,10 @@
 A tibble with 3746 rows and 12 columns:
 \describe{
   \item{conflict_id}{The Uppsala Conflict Data Programme conflict ID for the conflict}
-  \item{osvAll}{The number of observed fatalities from one-sided violence against civilian in the specified conflict-month}
-  \item{troopLag}{The number of UN military troops in thousands of troops (lagged)}
-  \item{policeLag}{The number of UN police in thousands of troops (lagged)}
-  \item{militaryobserversLag}{The number of UN military troops in thousands of troops (lagged)}
+  \item{osvAll}{The number of observed fatalities from one-sided violence against civilians in the specified conflict-month}
+  \item{troopLag}{The number of UN military troops, in thousands (lagged)}
+  \item{policeLag}{The number of UN police, in thousands (lagged)}
+  \item{militaryobserversLag}{The number of UN military observers, in thousands (lagged)}
   \item{epduration}{The number of months the current conflict-episode has been ongoing}
   \item{lntpop}{The natural logarithm of the population of the country in which the conflict takes place}
   \item{lnbrv_AllLag}{The natural logarithm of the total number of battle related deaths in the conflict in the previous month}
@@ -28,7 +28,13 @@ https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/6EBCGA
 hks
 }
 \description{
-A reduced replication data set from \insertCite{hultman2013united;textual}{evinf} United Nations Peacekeeping and Civilian Protection in Civil War. Used to reproduce the the results from \insertCite{randahl2023evzinb;textual}{evinf}. Note, to reproduce any other results from \insertCite{hultman2013united;textual}{evinf} please download the original replication dataset using the link under source.
+A reduced replication data set from \insertCite{hultman2013united;textual}{evinf} United Nations Peacekeeping and Civilian Protection in Civil War. Used to reproduce the results of \insertCite{randahl2024inference;textual}{evinf}. To reproduce any other results from \insertCite{hultman2013united;textual}{evinf} please download the original replication dataset using the link under source.
+}
+\details{
+The UN personnel counts (`troopLag`, `policeLag`, `militaryobserversLag`) are
+expressed in **thousands** of personnel. This is a rescaling of the original
+Hultman, Kathman, and Shannon replication data introduced for
+\insertCite{randahl2024inference;textual}{evinf}.
 }
 \references{
 \insertAllCited{}

@@ -20,8 +20,10 @@ A vector of randomly drawn values from the fitted evinb if n_draws == 1, or a li
 Random draws from a fitted evinb model
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 5)
 revinb_fit(model)
+}
 
 }

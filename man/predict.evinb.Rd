@@ -49,9 +49,10 @@ A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_al
 Predictions from evinb object
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 predict(model)
-predict(model, type='all') # Getting all of the available predicted values
-
+predict(model, type='all', quantile = 0.9) # all available predicted values
+}
 }

@@ -20,8 +20,9 @@ A vector of randomly drawn values from the fitted evzinb if n_draws == 1, or a l
 Random draws from a fitted evzinb model
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evzinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 5)
 revzinb_fit(model)
-
+}
 }

@@ -63,9 +63,9 @@ evinb(
 
 \item{max.no.em.steps.warmup}{Number of EM steps in the warmup rounds}
 
-\item{c.lim}{Integer range defining the possible values of C}
+\item{c.lim}{Numeric vector of length 2. The candidate set for C is the unique observed values of the response that fall within this range}
 
-\item{prune.c.range}{The pruning fraction for the C range. Useful if there are many unique values in c.lim and the model is slow to fit. If FALSE, no pruning is done. If numeric [0-1], the C range is pruned to approximately length(c.lim)*(1-prune.c.range)}
+\item{prune.c.range}{Pruning fraction for the candidate set of C. Useful when the candidate set has many unique values and the model is slow to fit. If FALSE, no pruning is done. If numeric in [0, 1], the candidate set is thinned to approximately length(c.lim) * (1 - prune.c.range) values}
 
 \item{max.upd.par.pl.multinomial}{Maximum parameter change step size in the extreme value inflation component}
 
@@ -102,7 +102,8 @@ An object of class 'evinb'
 Running an extreme value inflated negative binomial model with bootstrapping
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
-
+model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+}
 }

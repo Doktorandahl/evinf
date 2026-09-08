@@ -28,11 +28,12 @@ explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' predict(model)
-#' predict(model, type='all') # Getting all of the available predicted values
-#'
+#' predict(model, type='all', quantile = 0.9) # all available predicted values
+#' }
 predict.evzinb <- function(
   object,
   newdata = NULL,
@@ -517,11 +518,12 @@ predict.evzinb <- function(
 #' @importFrom rlang :=
 #'
 #' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' predict(model)
-#' predict(model, type='all') # Getting all of the available predicted values
-#'
+#' predict(model, type='all', quantile = 0.9) # all available predicted values
+#' }
 predict.evinb <- function(
   object,
   newdata = NULL,
@@ -972,10 +974,11 @@ predict.evinb <- function(
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+#' model <- evzinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 5)
 #' revzinb_fit(model)
-#'
+#' }
 revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   i <- j <- 'iter_temp'
   ## Estimate component probabilities for all individuals
@@ -1026,9 +1029,11 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+#' model <- evinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 5)
 #' revinb_fit(model)
+#' }
 #'
 revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   i <- j <- 'iter_temp'

@@ -7,8 +7,8 @@
 #' @param max.diff.par Tolerance for EM algorithm. Will be considered to have converged if the maximum absolute difference in the parameter estimates are lower than this value
 #' @param max.no.em.steps Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached
 #' @param max.no.em.steps.warmup Number of EM steps in the warmup rounds
-#' @param c.lim Integer range defining the possible values of C
-#' @param prune.c.range The pruning fraction for the C range. Useful if there are many unique values in c.lim and the model is slow to fit. If FALSE, no pruning is done. If numeric [0-1], the C range is pruned to approximately length(c.lim)*prune.c.range
+#' @param c.lim Numeric vector of length 2. The candidate set for C is the unique observed values of the response that fall within this range
+#' @param prune.c.range Pruning fraction for the candidate set of C. Useful when the candidate set has many unique values and the model is slow to fit. If FALSE, no pruning is done. If numeric in [0, 1], the candidate set is thinned to approximately length(c.lim) * (1 - prune.c.range) values
 #' @param max.upd.par.pl.multinomial Maximum parameter change step size in the extreme value inflation component
 #' @param max.upd.par.nb Maximum parameter change step size in the count component
 #' @param max.upd.par.pl Maximum parameter change step size in the pareto component
@@ -23,7 +23,7 @@
 #' @param init.Alpha.NB Initial value of Alpha NB, integer or NULL (giving a starting value of 0)
 #' @param init.C Initial value of C. Integer which should be within the C_lim range.
 #'
-#' @return An object of class 'evinf' containing XX
+#' @return An object of class 'evinb'
 #' @noRd
 run_evinb <- function(
   formula_nb,
@@ -354,8 +354,8 @@ bootrun_evinb <- function(
 #' @param max.diff.par Tolerance for EM algorithm. Will be considered to have converged if the maximum absolute difference in the parameter estimates are lower than this value
 #' @param max.no.em.steps Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached
 #' @param max.no.em.steps.warmup Number of EM steps in the warmup rounds
-#' @param c.lim Integer range defining the possible values of C
-#' @param prune.c.range The pruning fraction for the C range. Useful if there are many unique values in c.lim and the model is slow to fit. If FALSE, no pruning is done. If numeric [0-1], the C range is pruned to approximately length(c.lim)*(1-prune.c.range)
+#' @param c.lim Numeric vector of length 2. The candidate set for C is the unique observed values of the response that fall within this range
+#' @param prune.c.range Pruning fraction for the candidate set of C. Useful when the candidate set has many unique values and the model is slow to fit. If FALSE, no pruning is done. If numeric in [0, 1], the candidate set is thinned to approximately length(c.lim) * (1 - prune.c.range) values
 #' @param max.upd.par.pl.multinomial Maximum parameter change step size in the extreme value inflation component
 #' @param max.upd.par.nb Maximum parameter change step size in the count component
 #' @param max.upd.par.pl Maximum parameter change step size in the pareto component
@@ -378,9 +378,10 @@ bootrun_evinb <- function(
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
-#'
+#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+#' }
 evinb <- function(
   formula_nb,
   formula_evi = NULL,
