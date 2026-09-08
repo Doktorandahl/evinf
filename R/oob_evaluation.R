@@ -19,11 +19,11 @@ oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
   
   if(is.character(metric)){
     metric <- match.arg(metric, c('rmsle','rmse','mse','mae'))
-    if(metric=='rmsle'){
-      ev_metric <- MLmetrics::RMSLE
-    }else{
-  ev_metric <- getFromNamespace(toupper(metric),"MLmetrics")
-    }
+    ev_metric <- switch(metric,
+                        rmsle = rmsle_metric,
+                        rmse = rmse_metric,
+                        mse = mse_metric,
+                        mae = mae_metric)
   }else{
     ev_metric <- metric
   }
@@ -59,6 +59,13 @@ err2na <- function(x){
     return(x)
   }
 }
+
+# Base-R replacements for the handful of MLmetrics one-liners the package used.
+# Signature matches MLmetrics: function(y_pred, y_true).
+rmsle_metric <- function(y_pred, y_true) sqrt(mean((log1p(y_pred) - log1p(y_true))^2))
+rmse_metric <- function(y_pred, y_true) sqrt(mean((y_pred - y_true)^2))
+mse_metric <- function(y_pred, y_true) mean((y_pred - y_true)^2)
+mae_metric <- function(y_pred, y_true) mean(abs(y_pred - y_true))
 
 
   

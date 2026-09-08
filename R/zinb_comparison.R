@@ -373,7 +373,7 @@ count_from_znb <- function(znb,
 
 znb_formula_extractor <- function(formula){
   tmp <- as.character(formula)[3]
-  strs <- stringr::str_split(tmp, ' \\| ') %>% purrr::reduce(c)
+  strs <- trimws(strsplit(tmp, '|', fixed = TRUE)[[1]])
 
   if(identical(strs[1],strs[2]) | length(strs) == 1){
     return(as.formula(paste0('~',strs[1])))

@@ -6,3 +6,8 @@
 ^pkgdown$
 ^cran-comments\.md$
 ^CRAN-SUBMISSION$
+^\.RData$
+^\.Rhistory$
+^dev$
+^data-raw$
+^vignettes$
