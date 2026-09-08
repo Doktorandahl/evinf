@@ -42,3 +42,6 @@ vignettes/*.pdf
 #
 *DS_Store
 docs
+
+# Local working notes (not part of the package)
+/dev/
