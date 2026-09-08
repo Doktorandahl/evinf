@@ -75,12 +75,9 @@ predict.evzinb <- function(
     )
   )
 
-  if (multicore) {
-    if (is.null(ncores)) {
-      ncores <- parallel::detectCores() - 1
-    }
-    doParallel::registerDoParallel(cores = ncores)
-  }
+  be <- evinf_setup_backend(multicore, ncores)
+  on.exit(be$stop(), add = TRUE)
+  `%dopar%` <- be$operator
 
   if (type %in% c('states', 'all') & confint) {
     stop('Confidence interval prediction only available for vector outputs')
@@ -563,12 +560,9 @@ predict.evinb <- function(
     stop('Confidence interval prediction only available for vector outputs')
   }
 
-  if (multicore) {
-    if (is.null(ncores)) {
-      ncores <- parallel::detectCores() - 1
-    }
-    doParallel::registerDoParallel(cores = ncores)
-  }
+  be <- evinf_setup_backend(multicore, ncores)
+  on.exit(be$stop(), add = TRUE)
+  `%dopar%` <- be$operator
 
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
     object$bootstraps <- object$bootstraps %>%

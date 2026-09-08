@@ -58,11 +58,9 @@ quantiles_from_evzinb <- function(
       purrr::reduce(c) %>%
       round()
   } else {
-    if (is.null(ncores)) {
-      doParallel::registerDoParallel(cores = parallel::detectCores() - 1)
-    } else {
-      doParallel::registerDoParallel(cores = ncores)
-    }
+    be <- evinf_setup_backend(multicore = TRUE, ncores = ncores)
+    on.exit(be$stop(), add = TRUE)
+    `%dopar%` <- be$operator
     q <- foreach::foreach(
       i = 1:length(individual_dists),
       .final = unlist
@@ -129,11 +127,9 @@ quantiles_from_evinb <- function(
       purrr::reduce(c) %>%
       round()
   } else {
-    if (is.null(ncores)) {
-      doParallel::registerDoParallel(cores = parallel::detectCores() - 1)
-    } else {
-      doParallel::registerDoParallel(cores = ncores)
-    }
+    be <- evinf_setup_backend(multicore = TRUE, ncores = ncores)
+    on.exit(be$stop(), add = TRUE)
+    `%dopar%` <- be$operator
     q <- foreach::foreach(
       i = 1:length(individual_dists),
       .final = unlist
@@ -162,14 +158,12 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
     x.multinom.zc <- object$data$x.multinom.zc
     x.multinom.pl <- object$data$x.multinom.pl
   } else {
-    x.multinom.zc <- as.matrix(model.frame(
-      object$formulas$formula_zi[-2],
-      newdata
-    ))
-    x.multinom.pl <- as.matrix(model.frame(
-      object$formulas$formula_evi[-2],
-      newdata
-    ))
+    x.multinom.zc <- evinf_design_newdata(
+      object$terms$zi, object$xlevels$zi, newdata
+    )
+    x.multinom.pl <- evinf_design_newdata(
+      object$terms$evi, object$xlevels$evi, newdata
+    )
   }
 
   pr_zc <- exp(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC) /
@@ -184,12 +178,10 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
 
   pr_count <- 1 - pr_zc - pr_pareto
 
-  if (min(pr_count) < 0) {
-    if (min(pr_count < -1e20)) {
-      stop('Error in prediction, negative probabilities produced')
-    } else {
-      pr_count[which(pr_count < 0)] <- 0
-    }
+  if (min(pr_count) < -1e-8) {
+    stop('Error in prediction, negative probabilities produced')
+  } else {
+    pr_count[pr_count < 0] <- 0
   }
   out <- tibble::tibble(
     pr_zc = as.numeric(pr_zc),
@@ -221,10 +213,9 @@ prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.multinom.pl <- object$data$x.multinom.pl
   } else {
-    x.multinom.pl <- as.matrix(model.frame(
-      object$formulas$formula_evi[-2],
-      newdata
-    ))
+    x.multinom.pl <- evinf_design_newdata(
+      object$terms$evi, object$xlevels$evi, newdata
+    )
   }
 
   # pr_zc <- exp(cbind(1,x.multinom.zc)%*%object$coef$Beta.multinom.ZC)/
@@ -266,7 +257,7 @@ counts_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.nb <- object$data$x.nb
   } else {
-    x.nb <- as.matrix(model.frame(object$formulas$formula_nb[-2], newdata))
+    x.nb <- evinf_design_newdata(object$terms$nb, object$xlevels$nb, newdata)
   }
 
   count <- exp(cbind(1, x.nb) %*% object$coef$Beta.NB)
@@ -300,7 +291,9 @@ fitted_alpha_from_evzinb <- function(
   if (is.null(newdata)) {
     x.pl <- object$data$x.pl
   } else {
-    x.pl <- as.matrix(model.frame(object$formulas$formula_pareto[-2], newdata))
+    x.pl <- evinf_design_newdata(
+      object$terms$pareto, object$xlevels$pareto, newdata
+    )
   }
 
   alpha <- exp(cbind(1, x.pl) %*% object$coef$Beta.PL)
