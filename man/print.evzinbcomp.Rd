@@ -2,24 +2,25 @@
 % Please edit documentation in R/print_evzinb.R
 \name{print.evzinbcomp}
 \alias{print.evzinbcomp}
-\title{Compare_models print function}
+\title{Print method for compare_models() output}
 \usage{
 \method{print}{evzinbcomp}(x, ...)
 }
 \arguments{
-\item{x}{A fitted evinb model}
+\item{x}{An \code{evzinbcomp} object returned by \code{\link{compare_models}}.}
 
 \item{...}{Not used}
 }
 \value{
-An evinb print function
+\code{x}, invisibly.
 }
 \description{
-Compare_models print function
+Print method for compare_models() output
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
-print(model)
-
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+print(compare_models(model))
+}
 }

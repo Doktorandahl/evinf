@@ -6,7 +6,7 @@
 \usage{
 \method{tidy}{evinb}(
   x,
-  component = c("evi", "count", "pareto", "all"),
+  component = c("all", "count", "evi", "pareto"),
   coef_type = c("original", "bootstrap_mean", "bootstrap_median"),
   standard_error = TRUE,
   p_value = c("bootstrapped", "approx", "none"),
@@ -20,33 +20,43 @@
 \arguments{
 \item{x}{An evinb object}
 
-\item{component}{Which component should be shown?}
+\item{component}{Which component should be shown? One of \code{"count"},
+\code{"evi"}, \code{"pareto"} or \code{"all"} (the default).}
 
-\item{coef_type}{Type of coefficients. Original are the coefficient estimates from the non-bootstrapped version of the model. 'bootstrapped_mean' are the mean coefficients across bootstraps, and 'bootstrapped_median' are the median coefficients across bootstraps}
+\item{coef_type}{Type of coefficients. Original are the coefficient estimates from the non-bootstrapped version of the model. 'bootstrap_mean' are the mean coefficients across bootstraps, and 'bootstrap_median' are the median coefficients across bootstraps}
 
-\item{standard_error}{Should standard errors be computed?}
+\item{standard_error}{Should bootstrapped standard errors be computed?}
 
 \item{p_value}{What type of p_values should be computed? 'bootstrapped' are bootstrapped p_values through confidence interval inversion. 'approx' are p-values based on the t-value produced by dividing the coefficient with the standard error.}
 
-\item{confint}{What type of confidence should be computed. Same options as p_value}
+\item{confint}{What type of confidence interval should be computed: \code{"none"},
+\code{"bootstrapped"} (percentile interval from the bootstrap distribution) or
+\code{"approx"} (\code{estimate +/- qt() * std.error}).}
 
-\item{conf_level}{What confidence level should be used for the confidence interval}
+\item{conf_level}{Confidence level for the confidence interval}
 
 \item{approx_t_value}{Should approximate t-values be returned}
 
 \item{symmetric_bootstrap_p}{Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.}
 
-\item{...}{Other arguments passsed to tidy function}
+\item{...}{Other arguments passed to the tidy function}
 }
 \value{
-An EVINB tidy function
+A tibble with one row per coefficient
 }
 \description{
 EVINB tidy function
 }
+\details{
+When \code{x} was fitted with \code{bootstrap = FALSE}, standard
+  errors, p-values, t-values and confidence intervals are unavailable; the
+  estimate column is returned on its own and a message is emitted. Requesting
+  bootstrapped coefficients for such a model is an error.
+}
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 tidy(model)
-
+}
 }

@@ -12,16 +12,20 @@
 \item{...}{Further arguments to be passed to glance()}
 }
 \value{
-An EVZINB glance function
+A one-row tibble of goodness-of-fit statistics: number of observations
+  and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+  algorithm converged, and the number of (failed) bootstraps (\code{NA} when
+  the model was fitted without bootstrapping).
 }
 \description{
 EVZINB and EVINB glance functions
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 glance(model)
-
+}
 }
 \seealso{
 \code{\link[generics]{glance}}

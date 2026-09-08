@@ -15,7 +15,7 @@ lr_test(
 )
 }
 \arguments{
-\item{object}{EVZINB or EVZINB object to perform likelihood ratio test on}
+\item{object}{EVZINB or EVINB object to perform likelihood ratio test on}
 
 \item{vars}{Either a list of character vectors with variable names which to be restricted in the LR test or a character vector of variable names. If a list, each character vector of the list will be run separately, allowing for multiple variables to be restricted as once. If a character vector, parameter 'single' can be used to determine whether all variables in the vector should be restricted at once (single = FALSE) or if the variables should be restricted one by one (single = TRUE)}
 
@@ -30,14 +30,23 @@ lr_test(
 \item{verbose}{Logical. Should the function be verbose?}
 }
 \value{
-A tibble with one row per performed LR test
+A tibble with one row per performed LR test, or, when \code{bootstrap = TRUE},
+  a list with the summary tibble (\code{results}) and the per-bootstrap statistics
+  (\code{boot_results}).
 }
 \description{
 Likelihood ratio test for individual variables of evzinb
 }
+\details{
+The likelihood ratio statistic is \eqn{2(\ell_{full} - \ell_{restricted})}
+  and is compared to a chi-square distribution with degrees of freedom equal to
+  the number of design-matrix columns removed across all model components (so a
+  restricted four-level factor contributes three degrees of freedom).
+}
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
- lr_test(model,'x1')
- 
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+lr_test(model,'x1')
+}
 }

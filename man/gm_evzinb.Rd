@@ -6,7 +6,7 @@
 \title{A goodness-of-fit gof tibble for GOF metrics when using modelsummary}
 \format{
 ## `gm_evzinb`
-A tibble with 7 rows and 3 columns:
+A tibble with 10 rows and 3 columns:
 \describe{
   \item{raw}{The modelsummary/broom internal name for the statistic}
   \item{clean}{The table output for the statistic}
@@ -17,5 +17,8 @@ gm_evzinb
 }
 \description{
 A goodness-of-fit gof tibble for GOF metrics when using modelsummary. The GM tibble can be used to obtain correct table output when making regression tables with modelsummary
+}
+\seealso{
+The script that regenerates this object lives in `data-raw/gm_evzinb.R`.
 }
 \keyword{datasets}

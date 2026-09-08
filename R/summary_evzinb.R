@@ -35,7 +35,7 @@ summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bo
 
   parts <- evinf_summary_components(
     object,
-    components = c('negative_binomial', 'zero_inflation', 'extreme_value_inflation', 'pareto'),
+    components = c('count', 'zero', 'evi', 'pareto'),
     coef = coef, standard_error = standard_error, p_value = p_value,
     bootstrapped_props = bootstrapped_props, approx_t_value = approx_t_value,
     symmetric_bootstrap_p = symmetric_bootstrap_p
@@ -82,7 +82,7 @@ summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'boo
 
   parts <- evinf_summary_components(
     object,
-    components = c('negative_binomial', 'extreme_value_inflation', 'pareto'),
+    components = c('count', 'evi', 'pareto'),
     coef = coef, standard_error = standard_error, p_value = p_value,
     bootstrapped_props = bootstrapped_props, approx_t_value = approx_t_value,
     symmetric_bootstrap_p = symmetric_bootstrap_p
@@ -101,7 +101,7 @@ summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'boo
 evinf_summary_components <- function(object, components, coef, standard_error, p_value,
                                      bootstrapped_props, approx_t_value, symmetric_bootstrap_p) {
 
-  has_zi <- 'zero_inflation' %in% components
+  has_zi <- 'zero' %in% components
   has_boot <- !is.null(object$bootstraps)
   n_failed_bootstraps <- NA_integer_
 
@@ -126,7 +126,7 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
   nobs <- nrow(object$data$x.nb)
   npar <- length(object$par.all)
 
-  prop_names <- if (has_zi) c('zero', 'negative_binomial', 'pareto') else c('negative_binomial', 'pareto')
+  prop_names <- if (has_zi) c('zero', 'count', 'evi') else c('count', 'evi')
   props <- object$props %>%
     dplyr::as_tibble(.name_repair = ~prop_names) %>%
     tidyr::pivot_longer(dplyr::everything(), names_to = 'state') %>%
@@ -152,11 +152,11 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
         dplyr::bind_rows() %>%
         tidyr::pivot_longer(dplyr::everything(), names_to = 'Variable')
     }
-    boot_tabs$negative_binomial <- boot_long('Beta.NB')
-    boot_tabs$extreme_value_inflation <- boot_long('Beta.multinom.PL')
+    boot_tabs$count <- boot_long('Beta.NB')
+    boot_tabs$evi <- boot_long('Beta.multinom.PL')
     boot_tabs$pareto <- boot_long('Beta.PL')
     if (has_zi) {
-      boot_tabs$zero_inflation <- boot_long('Beta.multinom.ZC')
+      boot_tabs$zero <- boot_long('Beta.multinom.ZC')
     }
 
     props_boot <- object$bootstraps %>%
@@ -217,16 +217,16 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
   }
 
   specs <- list(
-    negative_binomial = list(slot = 'negative_binomial',
-                             names = names(object$coef$Beta.NB), est = object$coef$Beta.NB),
-    extreme_value_inflation = list(slot = 'extreme_value_inflation',
-                                   names = names(object$coef$Beta.multinom.PL), est = object$coef$Beta.multinom.PL),
+    count = list(slot = 'count',
+                 names = names(object$coef$Beta.NB), est = object$coef$Beta.NB),
+    evi = list(slot = 'evi',
+               names = names(object$coef$Beta.multinom.PL), est = object$coef$Beta.multinom.PL),
     pareto = list(slot = 'pareto',
                   names = names(object$coef$Beta.PL), est = object$coef$Beta.PL)
   )
   if (has_zi) {
-    specs$zero_inflation <- list(slot = 'zero_inflation',
-                                 names = names(object$coef$Beta.multinom.ZC), est = object$coef$Beta.multinom.ZC)
+    specs$zero <- list(slot = 'zero',
+                       names = names(object$coef$Beta.multinom.ZC), est = object$coef$Beta.multinom.ZC)
   }
 
   coefficients <- stats::setNames(lapply(components, function(cn) build_component(specs[[cn]])), components)
@@ -234,7 +234,9 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
   list(
     coefficients = coefficients,
     model_statistics = list(Alpha_nb = alpha_nb, C = C_est,
-                            Obs = c(Obs = nobs, pars = npar, df = nobs - npar)),
+                            Obs = c(Obs = nobs, pars = npar, df = nobs - npar),
+                            fit = c(logLik = object$log.lik, AIC = object$AIC, BIC = object$BIC),
+                            converged = isTRUE(object$converge)),
     component_proportions = props,
     n_failed_bootstraps = n_failed_bootstraps
   )

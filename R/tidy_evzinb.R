@@ -29,7 +29,7 @@
 #' tidy(model)
 #' }
 tidy.evzinb <- function(x,
-                        component = c('all', 'zi', 'evi', 'count', 'pareto'),
+                        component = c('all', 'count', 'zero', 'evi', 'pareto'),
                         coef_type = c('original', 'bootstrap_mean', 'bootstrap_median'),
                         standard_error = TRUE,
                         p_value = c('bootstrapped', 'approx', 'none'),
@@ -41,12 +41,12 @@ tidy.evzinb <- function(x,
   coef_type <- match.arg(coef_type, c('original', 'bootstrap_mean', 'bootstrap_median'))
   p_value <- match.arg(p_value, c('bootstrapped', 'approx', 'none'))
   confint <- match.arg(confint, c('none', 'bootstrapped', 'approx'))
-  component <- match.arg(component, c('all', 'zi', 'evi', 'count', 'pareto'))
+  component <- normalize_component(component, c('all', 'count', 'zero', 'evi', 'pareto'))
 
   evinf_tidy_engine(
     x,
     component = component,
-    y_levels = c('zi', 'evi', 'count', 'pareto'),
+    y_levels = c('zero', 'evi', 'count', 'pareto'),
     coef_type = coef_type, standard_error = standard_error, p_value = p_value,
     confint = confint, conf_level = conf_level, approx_t_value = approx_t_value,
     symmetric_bootstrap_p = symmetric_bootstrap_p
@@ -81,7 +81,7 @@ tidy.evzinb <- function(x,
 #' tidy(model)
 #' }
 tidy.evinb <- function(x,
-                       component = c('all', 'evi', 'count', 'pareto'),
+                       component = c('all', 'count', 'evi', 'pareto'),
                        coef_type = c('original', 'bootstrap_mean', 'bootstrap_median'),
                        standard_error = TRUE,
                        p_value = c('bootstrapped', 'approx', 'none'),
@@ -93,7 +93,7 @@ tidy.evinb <- function(x,
   coef_type <- match.arg(coef_type, c('original', 'bootstrap_mean', 'bootstrap_median'))
   p_value <- match.arg(p_value, c('bootstrapped', 'approx', 'none'))
   confint <- match.arg(confint, c('none', 'bootstrapped', 'approx'))
-  component <- match.arg(component, c('all', 'evi', 'count', 'pareto'))
+  component <- normalize_component(component, c('all', 'count', 'evi', 'pareto'))
 
   evinf_tidy_engine(
     x,
@@ -111,7 +111,7 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
                               p_value, confint, conf_level, approx_t_value,
                               symmetric_bootstrap_p) {
 
-  has_zi <- 'zi' %in% y_levels
+  has_zi <- 'zero' %in% y_levels
   has_boot <- !is.null(x$bootstraps)
 
   if (!has_boot) {
@@ -150,7 +150,7 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
     boot_tabs$evi <- boot_long('Beta.multinom.PL')
     boot_tabs$pareto <- boot_long('Beta.PL')
     if (has_zi) {
-      boot_tabs$zi <- boot_long('Beta.multinom.ZC')
+      boot_tabs$zero <- boot_long('Beta.multinom.ZC')
     }
   }
 
@@ -160,7 +160,7 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
     pareto = list(names = names(x$coef$Beta.PL), est = x$coef$Beta.PL)
   )
   if (has_zi) {
-    specs$zi <- list(names = names(x$coef$Beta.multinom.ZC), est = x$coef$Beta.multinom.ZC)
+    specs$zero <- list(names = names(x$coef$Beta.multinom.ZC), est = x$coef$Beta.multinom.ZC)
   }
 
   build_component <- function(cn) {

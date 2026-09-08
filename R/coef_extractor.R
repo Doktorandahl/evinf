@@ -4,173 +4,120 @@
 #' Bootstrap coefficient extractor
 #'
 #' @param object a fitted model with bootstraps of class evzinb, evinb, nbboot, or zinbboot
-#' @param ... Component to be extracted (not for nbboot). Alternatives are 'nb','zi','evinf','pareto', and 'all'
+#' @param ... Arguments passed to methods, in particular \code{component}
+#'   (not for nbboot): one of \code{"count"}, \code{"zero"}, \code{"evi"},
+#'   \code{"pareto"} or \code{"all"}. The pre-0.9.4 names \code{"nb"}, \code{"zi"}
+#'   and \code{"evinf"} are still accepted with a deprecation warning.
 #'
 #' @return A tibble with coefficient values, one row per bootstrap and component
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' coefficient_extractor(model, component = 'all')
-#' 
+#' }
 coefficient_extractor <- function(object,...){
   UseMethod('coefficient_extractor')
 }
 
 
-#' Bootstrap coefficient extractor
-#'
-#' @param object A fitted evzinb model with bootstraps
+#' @rdname coefficient_extractor
 #' @param component Which component should be extracted
-#' @param ... Not in use
-#'
-#' @return A tibble with coefficient values, one row per bootstrap and component
 #' @export
-#'
-#' @examples 
-#' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
-#' coefficient_extractor(model, component = 'all')
-#' 
-coefficient_extractor.evzinb <- function(object,component = c('nb','zi','evinf','pareto','all'),...){
+coefficient_extractor.evzinb <- function(object, component = c('all','count','zero','evi','pareto'), ...){
 
-  component <- match.arg(component,c('nb','zi','evinf','pareto','all'))
-  
+  component <- normalize_component(component, c('all','count','zero','evi','pareto'))
+
   object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
-  
-  nb_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.NB') %>% dplyr::bind_rows()
-  
-  zi_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.multinom.ZC') %>% dplyr::bind_rows()
-    
-  
-  evi_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.multinom.PL') %>% dplyr::bind_rows() 
-  
-  pareto_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.PL') %>% dplyr::bind_rows() 
 
-if(component == 'nb'){
-  return(nb_boot)
-}else if(component == 'zi'){
-  return(zi_boot)
-}else if(component == 'evinf'){
-  return(evi_boot)
-}else if(component == 'pareto'){
-  return(pareto_boot)
-}else{
-  out <- dplyr::bind_rows(nb_boot %>% dplyr::mutate(.component = 'nb'),
-                   zi_boot %>% dplyr::mutate(.component = 'zi'),
-                   evi_boot %>% dplyr::mutate(.component = 'evinf'),
-                   pareto_boot %>% dplyr::mutate(.component = 'pareto'))
-  return(out)
-}
-  
-  
+  count_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.NB') %>% dplyr::bind_rows()
+  zero_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.multinom.ZC') %>% dplyr::bind_rows()
+  evi_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.multinom.PL') %>% dplyr::bind_rows()
+  pareto_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.PL') %>% dplyr::bind_rows()
+
+  if(component == 'count'){
+    return(count_boot)
+  }else if(component == 'zero'){
+    return(zero_boot)
+  }else if(component == 'evi'){
+    return(evi_boot)
+  }else if(component == 'pareto'){
+    return(pareto_boot)
+  }else{
+    dplyr::bind_rows(count_boot %>% dplyr::mutate(.component = 'count'),
+                     zero_boot %>% dplyr::mutate(.component = 'zero'),
+                     evi_boot %>% dplyr::mutate(.component = 'evi'),
+                     pareto_boot %>% dplyr::mutate(.component = 'pareto'))
   }
-  
-#' Bootstrap coefficient extractor
-#'
-#' @param object A fitted evinb model with bootstraps
-#' @param component Which component should be extracted
-#' @param ... Not in use
-#'
-#' @return A tibble with coefficient values, one row per bootstrap and component
+}
+
+#' @rdname coefficient_extractor
 #' @export
-#'
-#' @examples 
-#' data(genevzinb2)
-#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
-#' coefficient_extractor(model, component = 'all')
-#' 
-coefficient_extractor.evinb <- function(object,component = c('nb','evinf','pareto','all'),...){
-  
-  component <- match.arg(component,c('nb','evinf','pareto','all'))
-  
+coefficient_extractor.evinb <- function(object, component = c('all','count','evi','pareto'), ...){
+
+  component <- normalize_component(component, c('all','count','evi','pareto'))
+
   object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
-  
-  nb_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.NB') %>% dplyr::bind_rows()
-  evi_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.multinom.PL') %>% dplyr::bind_rows() 
-  
-  pareto_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.PL') %>% dplyr::bind_rows() 
 
-if(component == 'nb'){
-  return(nb_boot)
-}else if(component == 'evinf'){
-  return(evi_boot)
-}else if(component == 'pareto'){
-  return(pareto_boot)
-}else{
-  out <- dplyr::bind_rows(nb_boot %>% dplyr::mutate(.component = 'nb'),
-                   evi_boot %>% dplyr::mutate(.component = 'evinf'),
-                   pareto_boot %>% dplyr::mutate(.component = 'pareto'))
-  return(out)
+  count_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.NB') %>% dplyr::bind_rows()
+  evi_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.multinom.PL') %>% dplyr::bind_rows()
+  pareto_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Beta.PL') %>% dplyr::bind_rows()
+
+  if(component == 'count'){
+    return(count_boot)
+  }else if(component == 'evi'){
+    return(evi_boot)
+  }else if(component == 'pareto'){
+    return(pareto_boot)
+  }else{
+    dplyr::bind_rows(count_boot %>% dplyr::mutate(.component = 'count'),
+                     evi_boot %>% dplyr::mutate(.component = 'evi'),
+                     pareto_boot %>% dplyr::mutate(.component = 'pareto'))
+  }
 }
 
-
-}
-
-#' Bootstrap coefficient extractor
-#'
-#' @param object A fitted evinb model with bootstraps
-#' @param component Which component should be extracted
-#' @param ... Not in use
-#'
-#' @return A tibble with coefficient values, one row per bootstrap and component
+#' @rdname coefficient_extractor
 #' @export
-#'
-#' @examples 
+#' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps=10)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' zinb_comp <- compare_models(model)
 #' coefficient_extractor(zinb_comp$zinb)
-#' 
-coefficient_extractor.zinbboot <- function(object,component = c('nb','zi','all'),...){
-  
-  component <- match.arg(component,c('nb','zi','all'))
-  
+#' }
+coefficient_extractor.zinbboot <- function(object, component = c('all','count','zero'), ...){
+
+  component <- normalize_component(component, c('all','count','zero'))
+
   object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
-  
-  
-  nb_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('count') %>% dplyr::bind_rows() 
-  
-  zi_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows() 
-  
-  
-  
-  if(component == 'nb'){
-    return(nb_boot)
-  }else if(component == 'zi'){
-    return(zi_boot)
+
+  count_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('count') %>% dplyr::bind_rows()
+  zero_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows()
+
+  if(component == 'count'){
+    return(count_boot)
+  }else if(component == 'zero'){
+    return(zero_boot)
   }else{
-    out <- dplyr::bind_rows(nb_boot %>% dplyr::mutate(.component = 'nb'),
-                     zi_boot %>% dplyr::mutate(.component = 'zi'))
-    return(out)
+    dplyr::bind_rows(count_boot %>% dplyr::mutate(.component = 'count'),
+                     zero_boot %>% dplyr::mutate(.component = 'zero'))
   }
-  
-  
 }
 
-#' Bootstrap coefficient extractor
-#'
-#' @param object A fitted nbboot model with bootstraps
-#' @param ... Not in use
-#'
-#' @return A tibble with coefficient value, one row per bootstrap
+#' @rdname coefficient_extractor
 #' @export
-#'
-#' @examples 
+#' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' zinb_comp <- compare_models(model)
 #' coefficient_extractor(zinb_comp$nb)
-#' 
-coefficient_extractor.nbboot <- function(object,...){
+#' }
+coefficient_extractor.nbboot <- function(object, ...){
 
   object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
-  
-  nb_boot <- object$bootstraps %>% purrr::map('coefficients') %>% dplyr::bind_rows() 
-  
-    return(nb_boot)
-  
-  
-  
+
+  object$bootstraps %>% purrr::map('coefficients') %>% dplyr::bind_rows()
 }

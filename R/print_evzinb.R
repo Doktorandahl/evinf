@@ -1,60 +1,68 @@
-
-
-
-
 #' EVZINB print function
 #'
 #' @param x A fitted evzinb model
 #' @param ... Not used
-#' @return An evzinb print function
+#' @return \code{x}, invisibly.
 #' @export
 #'
-#' @examples 
+#' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' print(model)
-#' 
-print.evzinb <- function(x,...){
-  cat('\n','Fitted EVZINB model with formulas:',
-      '\n NB:', paste(x$formulas$formula_nb)[2],paste(x$formulas$formula_nb)[1],
-      paste(x$formulas$formula_nb)[3],
-      '\n ZI:', paste(x$formulas$formula_zi)[2],paste(x$formulas$formula_zi)[1],
-      paste(x$formulas$formula_nb)[3],
-      '\n EVI:', paste(x$formulas$formula_evi)[2],paste(x$formulas$formula_evi)[1],
-      paste(x$formulas$formula_evi)[3],
-      '\n Pareto:', paste(x$formulas$formula_pareto)[2],paste(x$formulas$formula_pareto)[1],paste(x$formulas$formula_pareto)[3],
+#' }
+print.evzinb <- function(x, ...) {
+  fmt_formula <- function(f) paste(deparse(f), collapse = " ")
+  n_boot <- evinf_boot_counts(x)
+
+  cat('\n', 'Fitted EVZINB model with formulas:',
+      '\n NB:    ', fmt_formula(x$formulas$formula_nb),
+      '\n ZI:    ', fmt_formula(x$formulas$formula_zi),
+      '\n EVI:   ', fmt_formula(x$formulas$formula_evi),
+      '\n Pareto:', fmt_formula(x$formulas$formula_pareto),
       '\n ______',
-      '\n Converged:', x$converge,
-      '\n Number of bootstraps: ', length(x$bootstraps),
-      '\n Number of failed bootstraps: ', length(x$bootstraps) - x$bootstraps %>% purrr::discard(~'try-error' %in% class(.x)) %>% length(),
-      '\n Parameters: ', length(x$par.all))
+      '\n Converged:                     ', isTRUE(x$converge),
+      '\n C_EV:                          ', x$coef$C,
+      '\n Observations at or above C_EV: ', sum(x$data$y >= x$coef$C),
+      '\n Parameters:                    ', length(x$par.all),
+      '\n Bootstraps (failed):           ',
+      if (is.na(n_boot$n_bootstraps)) 'none' else
+        paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ')'),
+      '\n', sep = ' ')
+  invisible(x)
 }
 
 #' EVINB print function
 #'
 #' @param x A fitted evinb model
 #' @param ... Not used
-#' @return An evinb print function
+#' @return \code{x}, invisibly.
 #' @export
 #'
-#' @examples 
-#'
+#' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' print(model)
-#' 
-print.evinb <- function(x,...){
-  cat('\n','Fitted EVZINB model with formulas:',
-      '\n NB:', paste(x$formulas$formula_nb)[2],paste(x$formulas$formula_nb)[1],
-      paste(x$formulas$formula_nb)[3],
-      '\n EVI:', paste(x$formulas$formula_evi)[2],paste(x$formulas$formula_evi)[1],
-      paste(x$formulas$formula_evi)[3],
-      '\n Pareto:', paste(x$formulas$formula_pareto)[2],paste(x$formulas$formula_pareto)[1],paste(x$formulas$formula_pareto)[3],
+#' }
+print.evinb <- function(x, ...) {
+  fmt_formula <- function(f) paste(deparse(f), collapse = " ")
+  n_boot <- evinf_boot_counts(x)
+
+  cat('\n', 'Fitted EVINB model with formulas:',
+      '\n NB:    ', fmt_formula(x$formulas$formula_nb),
+      '\n EVI:   ', fmt_formula(x$formulas$formula_evi),
+      '\n Pareto:', fmt_formula(x$formulas$formula_pareto),
       '\n ______',
-      '\n Converged:', x$converge,
-      '\n Number of bootstraps: ', length(x$bootstraps),
-      '\n Number of failed bootstraps: ', length(x$bootstraps) - x$bootstraps %>% purrr::discard(~'try-error' %in% class(.x)) %>% length(),
-      '\n Parameters: ', length(x$par.all))
+      '\n Converged:                     ', isTRUE(x$converge),
+      '\n C_EV:                          ', x$coef$C,
+      '\n Observations at or above C_EV: ', sum(x$data$y >= x$coef$C),
+      '\n Parameters:                    ', length(x$par.all),
+      '\n Bootstraps (failed):           ',
+      if (is.na(n_boot$n_bootstraps)) 'none' else
+        paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ')'),
+      '\n', sep = ' ')
+  invisible(x)
 }
 
 #' Print method for compare_models() output
@@ -70,7 +78,7 @@ print.evinb <- function(x,...){
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' print(compare_models(model))
 #' }
-print.evzinbcomp <- function(x,...){
+print.evzinbcomp <- function(x, ...) {
   comp_slots <- setdiff(names(x), c('model', 'evzinb'))
   comp_class <- class(x$model)
 
@@ -78,5 +86,83 @@ print.evzinbcomp <- function(x,...){
       '\n ', 'Compared models: ', paste(comp_slots, collapse = ', '),
       '\n ', 'Number of compared models: ', length(comp_slots),
       '\n Number of bootstraps:', length(x$model$bootstraps), '\n')
+  invisible(x)
+}
+
+
+#' Print methods for evzinb / evinb summaries
+#'
+#' @param x A \code{summary.evzinb} or \code{summary.evinb} object.
+#' @param digits Number of significant digits for the coefficient tables.
+#' @param signif.stars Logical; show significance stars.
+#' @param ... Not used.
+#' @return \code{x}, invisibly.
+#' @name print.summary.evzinb
+#' @export
+print.summary.evzinb <- function(x, digits = max(3L, getOption("digits") - 3L),
+                                 signif.stars = getOption("show.signif.stars"), ...) {
+  evinf_print_summary(x, 'EVZINB', digits = digits, signif.stars = signif.stars)
+}
+
+#' @rdname print.summary.evzinb
+#' @export
+print.summary.evinb <- function(x, digits = max(3L, getOption("digits") - 3L),
+                                signif.stars = getOption("show.signif.stars"), ...) {
+  evinf_print_summary(x, 'EVINB', digits = digits, signif.stars = signif.stars)
+}
+
+# Shared formatter for print.summary.evzinb() / print.summary.evinb().
+evinf_print_summary <- function(x, model_type, digits, signif.stars) {
+
+  comp_labels <- c(count = 'Count component (negative binomial)',
+                   zero = 'Zero-inflation component',
+                   evi = 'Extreme-value inflation component',
+                   pareto = 'Pareto (extreme value) component')
+
+  cat(model_type, 'model summary\n')
+  cat(strrep('=', nchar(model_type) + 14), '\n', sep = '')
+
+  for (cn in names(x$coefficients)) {
+    tab <- x$coefficients[[cn]]
+    cat('\n', comp_labels[[cn]], '\n', sep = '')
+
+    m <- as.matrix(tab[, setdiff(names(tab), 'Variable'), drop = FALSE])
+    rownames(m) <- tab$Variable
+    colnames(m) <- vapply(colnames(m), function(nm) switch(nm,
+      Estimate = 'Estimate', se = 'Std. Error', approx_t = 'approx t',
+      bootstrap_p = 'Pr(boot)', approx_p = 'Pr(>|t|)', nm), character(1))
+
+    p_col <- which(colnames(m) %in% c('Pr(boot)', 'Pr(>|t|)'))
+    stats::printCoefmat(m, digits = digits,
+                        signif.stars = signif.stars && length(p_col) > 0,
+                        has.Pvalue = length(p_col) > 0,
+                        P.values = length(p_col) > 0,
+                        cs.ind = if (ncol(m) >= 2) 1:2 else 1,
+                        tst.ind = integer(0),
+                        na.print = '')
+  }
+
+  ms <- x$model_statistics
+  cat('\n', strrep('-', 40), '\n', sep = '')
+  cat('alpha_NB: ', signif(ms$Alpha_nb[['Alpha_NB']], digits),
+      '   C_EV: ', ms$C[['C']], '\n', sep = '')
+
+  props <- x$component_proportions
+  cat('Mean state proportions:  ',
+      paste(sprintf('%s = %.3f', props$state, props$mean_prop), collapse = '   '),
+      '\n', sep = '')
+
+  cat('Observations: ', ms$Obs[['Obs']],
+      '   Parameters: ', ms$Obs[['pars']],
+      '   df: ', ms$Obs[['df']], '\n', sep = '')
+  cat('logLik: ', signif(ms$fit[['logLik']], digits),
+      '   AIC: ', signif(ms$fit[['AIC']], digits),
+      '   BIC: ', signif(ms$fit[['BIC']], digits),
+      '   Converged: ', isTRUE(ms$converged), '\n', sep = '')
+
+  n_failed <- x$n_failed_bootstraps
+  cat('Bootstraps: ', if (is.na(n_failed)) 'none (bootstrap = FALSE)' else
+      paste0('failed = ', n_failed), '\n', sep = '')
+
   invisible(x)
 }

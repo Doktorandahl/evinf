@@ -6,7 +6,7 @@
 \alias{evinf-package}
 \title{evinf: Inference with Extreme Value Inflated Count Data}
 \description{
-Allows users to model and draw inferences from extreme value inflated count data, and to evaluate these models and compare to non extreme-value inflated counterparts. The package is built to be compatible with standard presentation tools such as 'broom', 'tidy', and 'modelsummary'.
+Allows users to model and draw inferences from extreme value inflated count data, and to evaluate these models and compare them to their non extreme-value inflated counterparts. The package is built to be compatible with standard model-presentation tools such as the 'broom', 'generics', and 'modelsummary' packages.
 }
 \seealso{
 Useful links:

@@ -177,7 +177,7 @@ run_evinb <- function(
   object$resp <- object$resp[, 2:3]
 
   object$props <- object$par.mat$Props[, 2:3]
-  colnames(object$props) <- colnames(object$resp) <- c('count', 'pareto')
+  colnames(object$props) <- colnames(object$resp) <- c('count', 'evi')
   object$par.mat$Props <- NULL
   object$coef <- object$par.mat
   object$par.mat <- NULL
@@ -206,8 +206,11 @@ run_evinb <- function(
   object$fitted$pl_mean <- object$mean.pl.vec
   object$mean.pl.vec <- NULL
   object$fitted$prob_count <- object$props[, 1]
-  object$fitted$prob_pareto <- object$props[, 2]
+  object$fitted$prob_evi <- object$props[, 2]
   object$fitted$posterior_count <- object$resp[, 1]
+  object$fitted$posterior_evi <- object$resp[, 2]
+  # Deprecated pre-0.9.4 names, kept as duplicates for one release (audit 2.7).
+  object$fitted$prob_pareto <- object$props[, 2]
   object$fitted$posterior_pareto <- object$resp[, 2]
 
   class(object) <- 'evinb'

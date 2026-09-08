@@ -21,7 +21,10 @@ compare_models(
 
 \item{nb_comparison}{Should comparison be made with a negative binomial model?}
 
-\item{zinb_comparison}{Should comparions be made with the zinb model?}
+\item{zinb_comparison}{Should comparisons be made with the zinb model? Not
+available for \code{evinb} objects (there is no zero-inflation component); it
+defaults to \code{FALSE} for those, with a message, and errors if set to
+\code{TRUE} explicitly.}
 
 \item{winsorize}{Should winsorizing be done in the comparisons?}
 
@@ -36,14 +39,19 @@ compare_models(
 \item{ncores}{Number of cores if multicore is used}
 }
 \value{
-A list with the original model as the first object and compared models as the following objects
+An object of class \code{evzinbcomp}: a list whose first element
+  \code{model} is the original evzinb/evinb model (also available as
+  \code{evzinb} for backwards compatibility), followed by the compared
+  \code{nb} / \code{zinb} models (and their winsorized/razorized variants when
+  requested).
 }
 \description{
 Function to compare evzinb or evinb models with zinb and nb models
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 compare_models(model)
-
+}
 }

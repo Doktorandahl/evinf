@@ -20,6 +20,7 @@ evzinb(
   max.no.em.steps = 500,
   max.no.em.steps.warmup = 5,
   c.lim = c(50, 1000),
+  prune.c.range = FALSE,
   max.upd.par.zc.multinomial = 0.5,
   max.upd.par.pl.multinomial = 0.5,
   max.upd.par.nb = 0.5,
@@ -68,6 +69,8 @@ evzinb(
 \item{max.no.em.steps.warmup}{Number of EM steps in the warmup rounds}
 
 \item{c.lim}{Integer range defining the possible values of C}
+
+\item{prune.c.range}{The pruning fraction for the C range. Useful if there are many unique values in c.lim and the model is slow to fit. If FALSE, no pruning is done. If numeric [0-1], the C range is pruned to approximately length(c.lim)*prune.c.range}
 
 \item{max.upd.par.zc.multinomial}{Maximum parameter change step size in the zero inflation component}
 

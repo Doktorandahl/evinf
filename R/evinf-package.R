@@ -35,8 +35,9 @@
 #' @importFrom stats runif
 #' @importFrom stats sd
 #' @importFrom stats terms.formula
+#' @importFrom stats printCoefmat
+#' @importFrom stats qt
 #' @importFrom utils capture.output
-#' @importFrom utils getFromNamespace
 #' @useDynLib evinf, .registration = TRUE
 ## usethis namespace: end
 NULL

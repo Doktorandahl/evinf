@@ -16,13 +16,13 @@
 )
 }
 \arguments{
-\item{object}{an EVINB object with bootstraps}
+\item{object}{an EVINB object}
 
 \item{coef}{Type of coefficients. Original are the coefficient estimates from the non-bootstrapped version of the model. 'bootstrapped_mean' are the mean coefficients across bootstraps, and 'bootstrapped_median' are the median coefficients across bootstraps}
 
 \item{standard_error}{Should standard errors be computed?}
 
-\item{p_value}{What type of p_values should be computed? 'bootstrapped' are bootstrapped p_values through confidence interval inversion. 'approx' are p-values based on the t-value produced by dividing the coefficient with the standard error.}
+\item{p_value}{What type of p_values should be computed? 'bootstrapped' are bootstrapped p_values through confidence interval inversion. 'approx' are p-values based on the t-value produced by dividing the coefficient with the standard error. 'both' returns both.}
 
 \item{bootstrapped_props}{Type of bootstrapped proportions of component proportions to be returned}
 
@@ -38,10 +38,17 @@ An EVINB summary object
 \description{
 EVINB summary function
 }
+\details{
+When \code{object} was fitted with \code{bootstrap = FALSE}, the
+  bootstrap-based quantities (standard errors, p-values, approximate t-values
+  and bootstrapped proportions) are unavailable; the summary then reports the
+  point estimates only, \code{n_failed_bootstraps} is \code{NA}, and a message
+  is emitted. Requesting bootstrapped coefficients for such a model is an error.
+}
 \examples{
-
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 summary(model)
-
+}
 }

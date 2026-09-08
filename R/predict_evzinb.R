@@ -59,7 +59,7 @@ predict.evzinb <- function(
 ) {
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
 
-  type <- match.arg(
+  type <- normalize_predict_type(
     type,
     c(
       'harmonic',
@@ -471,7 +471,14 @@ predict.evzinb <- function(
       return(prbs$pr_count)
     }
     if (type == 'states') {
-      return(prbs)
+      # Canonical names plus the deprecated pre-0.9.4 duplicates (audit 2.7).
+      return(tibble::tibble(
+        pr_zero = prbs$pr_zc,
+        pr_count = prbs$pr_count,
+        pr_evi = prbs$pr_pareto,
+        pr_zc = prbs$pr_zc,
+        pr_pareto = prbs$pr_pareto
+      ))
     }
     if (type == 'quantile') {
       return(q)
@@ -540,7 +547,7 @@ predict.evinb <- function(
 ) {
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
 
-  type <- match.arg(
+  type <- normalize_predict_type(
     type,
     c(
       'harmonic',
@@ -932,7 +939,12 @@ predict.evinb <- function(
       return(prbs$pr_count)
     }
     if (type == 'states') {
-      return(prbs)
+      # Canonical names plus the deprecated pre-0.9.4 duplicate (audit 2.7).
+      return(tibble::tibble(
+        pr_count = prbs$pr_count,
+        pr_evi = prbs$pr_pareto,
+        pr_pareto = prbs$pr_pareto
+      ))
     }
     if (type == 'quantile') {
       return(q)
@@ -984,9 +996,7 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   }
   out <- foreach::foreach(i = 1:n_draws) %do%
     {
-      pl_draws <- foreach::foreach(j = 1:n) %do%
-        round(mistr::rpareto(1, C_est, alphs[j]))
-      pl_draws <- purrr::reduce(pl_draws, c)
+      pl_draws <- round(mistr::rpareto(n, C_est, alphs))
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
       state_draw <- runif(n)
       prbs %>%
@@ -1040,9 +1050,7 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 
   out <- foreach::foreach(i = 1:n_draws) %do%
     {
-      pl_draws <- foreach::foreach(j = 1:n) %do%
-        round(mistr::rpareto(1, C_est, alphs[j]))
-      pl_draws <- purrr::reduce(pl_draws, c)
+      pl_draws <- round(mistr::rpareto(n, C_est, alphs))
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
       state_draw <- runif(n)
       prbs %>%

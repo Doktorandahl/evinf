@@ -15,6 +15,7 @@
   conf_level = 0.9,
   multicore = FALSE,
   ncores = NULL,
+  return_bootstraps = FALSE,
   ...
 )
 }
@@ -36,6 +37,8 @@
 \item{multicore}{Should multicore be used when calculating quantile prediction? Often it is enough to run quantile prediction on a single core, but in cases of large data or very skewed distributions it may be useful to run multicore}
 
 \item{ncores}{Number of cores to be used for multicore.}
+
+\item{return_bootstraps}{Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.}
 
 \item{...}{Other arguments passed to predict function}
 }

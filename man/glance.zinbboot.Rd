@@ -2,9 +2,12 @@
 % Please edit documentation in R/glance_boots.R
 \name{glance.zinbboot}
 \alias{glance.zinbboot}
-\title{zinbboot and nboot glance functions}
+\alias{glance.nbboot}
+\title{zinbboot and nbboot glance functions}
 \usage{
 \method{glance}{zinbboot}(x, ...)
+
+\method{glance}{nbboot}(x, ...)
 }
 \arguments{
 \item{x}{An nbboot or zinbboot object}
@@ -12,17 +15,25 @@
 \item{...}{Further arguments to be passed to glance()}
 }
 \value{
-An nbboot glance function
+A one-row tibble of goodness-of-fit statistics, including whether the
+  full-sample model converged and the number of (failed) bootstraps.
 }
 \description{
-zinbboot and nboot glance functions
+zinbboot and nbboot glance functions
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 zinb_comp <- compare_models(model)
 glance(zinb_comp$zinb)
-
+}
+\donttest{
+data(genevzinb2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+zinb_comp <- compare_models(model)
+glance(zinb_comp$nb)
+}
 }
 \seealso{
 \code{\link[generics]{glance}}

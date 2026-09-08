@@ -198,7 +198,7 @@ run_evzinb <- function(
   colnames(object$props) <- colnames(object$resp) <- c(
     "zero",
     'count',
-    'pareto'
+    'evi'
   )
 
   object$fitted <- list()
@@ -222,9 +222,12 @@ run_evzinb <- function(
   object$mean.pl.vec <- NULL
   object$fitted$prob_zero <- object$props[, 1]
   object$fitted$prob_count <- object$props[, 2]
-  object$fitted$prob_pareto <- object$props[, 3]
+  object$fitted$prob_evi <- object$props[, 3]
   object$fitted$posterior_zero <- object$resp[, 1]
   object$fitted$posterior_count <- object$resp[, 2]
+  object$fitted$posterior_evi <- object$resp[, 3]
+  # Deprecated pre-0.9.4 names, kept as duplicates for one release (audit 2.7).
+  object$fitted$prob_pareto <- object$props[, 3]
   object$fitted$posterior_pareto <- object$resp[, 3]
 
   class(object) <- 'evzinb'

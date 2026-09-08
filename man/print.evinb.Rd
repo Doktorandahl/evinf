@@ -12,15 +12,15 @@
 \item{...}{Not used}
 }
 \value{
-An evinb print function
+\code{x}, invisibly.
 }
 \description{
 EVINB print function
 }
 \examples{
-
+\donttest{
 data(genevzinb2)
-model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
+model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 print(model)
-
+}
 }

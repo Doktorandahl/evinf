@@ -2,14 +2,39 @@
 % Please edit documentation in R/coef_extractor.R
 \name{coefficient_extractor}
 \alias{coefficient_extractor}
+\alias{coefficient_extractor.evzinb}
+\alias{coefficient_extractor.evinb}
+\alias{coefficient_extractor.zinbboot}
+\alias{coefficient_extractor.nbboot}
 \title{Bootstrap coefficient extractor}
 \usage{
 coefficient_extractor(object, ...)
+
+\method{coefficient_extractor}{evzinb}(
+  object,
+  component = c("all", "count", "zero", "evi", "pareto"),
+  ...
+)
+
+\method{coefficient_extractor}{evinb}(
+  object,
+  component = c("all", "count", "evi", "pareto"),
+  ...
+)
+
+\method{coefficient_extractor}{zinbboot}(object, component = c("all", "count", "zero"), ...)
+
+\method{coefficient_extractor}{nbboot}(object, ...)
 }
 \arguments{
 \item{object}{a fitted model with bootstraps of class evzinb, evinb, nbboot, or zinbboot}
 
-\item{...}{Component to be extracted (not for nbboot). Alternatives are 'nb','zi','evinf','pareto', and 'all'}
+\item{...}{Arguments passed to methods, in particular \code{component}
+(not for nbboot): one of \code{"count"}, \code{"zero"}, \code{"evi"},
+\code{"pareto"} or \code{"all"}. The pre-0.9.4 names \code{"nb"}, \code{"zi"}
+and \code{"evinf"} are still accepted with a deprecation warning.}
+
+\item{component}{Which component should be extracted}
 }
 \value{
 A tibble with coefficient values, one row per bootstrap and component
@@ -18,8 +43,21 @@ A tibble with coefficient values, one row per bootstrap and component
 Bootstrap coefficient extractor
 }
 \examples{
+\donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 coefficient_extractor(model, component = 'all')
-
+}
+\donttest{
+data(genevzinb2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+zinb_comp <- compare_models(model)
+coefficient_extractor(zinb_comp$zinb)
+}
+\donttest{
+data(genevzinb2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+zinb_comp <- compare_models(model)
+coefficient_extractor(zinb_comp$nb)
+}
 }
