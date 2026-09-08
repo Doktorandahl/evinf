@@ -33,7 +33,7 @@ run_evinb <- function(
   max.diff.par = 1e-3,
   max.no.em.steps = 200,
   max.no.em.steps.warmup = 5,
-  c.lim = c(70, 300),
+  c.lim = c(50, 1000),
   prune.c.range = FALSE,
   max.upd.par.pl.multinomial = 0.5,
   max.upd.par.nb = 0.5,
@@ -410,6 +410,7 @@ evinb <- function(
   verbose = FALSE
 ) {
   i <- 'temp_iter'
+  pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
 
   if (is.null(formula_evi)) {
     formula_evi <- formula_nb

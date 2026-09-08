@@ -758,6 +758,33 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
     final.val$C
   )
   n.par <- length(par.all)
+
+  # audit 2.13: the trace maximum (func.val) is not guaranteed to be the
+  # log-likelihood at the returned parameters. Recompute it there and, if they
+  # disagree, use the value at the returned parameters for log.lik / AIC / BIC.
+  ll.at.par <- log_lik_fun(
+    final.val$Beta.multinom.ZC,
+    final.val$Beta.multinom.PL,
+    final.val$Beta.NB,
+    final.val$Alpha.NB,
+    final.val$Beta.PL,
+    final.val$C,
+    x.multinom.zc.extended,
+    x.multinom.pl.extended,
+    x.nb.extended,
+    x.pl.extended,
+    y
+  )
+  if (is.finite(ll.at.par) && abs(ll.at.par - func.val) > 1e-6) {
+    warning(
+      "The reported log-likelihood differed from the log-likelihood at the ",
+      "returned parameters by ", signif(ll.at.par - func.val, 3),
+      "; recomputing log.lik, AIC and BIC from the returned parameters.",
+      call. = FALSE
+    )
+    func.val <- ll.at.par
+  }
+
   BIC <- log(n) * n.par - 2 * func.val
   AIC <- 2 * n.par - 2 * func.val
 
@@ -767,7 +794,7 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
   out$control <- control
   out$par.mat <- final.val
   out$log.lik.vec.all <- log.lik.vec.all
-  out$log.lik <- log.lik.vec.all[length(log.lik.vec.all)]
+  out$log.lik <- func.val
   out$resp <- est.obj$resp
   out$converge <- est.obj$converge
   out$ini.val <- ini.val
@@ -1453,6 +1480,33 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
     final.val$C
   )
   n.par <- length(par.all)
+
+  # audit 2.13: the trace maximum (func.val) is not guaranteed to be the
+  # log-likelihood at the returned parameters. Recompute it there and, if they
+  # disagree, use the value at the returned parameters for log.lik / AIC / BIC.
+  ll.at.par <- log_lik_fun(
+    final.val$Beta.multinom.ZC,
+    final.val$Beta.multinom.PL,
+    final.val$Beta.NB,
+    final.val$Alpha.NB,
+    final.val$Beta.PL,
+    final.val$C,
+    x.multinom.zc.extended,
+    x.multinom.pl.extended,
+    x.nb.extended,
+    x.pl.extended,
+    y
+  )
+  if (is.finite(ll.at.par) && abs(ll.at.par - func.val) > 1e-6) {
+    warning(
+      "The reported log-likelihood differed from the log-likelihood at the ",
+      "returned parameters by ", signif(ll.at.par - func.val, 3),
+      "; recomputing log.lik, AIC and BIC from the returned parameters.",
+      call. = FALSE
+    )
+    func.val <- ll.at.par
+  }
+
   BIC <- log(n) * n.par - 2 * func.val
   AIC <- 2 * n.par - 2 * func.val
 
@@ -1462,7 +1516,7 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
   out$control <- control
   out$par.mat <- final.val
   out$log.lik.vec.all <- log.lik.vec.all
-  out$log.lik <- log.lik.vec.all[length(log.lik.vec.all)]
+  out$log.lik <- func.val
   out$resp <- est.obj$resp
   out$converge <- est.obj$converge
   out$ini.val <- ini.val

@@ -312,6 +312,7 @@ evzinb <- function(
   verbose = FALSE
 ) {
   i <- 'temp_iter'
+  pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
 
   if (is.null(formula_evi)) {
     formula_evi <- formula_nb
