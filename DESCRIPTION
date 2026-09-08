@@ -41,7 +41,7 @@ Suggests:
 RoxygenNote: 7.3.3
 RdMacros: Rdpack
 Depends:
-    R (>= 2.10)
+    R (>= 3.5)
 Authors@R: c(
     person("David", "Randahl", , "david.randahl@pcr.uu.se", role = c("cre", "aut")),
     person("Johan", "Vegelius", role = "aut")
