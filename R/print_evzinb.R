@@ -57,22 +57,26 @@ print.evinb <- function(x,...){
       '\n Parameters: ', length(x$par.all))
 }
 
-#' Compare_models print function
+#' Print method for compare_models() output
 #'
-#' @param x A fitted evinb model
+#' @param x An \code{evzinbcomp} object returned by \code{\link{compare_models}}.
 #' @param ... Not used
-#' @return An evinb print function
+#' @return \code{x}, invisibly.
 #' @export
 #'
-#' @examples 
+#' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10)
-#' print(model)
-#' 
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+#' print(compare_models(model))
+#' }
 print.evzinbcomp <- function(x,...){
-  comp_class <- class(x[[1]])
-  
-  cat('\n','Model comparison of ', comp_class,
-      '\n ', 'Number of compared models: ', length(x)-1,
-      '\n Number of bootstraps:', length(x[[1]]$bootstraps))
+  comp_slots <- setdiff(names(x), c('model', 'evzinb'))
+  comp_class <- class(x$model)
+
+  cat('\n', 'Model comparison of ', comp_class,
+      '\n ', 'Compared models: ', paste(comp_slots, collapse = ', '),
+      '\n ', 'Number of compared models: ', length(comp_slots),
+      '\n Number of bootstraps:', length(x$model$bootstraps), '\n')
+  invisible(x)
 }

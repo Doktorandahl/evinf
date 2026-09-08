@@ -10,30 +10,53 @@ inv <- function(x){
 #' @param cutoff_value Integer: Which observation should be used as a basis for winsorizing/razorising. E.g. 10 means that everything larger than the 10th observation will be winsorized/razorised
 #' @param init_theta Optional initial value for theta in the NB specification
 #' @param nb_comparison Should comparison be made with a negative binomial model?
-#' @param zinb_comparison Should comparions be made with the zinb model?
+#' @param zinb_comparison Should comparisons be made with the zinb model? Not
+#'   available for \code{evinb} objects (there is no zero-inflation component); it
+#'   defaults to \code{FALSE} for those, with a message, and errors if set to
+#'   \code{TRUE} explicitly.
 #' @param multicore Logical: should multiple cores be used
 #' @param ncores Number of cores if multicore is used
 #'
-#' @return A list with the original model as the first object and compared models as the following objects
+#' @return An object of class \code{evzinbcomp}: a list whose first element
+#'   \code{model} is the original evzinb/evinb model (also available as
+#'   \code{evzinb} for backwards compatibility), followed by the compared
+#'   \code{nb} / \code{zinb} models (and their winsorized/razorized variants when
+#'   requested).
 #' @export
 #'
-#' @examples 
+#' @examples
+#' \donttest{
 #' data(genevzinb2)
-#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 10, multicore = TRUE, ncores = 2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' compare_models(model)
-#' 
+#' }
 compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE, winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = FALSE, ncores=NULL){
 
-  dv_f <- all.vars(object$formulas$formula_nb)[1]
-  iv_nb <- all.vars(object$formulas$formula_nb)[-1]
-  iv_zi <- all.vars(object$formulas$formula_zi)[-1]
-  if(is.null(iv_zi)){
-    iv_zi <- '1'
+  if(!inherits(object, c('evzinb','evinb'))){
+    stop('compare_models() requires a fitted evzinb or evinb object.')
   }
-  
+
+  if(inherits(object, 'evinb')){
+    if(missing(zinb_comparison)){
+      message('compare_models(): evinb models have no zero-inflation component; setting zinb_comparison = FALSE.')
+      zinb_comparison <- FALSE
+    }else if(isTRUE(zinb_comparison)){
+      stop('compare_models(): zinb_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
+    }
+  }
+
+  deparse_rhs <- function(f){
+    if(is.null(f)) return('1')
+    paste(deparse(f[[3]]), collapse = ' ')
+  }
+
+  dv_f <- all.vars(object$formulas$formula_nb)[1]
+  rhs_nb <- deparse_rhs(object$formulas$formula_nb)
+  rhs_zi <- deparse_rhs(object$formulas$formula_zi)
+
   i <- 'temp_iter'
 if(zinb_comparison){
-  f_zinb <- as.formula(paste(dv_f,'~',paste(iv_nb,collapse = '+'),'|',paste(iv_zi,collapse = '+')))
+  f_zinb <- as.formula(paste(dv_f, '~', rhs_nb, '|', rhs_zi))
 }
   if(nb_comparison){
     if(!is.null(init_theta)){
@@ -76,19 +99,9 @@ if(zinb_comparison){
   full_zinb_razor <- try(pscl::zeroinfl(f_zinb,data = data_razor,dist = 'negbin'))
   }
   }
-  if(multicore){
-    if(is.null(ncores)){
-      ncores <- parallel::detectCores()-1
-    }
-    if(.Platform$OS.type == 'windows'){
-      cl <- parallel::makeCluster(ncores)
-      doParallel::registerDoParallel(cl)
-    }else{
-      doParallel::registerDoParallel(cores = ncores)
-    }
-  }else{
-    doParallel::stopImplicitCluster()
-  }
+  be <- evinf_setup_backend(multicore, ncores)
+  on.exit(be$stop(), add = TRUE)
+  `%dopar%` <- be$operator
 if(nb_comparison){
   if(!is.null(init_theta)){
     if(.Platform$OS.type == 'windows'){
@@ -113,10 +126,10 @@ if(nb_comparison){
   if(zinb_comparison){
     if(.Platform$OS.type == 'windows'){
   bootstraps_zinb <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-    try(inner_zinb(object$bootstraps[[i]],data = object$data$data,formulas = object$formulas))
+    try(inner_zinb(object$bootstraps[[i]],data = object$data$data,formulas = object$formulas, f_zinb = f_zinb))
     }else{
       bootstraps_zinb <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-        try(inner_zinb(object$bootstraps[[i]],data = object$data$data,formulas = object$formulas))
+        try(inner_zinb(object$bootstraps[[i]],data = object$data$data,formulas = object$formulas, f_zinb = f_zinb))
     }
   names(bootstraps_zinb) <- names(object$bootstraps)
   bootstraps_zinb <- bootstraps_zinb %>% purrr::map(mr_inner)
@@ -146,10 +159,10 @@ if(nb_comparison){
     if(zinb_comparison){
       if(.Platform$OS.type == 'windows'){
   bootstraps_zinb_winsor <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-    try(inner_zinb(object$bootstraps[[i]],data = data_winsor,formulas = object$formulas))
+    try(inner_zinb(object$bootstraps[[i]],data = data_winsor,formulas = object$formulas, f_zinb = f_zinb))
       }else{
         bootstraps_zinb_winsor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-          try(inner_zinb(object$bootstraps[[i]],data = data_winsor,formulas = object$formulas))
+          try(inner_zinb(object$bootstraps[[i]],data = data_winsor,formulas = object$formulas, f_zinb = f_zinb))
       }
   names(bootstraps_zinb_winsor) <- names(object$bootstraps)
   bootstraps_zinb_winsor <- bootstraps_zinb_winsor %>% purrr::map(mr_inner)
@@ -180,24 +193,16 @@ if(razorize){
   if(zinb_comparison){
     if(.Platform$OS.type == 'windows'){
   bootstraps_zinb_razor <- foreach::foreach(i = 1:length(object$bootstraps),.package = "evinf") %dopar%
-    try(inner_zinb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas))
+    try(inner_zinb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas, f_zinb = f_zinb))
     }else{
       bootstraps_zinb_razor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-        try(inner_zinb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas))
+        try(inner_zinb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas, f_zinb = f_zinb))
     }
   names(bootstraps_zinb_razor) <- names(object$bootstraps)
 
   bootstraps_zinb_razor<- bootstraps_zinb_razor %>% purrr::map(mr_inner)
   }
 }
-  if(multicore){
-    if(.Platform$OS.type == 'windows'){
-    parallel::stopCluster(cl)
-      foreach::registerDoSEQ()
-    }else{
-    doParallel::stopImplicitCluster()
-    }
-  }
 if(nb_comparison){
   nb <- list(full_run = full_nb,
              bootstraps = bootstraps_nb)
@@ -237,7 +242,7 @@ class(zinb_razor) <- 'zinbboot'
 }
   
   out <- list()
-  out$evzinb <- object
+  out$model <- object
   if(nb_comparison){
   out$nb <- nb
   }
@@ -260,6 +265,8 @@ class(zinb_razor) <- 'zinbboot'
   out$zinb_razor <- zinb_razor
     }
   }
+  # Backwards-compatible alias for the pre-0.9.4 name of the first slot.
+  out$evzinb <- object
   class(out) <- 'evzinbcomp'
   return(out)
 }
@@ -286,11 +293,14 @@ inner_nb <- function(bootstrap,data,formulas,init_theta){
   return(boot_nb)
 }
 
-inner_zinb <- function(bootstrap,data,formulas){
+inner_zinb <- function(bootstrap,data,formulas,f_zinb){
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
   dv <- model.response(model.frame(formulas$formula_nb,data_oob))
-  boot_zinb <- try(pscl::zeroinfl(formulas$formula_zi,data = data_ib,dist = 'negbin'))
+  # Use the full two-part formula (count | zero), matching the full-sample fit
+  # (audit 1.2); formulas$formula_zi alone would use the ZI regressors for both
+  # parts.
+  boot_zinb <- try(pscl::zeroinfl(f_zinb,data = data_ib,dist = 'negbin'))
   if(!('try-error' %in% class(boot_zinb))){
     boot_zinb$oob_predictions <- predict(boot_zinb,newdata=data_oob)
     boot_zinb$oob_rmse <- sqrt(mean((dv-boot_zinb$oob_predictions)^2))
@@ -319,7 +329,7 @@ mr_inner <- function(obj){
     return(obj)
   }
   cl <- class(obj)
-  obj[!(names(obj)%in%c('model',"residuals","fitted.values",'weights','y','linear.predictors','prior.weights','qr'))]
+  obj <- obj[!(names(obj)%in%c('model',"residuals","fitted.values",'weights','y','linear.predictors','prior.weights','qr'))]
   class(obj) <- cl
   return(obj)
 }
@@ -431,6 +441,7 @@ quantiles_from_nb <- function(quantile,nb,
 #' @importFrom rlang :=
 #'
 #' @return Predictions from zinbboot
+#' @export
 predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts','zi','evinf','count_state','states','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
   
   pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
@@ -599,7 +610,22 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
   
 }
 
-predict.nbboot <- function(object,newdata=NULL, type = c('predicted','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=F, conf_level=0.9,...){
+#' Prediction for nbboot
+#'
+#' @param object a fitted nbboot object
+#' @param newdata Data to make predictions on
+#' @param type What prediction should be computed?
+#' @param pred Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'
+#' @param quantile Quantile for quantile prediction
+#' @param confint Should confidence intervals be created?
+#' @param conf_level Confidence level when predicting with CIs
+#' @param ... Not used
+#'
+#' @importFrom rlang :=
+#'
+#' @return Predictions from nbboot
+#' @export
+predict.nbboot <- function(object,newdata=NULL, type = c('predicted','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
   
   pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
   
