@@ -508,8 +508,12 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
     cnts <- count_from_znb(object$full_run,
                                newdata = newdata)
 
-    predicted <- predict(object$bootstraps[[i]],type = 'r', newdata=newdata)
-    
+    predicted <- if(is.null(newdata)){
+      predict(object$full_run, type = 'r')
+    }else{
+      predict(object$full_run, type = 'r', newdata = newdata)
+    }
+
   }else if(pred=='bootstrap_median'){
     prbs <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>% dplyr::select(-"id")
@@ -681,11 +685,15 @@ predict.nbboot <- function(object,newdata=NULL, type = c('predicted','all', 'qua
     }
   
     ## Estimate mu_nb for all individuals
-    
-    predicted <- predict(object$bootstraps[[i]],type = 'r', newdata=newdata)
-    
+
+    predicted <- if(is.null(newdata)){
+      predict(object$full_run, type = 'r')
+    }else{
+      predict(object$full_run, type = 'r', newdata = newdata)
+    }
+
   }else if(pred=='bootstrap_median'){
- 
+
     if(!is.null(q_boot)){
       q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
         dplyr::summarize_all(median) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)

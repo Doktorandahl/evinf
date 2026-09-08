@@ -29,3 +29,13 @@ test_that("predict.nbboot()/predict.zinbboot() are registered (audit 2.5)", {
   expect_true(is.numeric(predict(comp$nb, pred = "bootstrap_median")))
   expect_true(is.numeric(predict(comp$zinb, pred = "bootstrap_median")))
 })
+
+test_that("predict.*boot(pred = 'original') uses the full-sample model, not a stray index", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  comp <- suppressWarnings(suppressMessages(compare_models(m)))
+  nd <- { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2[1:5, ] }
+  for (slot in c("nb", "zinb")) {
+    expect_length(predict(comp[[slot]], pred = "original"), 100L)
+    expect_length(predict(comp[[slot]], newdata = nd, pred = "original"), 5L)
+  }
+})

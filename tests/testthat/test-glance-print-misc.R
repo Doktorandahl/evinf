@@ -31,6 +31,16 @@ test_that("evinb() bootstraps are named (audit 2.1)", {
   expect_equal(names(mi$bootstraps), paste0("bootstrap_", 1:5))
 })
 
+test_that("evinb par.all / AIC / BIC exclude the disabled zero-inflation parameters", {
+  mi <- fit_evinb_fast(bootstrap = FALSE)        # y ~ x1 + x2 + x3
+  # evi (4) + nb (4) + alpha (1) + pareto (4) + C (1) = 14; the 4 fixed ZC
+  # coefficients are not counted.
+  expect_equal(length(mi$par.all), 14L)
+  expect_equal(glance(mi)$npar, 14L)
+  expect_equal(mi$AIC, 2 * 14 - 2 * mi$log.lik)
+  expect_equal(mi$BIC, log(length(mi$data$y)) * 14 - 2 * mi$log.lik)
+})
+
 test_that("pdf.pl.type is validated (audit 2.12)", {
   d <- { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2 }
   expect_error(evinb(y ~ x1, data = d, bootstrap = FALSE, pdf.pl.type = "bogus"))

@@ -67,6 +67,11 @@ documentation and metadata up to date. A `testthat` suite has been added.
   `BIC` (with a warning) if not.
 * `tidy(confint = )` is implemented (percentile or approximate intervals).
 * `revzinb_fit()` / `revinb_fit()` draw Pareto values in a single vectorised call.
+* `evinb` objects no longer count the (fixed) zero-inflation coefficients as free
+  parameters: `glance()$npar`, `AIC`, `BIC` and the approximate-test degrees of
+  freedom are corrected accordingly.
+* `predict()` on `nbboot` / `zinbboot` objects with `pred = "original"` used a
+  stray loop index and errored; it now predicts from the full-sample model.
 
 ## Documentation
 

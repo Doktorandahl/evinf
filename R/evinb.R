@@ -196,9 +196,16 @@ run_evinb <- function(
   object$coef <- object$par.mat
   object$par.mat <- NULL
   object$coef$Beta.multinom.ZC <- NULL
-  object$par_all <- object$par_all[
-    length(Ini.Val$Beta.multinom.ZC) + 1:length(object$par_all)
-  ]
+
+  # The zero-inflation component is switched off (its intercept is fixed), so its
+  # coefficients are not free parameters: drop them from par.all and recompute
+  # the information criteria from the reduced count.
+  n_zc <- length(Ini.Val$Beta.multinom.ZC)
+  object$par.all <- object$par.all[-seq_len(n_zc)]
+  n_par <- length(object$par.all)
+  n_obs <- length(object$data$y)
+  object$AIC <- 2 * n_par - 2 * object$log.lik
+  object$BIC <- log(n_obs) * n_par - 2 * object$log.lik
 
   object$fitted <- list()
   object$fitted$y.hat.pl_exp.E.logy <- object$y.hat.plexpElogy
