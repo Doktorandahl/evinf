@@ -67,6 +67,23 @@ run_evzinb <- function(
     formula_zi <- formula_nb
   }
 
+  # Normalise every component formula to a two-sided formula carrying the NB
+  # response, so downstream code (predict, lr_test, compare_models) can treat
+  # them uniformly.
+  ensure_response <- function(f) {
+    if (length(f) == 3L) {
+      return(f)
+    }
+    rhs <- paste(deparse(f[[2]]), collapse = " ")
+    stats::as.formula(
+      paste(paste(deparse(formula_nb[[2]]), collapse = " "), "~", rhs),
+      env = environment(f)
+    )
+  }
+  formula_zi <- ensure_response(formula_zi)
+  formula_evi <- ensure_response(formula_evi)
+  formula_pareto <- ensure_response(formula_pareto)
+
   # Restrict to the union of variables used by any component and drop incomplete
   # rows once, so all four design matrices stay row-consistent (audit 1.7).
   model_vars <- unique(c(

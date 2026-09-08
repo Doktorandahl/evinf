@@ -170,9 +170,9 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
                        bootstrap_median = median(.data$value),
                        standard_error = sd(.data$value))
     props_boot <- switch(bootstrapped_props,
-      median = dplyr::select(props_boot, .data$state, .data$bootstrap_median, .data$standard_error),
-      mean = dplyr::select(props_boot, .data$state, .data$bootstrap_mean, .data$standard_error),
-      dplyr::select(props_boot, .data$state, .data$standard_error))
+      median = dplyr::select(props_boot, "state", "bootstrap_median", "standard_error"),
+      mean = dplyr::select(props_boot, "state", "bootstrap_mean", "standard_error"),
+      dplyr::select(props_boot, "state", "standard_error"))
     props <- dplyr::left_join(props, props_boot, by = 'state')
 
     alpha_nb_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Alpha.NB') %>% purrr::reduce(c)

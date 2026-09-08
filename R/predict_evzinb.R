@@ -205,24 +205,24 @@ predict.evzinb <- function(
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     cnts <- cnts_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     alphs <- alphs_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
 
     if (!is.null(q_boot)) {
       q <- q_boot %>%
         dplyr::bind_rows() %>%
         dplyr::group_by(.data$id) %>%
         dplyr::summarize_all(median) %>%
-        dplyr::select(-.data$id) %>%
+        dplyr::select(-"id") %>%
         dplyr::pull(.data$q)
     } else {
       q <- NULL
@@ -249,23 +249,23 @@ predict.evzinb <- function(
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(mean) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     cnts <- cnts_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(mean) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     alphs <- alphs_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(mean) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     if (!is.null(q_boot)) {
       q <- q_boot %>%
         dplyr::bind_rows() %>%
         dplyr::group_by(.data$id) %>%
         dplyr::summarize_all(mean) %>%
-        dplyr::select(-.data$id) %>%
+        dplyr::select(-"id") %>%
         dplyr::pull(.data$q)
     } else {
       q <- NULL
@@ -300,7 +300,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$harmonic, qs[1]),
           ci_ub = quantile(.data$harmonic, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci),
@@ -318,7 +318,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$explog, qs[1]),
           ci_ub = quantile(.data$explog, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(explog = explog), ci),
@@ -336,7 +336,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$count, qs[1]),
           ci_ub = quantile(.data$count, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(count = cnts$count), ci),
@@ -354,7 +354,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$pareto_alpha, qs[1]),
           ci_ub = quantile(.data$pareto_alpha, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(
@@ -378,7 +378,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$pr_zc, qs[1]),
           ci_ub = quantile(.data$pr_zc, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci),
@@ -397,7 +397,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$pr_pareto, qs[1]),
           ci_ub = quantile(.data$pr_pareto, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
@@ -416,7 +416,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$pr_count, qs[1]),
           ci_ub = quantile(.data$pr_count, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
@@ -438,7 +438,7 @@ predict.evzinb <- function(
           ci_lb = quantile(.data$q, qs[1]),
           ci_ub = quantile(.data$q, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       q_name <- paste0('q', 100 * quantile)
       if (return_bootstraps) {
         return(list(
@@ -694,24 +694,24 @@ predict.evinb <- function(
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     cnts <- cnts_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     alphs <- alphs_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(median) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
 
     if (!is.null(q_boot)) {
       q <- q_boot %>%
         dplyr::bind_rows() %>%
         dplyr::group_by(.data$id) %>%
         dplyr::summarize_all(median) %>%
-        dplyr::select(-.data$id) %>%
+        dplyr::select(-"id") %>%
         dplyr::pull(.data$q)
     } else {
       q <- NULL
@@ -738,23 +738,23 @@ predict.evinb <- function(
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(mean) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     cnts <- cnts_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(mean) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     alphs <- alphs_boot %>%
       dplyr::bind_rows() %>%
       dplyr::group_by(.data$id) %>%
       dplyr::summarize_all(mean) %>%
-      dplyr::select(-.data$id)
+      dplyr::select(-"id")
     if (!is.null(q_boot)) {
       q <- q_boot %>%
         dplyr::bind_rows() %>%
         dplyr::group_by(.data$id) %>%
         dplyr::summarize_all(mean) %>%
-        dplyr::select(-.data$id) %>%
+        dplyr::select(-"id") %>%
         dplyr::pull(.data$q)
     } else {
       q <- NULL
@@ -789,7 +789,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$harmonic, qs[1]),
           ci_ub = quantile(.data$harmonic, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(harmonic = harmonic), ci),
@@ -807,7 +807,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$explog, qs[1]),
           ci_ub = quantile(.data$explog, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(explog = explog), ci),
@@ -825,7 +825,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$count, qs[1]),
           ci_ub = quantile(.data$count, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(count = cnts$count), ci),
@@ -843,7 +843,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$pareto_alpha, qs[1]),
           ci_ub = quantile(.data$pareto_alpha, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(
@@ -868,7 +868,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$pr_pareto, qs[1]),
           ci_ub = quantile(.data$pr_pareto, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
@@ -887,7 +887,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$pr_count, qs[1]),
           ci_ub = quantile(.data$pr_count, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
@@ -909,7 +909,7 @@ predict.evinb <- function(
           ci_lb = quantile(.data$q, qs[1]),
           ci_ub = quantile(.data$q, qs[2])
         ) %>%
-        dplyr::select(-.data$id)
+        dplyr::select(-"id")
       q_name <- paste0('q', 100 * quantile)
       if (return_bootstraps) {
         return(list(
@@ -999,7 +999,8 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   }
   out <- foreach::foreach(i = 1:n_draws) %do%
     {
-      pl_draws <- round(mistr::rpareto(n, C_est, alphs))
+      # mistr::rpareto() is not vectorised over `shape`; this is its formula.
+      pl_draws <- round(C_est * stats::runif(n)^(-1 / alphs))
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
       state_draw <- runif(n)
       prbs %>%
@@ -1055,7 +1056,8 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 
   out <- foreach::foreach(i = 1:n_draws) %do%
     {
-      pl_draws <- round(mistr::rpareto(n, C_est, alphs))
+      # mistr::rpareto() is not vectorised over `shape`; this is its formula.
+      pl_draws <- round(C_est * stats::runif(n)^(-1 / alphs))
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
       state_draw <- runif(n)
       prbs %>%
