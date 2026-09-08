@@ -67,18 +67,30 @@ run_evzinb <- function(
     formula_zi <- formula_nb
   }
 
-  mf_nb <- model.frame(formula_nb, data)
-  mf_zi <- model.frame(formula_zi, data)
-  mf_evi <- model.frame(formula_evi, data)
-  mf_pareto <- model.frame(formula_pareto, data)
+  # Restrict to the union of variables used by any component and drop incomplete
+  # rows once, so all four design matrices stay row-consistent (audit 1.7).
+  model_vars <- unique(c(
+    all.vars(formula_nb),
+    all.vars(formula_zi),
+    all.vars(formula_evi),
+    all.vars(formula_pareto)
+  ))
+  model_data <- data %>%
+    dplyr::select(dplyr::all_of(model_vars)) %>%
+    na.omit()
 
-  OBS.Y <- as.matrix(model.response(mf_nb))
+  d_nb <- evinf_design(formula_nb, model_data)
+  d_zi <- evinf_design(formula_zi, model_data)
+  d_evi <- evinf_design(formula_evi, model_data)
+  d_pareto <- evinf_design(formula_pareto, model_data)
+
+  OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
 
   OBS.X.obj <- list()
-  OBS.X.obj$X.multinom.ZC <- as.matrix(mf_zi[, -1])
-  OBS.X.obj$X.multinom.PL <- as.matrix(mf_evi[, -1])
-  OBS.X.obj$X.NB <- as.matrix(mf_nb[, -1])
-  OBS.X.obj$X.PL <- as.matrix(mf_pareto[, -1])
+  OBS.X.obj$X.multinom.ZC <- d_zi$X
+  OBS.X.obj$X.multinom.PL <- d_evi$X
+  OBS.X.obj$X.NB <- d_nb$X
+  OBS.X.obj$X.PL <- d_pareto$X
   Control <- list(
     max.diff.par = max.diff.par,
     max.no.em.steps = max.no.em.steps,
@@ -96,33 +108,33 @@ run_evzinb <- function(
     prune.c.range = prune.c.range
   )
 
+  # Parameter counts include the intercept the C++ routines prepend.
+  n_zc <- ncol(OBS.X.obj$X.multinom.ZC) + 1L
+  n_pl_mult <- ncol(OBS.X.obj$X.multinom.PL) + 1L
+  n_nb <- ncol(OBS.X.obj$X.NB) + 1L
+  n_pl <- ncol(OBS.X.obj$X.PL) + 1L
+
   Ini.Val <- list()
-  if (
-    is.null(init.Beta.multinom.ZC) |
-      length(init.Beta.multinom.ZC) != ncol(mf_zi)
-  ) {
-    Ini.Val$Beta.multinom.ZC <- rep(0, ncol(mf_zi))
+  if (is.null(init.Beta.multinom.ZC) | length(init.Beta.multinom.ZC) != n_zc) {
+    Ini.Val$Beta.multinom.ZC <- rep(0, n_zc)
   } else {
     Ini.Val$Beta.multinom.ZC <- init.Beta.multinom.ZC
   }
 
-  if (
-    is.null(init.Beta.multinom.PL) |
-      length(init.Beta.multinom.PL) != ncol(mf_evi)
-  ) {
-    Ini.Val$Beta.multinom.PL <- rep(0, ncol(mf_evi))
+  if (is.null(init.Beta.multinom.PL) | length(init.Beta.multinom.PL) != n_pl_mult) {
+    Ini.Val$Beta.multinom.PL <- rep(0, n_pl_mult)
   } else {
     Ini.Val$Beta.multinom.PL <- init.Beta.multinom.PL
   }
 
-  if (is.null(init.Beta.NB) | length(init.Beta.NB) != ncol(mf_evi)) {
-    Ini.Val$Beta.NB <- rep(0, ncol(mf_nb))
+  if (is.null(init.Beta.NB) | length(init.Beta.NB) != n_nb) {
+    Ini.Val$Beta.NB <- rep(0, n_nb)
   } else {
     Ini.Val$Beta.NB <- init.Beta.NB
   }
 
-  if (is.null(init.Beta.PL) | length(init.Beta.PL) != ncol(mf_pareto)) {
-    Ini.Val$Beta.PL <- rep(0, ncol(mf_pareto))
+  if (is.null(init.Beta.PL) | length(init.Beta.PL) != n_pl) {
+    Ini.Val$Beta.PL <- rep(0, n_pl)
   } else {
     Ini.Val$Beta.PL <- init.Beta.PL
   }
@@ -142,19 +154,10 @@ run_evzinb <- function(
   object$par.mat$Beta.NB <- as.numeric(object$par.mat$Beta.NB)
   object$par.mat$Beta.PL <- as.numeric(object$par.mat$Beta.PL)
 
-  names(object$par.mat$Beta.NB) <- c('(Intercept)', all.vars(formula_nb)[-1])
-  names(object$par.mat$Beta.multinom.ZC) <- c(
-    '(Intercept)',
-    all.vars(formula_zi)[-1]
-  )
-  names(object$par.mat$Beta.multinom.PL) <- c(
-    '(Intercept)',
-    all.vars(formula_evi)[-1]
-  )
-  names(object$par.mat$Beta.PL) <- c(
-    '(Intercept)',
-    all.vars(formula_pareto)[-1]
-  )
+  names(object$par.mat$Beta.NB) <- c('(Intercept)', colnames(d_nb$X))
+  names(object$par.mat$Beta.multinom.ZC) <- c('(Intercept)', colnames(d_zi$X))
+  names(object$par.mat$Beta.multinom.PL) <- c('(Intercept)', colnames(d_evi$X))
+  names(object$par.mat$Beta.PL) <- c('(Intercept)', colnames(d_pareto$X))
 
   object$formulas <- list(
     formula_nb = formula_nb,
@@ -162,17 +165,21 @@ run_evzinb <- function(
     formula_evi = formula_evi,
     formula_pareto = formula_pareto
   )
+  object$terms <- list(
+    nb = d_nb$terms,
+    zi = d_zi$terms,
+    evi = d_evi$terms,
+    pareto = d_pareto$terms
+  )
+  object$xlevels <- list(
+    nb = d_nb$xlevels,
+    zi = d_zi$xlevels,
+    evi = d_evi$xlevels,
+    pareto = d_pareto$xlevels
+  )
   object$data <- list()
-  full_data <- data %>%
-    dplyr::select(dplyr::all_of(unique(c(
-      all.vars(formula_nb),
-      all.vars(formula_zi),
-      all.vars(formula_evi),
-      all.vars(formula_pareto)
-    )))) %>%
-    na.omit()
 
-  object$data$data <- full_data
+  object$data$data <- model_data
   object$data$y <- as.numeric(object$y)
   object$y <- NULL
   object$data$x.nb <- object$x.nb
@@ -380,43 +387,40 @@ evzinb <- function(
   }
 
   if (bootstrap) {
+    be <- evinf_setup_backend(multicore, ncores)
+    on.exit(be$stop(), add = TRUE)
+    if (multicore && !is.null(be$cl)) {
+      parallel::clusterExport(
+        be$cl,
+        c(
+          'bootrun_evzinb',
+          "zerinfl.nb.pl.regression.fun",
+          "zerinfl.nb.pl.reg.cond.c.fun",
+          "log_lik_fun",
+          "_evinf_log_lik_fun"
+        ),
+        envir = environment(bootrun_evzinb)
+      )
+      parallel::clusterExport(
+        be$cl,
+        c('full_run', 'n_bootstraps'),
+        envir = environment()
+      )
+    }
     if (multicore) {
-      if (is.null(ncores)) {
-        ncores <- parallel::detectCores() - 1
-      }
-      if (.Platform$OS.type == 'windows') {
-        cl <- parallel::makeCluster(ncores)
-        doParallel::registerDoParallel(cl)
-        parallel::clusterExport(
-          cl,
-          c(
-            'bootrun_evzinb',
-            "zerinfl.nb.pl.regression.fun",
-            "zerinfl.nb.pl.reg.cond.c.fun",
-            "log_lik_fun",
-            "_evinf_log_lik_fun"
-          ),
-          envir = environment(bootrun_evzinb)
-        )
-        parallel::clusterExport(
-          cl,
-          c('full_run', 'n_bootstraps'),
-          envir = environment()
-        )
-      } else {
-        doParallel::registerDoParallel(cores = ncores)
-      }
-      ex_time <- runtime * n_bootstraps / ncores
+      ex_time <- runtime * n_bootstraps / be$ncores
     } else {
       ex_time <- runtime * n_bootstraps
     }
-    cat(
-      "\n ======",
-      "Approximate runtime for bootstraps is",
-      ex_time,
-      attributes(runtime)$units,
-      ". Note: This is a very rough estimate of the runtime."
-    )
+    if (verbose) {
+      cat(
+        "\n ======",
+        "Approximate runtime for bootstraps is",
+        ex_time,
+        attributes(runtime)$units,
+        ". Note: This is a very rough estimate of the runtime."
+      )
+    }
 
     if (verbose) {
       boots <- foreach::foreach(
@@ -444,14 +448,6 @@ evzinb <- function(
           id = i,
           maxboot = n_bootstraps
         ))
-    }
-    if (multicore) {
-      if (.Platform$OS.type == 'windows') {
-        parallel::stopCluster(cl)
-        foreach::registerDoSEQ()
-      } else {
-        doParallel::stopImplicitCluster()
-      }
     }
     names(boots) <- paste('bootstrap_', 1:length(boots), sep = "")
     out <- c(full_run, list(bootstraps = boots))
@@ -499,10 +495,10 @@ bootrun_evzinb <- function(
   OBS.Y <- object$data$y[boot_id]
 
   OBS.X.obj <- list()
-  OBS.X.obj$X.multinom.ZC <- object$data$x.multinom.zc[boot_id, ]
-  OBS.X.obj$X.multinom.PL <- object$data$x.multinom.pl[boot_id, ]
-  OBS.X.obj$X.NB <- object$data$x.nb[boot_id, ]
-  OBS.X.obj$X.PL <- object$data$x.pl[boot_id, ]
+  OBS.X.obj$X.multinom.ZC <- object$data$x.multinom.zc[boot_id, , drop = FALSE]
+  OBS.X.obj$X.multinom.PL <- object$data$x.multinom.pl[boot_id, , drop = FALSE]
+  OBS.X.obj$X.NB <- object$data$x.nb[boot_id, , drop = FALSE]
+  OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   Control <- object$control
 
   Ini.Val <- list()
@@ -531,19 +527,19 @@ bootrun_evzinb <- function(
 
   names(evzinb_boot$par.mat$Beta.NB) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_nb)[-1]
+    colnames(object$data$x.nb)
   )
   names(evzinb_boot$par.mat$Beta.multinom.ZC) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_zi)[-1]
+    colnames(object$data$x.multinom.zc)
   )
   names(evzinb_boot$par.mat$Beta.multinom.PL) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_evi)[-1]
+    colnames(object$data$x.multinom.pl)
   )
   names(evzinb_boot$par.mat$Beta.PL) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_pareto)[-1]
+    colnames(object$data$x.pl)
   )
 
   evzinb_boot$props <- evzinb_boot$par.mat$Props
@@ -554,6 +550,8 @@ bootrun_evzinb <- function(
   evzinb_boot$resp <- NULL
 
   evzinb_boot$formulas <- object$formulas
+  evzinb_boot$terms <- object$terms
+  evzinb_boot$xlevels <- object$xlevels
 
   evzinb_boot$y.hat.plexpElogy <- NULL
   evzinb_boot$y.hat.pl.E.inv.y <- NULL

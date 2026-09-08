@@ -58,18 +58,30 @@ run_evinb <- function(
   }
   pdf.pl.type <- match.arg(pdf.pl.type, c("approx", 'exact'))
 
-  mf_nb <- model.frame(formula_nb, data)
-  mf_zi <- model.frame(formula_nb, data)
-  mf_evi <- model.frame(formula_evi, data)
-  mf_pareto <- model.frame(formula_pareto, data)
+  # Restrict to the union of variables used by any component and drop incomplete
+  # rows once, so the design matrices stay row-consistent (audit 1.7).
+  model_vars <- unique(c(
+    all.vars(formula_nb),
+    all.vars(formula_evi),
+    all.vars(formula_pareto)
+  ))
+  model_data <- data %>%
+    dplyr::select(dplyr::all_of(model_vars)) %>%
+    na.omit()
 
-  OBS.Y <- as.matrix(model.response(mf_nb))
+  d_nb <- evinf_design(formula_nb, model_data)
+  d_evi <- evinf_design(formula_evi, model_data)
+  d_pareto <- evinf_design(formula_pareto, model_data)
+
+  OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
 
   OBS.X.obj <- list()
-  OBS.X.obj$X.multinom.ZC <- as.matrix(mf_zi[, -1])
-  OBS.X.obj$X.multinom.PL <- as.matrix(mf_evi[, -1])
-  OBS.X.obj$X.NB <- as.matrix(mf_nb[, -1])
-  OBS.X.obj$X.PL <- as.matrix(mf_pareto[, -1])
+  # The zero-inflation component is switched off in evinb (intercept fixed very
+  # negative); its design just mirrors the NB design for shape.
+  OBS.X.obj$X.multinom.ZC <- d_nb$X
+  OBS.X.obj$X.multinom.PL <- d_evi$X
+  OBS.X.obj$X.NB <- d_nb$X
+  OBS.X.obj$X.PL <- d_pareto$X
   Control <- list(
     max.diff.par = max.diff.par,
     max.no.em.steps = max.no.em.steps,
@@ -87,27 +99,29 @@ run_evinb <- function(
     prune.c.range = prune.c.range
   )
 
+  # Parameter counts include the intercept the C++ routines prepend.
+  n_nb <- ncol(d_nb$X) + 1L
+  n_pl_mult <- ncol(d_evi$X) + 1L
+  n_pl <- ncol(d_pareto$X) + 1L
+
   Ini.Val <- list()
-  Ini.Val$Beta.multinom.ZC <- rep(0, ncol(mf_zi))
+  Ini.Val$Beta.multinom.ZC <- rep(0, n_nb)
   Ini.Val$Beta.multinom.ZC[1] <- -100
 
-  if (
-    is.null(init.Beta.multinom.PL) |
-      length(init.Beta.multinom.PL) != ncol(mf_evi)
-  ) {
-    Ini.Val$Beta.multinom.PL <- rep(0, ncol(mf_evi))
+  if (is.null(init.Beta.multinom.PL) | length(init.Beta.multinom.PL) != n_pl_mult) {
+    Ini.Val$Beta.multinom.PL <- rep(0, n_pl_mult)
   } else {
     Ini.Val$Beta.multinom.PL <- init.Beta.multinom.PL
   }
 
-  if (is.null(init.Beta.NB) | length(init.Beta.NB) != ncol(mf_evi)) {
-    Ini.Val$Beta.NB <- rep(0, ncol(mf_nb))
+  if (is.null(init.Beta.NB) | length(init.Beta.NB) != n_nb) {
+    Ini.Val$Beta.NB <- rep(0, n_nb)
   } else {
     Ini.Val$Beta.NB <- init.Beta.NB
   }
 
-  if (is.null(init.Beta.PL) | length(init.Beta.PL) != ncol(mf_pareto)) {
-    Ini.Val$Beta.PL <- rep(0, ncol(mf_pareto))
+  if (is.null(init.Beta.PL) | length(init.Beta.PL) != n_pl) {
+    Ini.Val$Beta.PL <- rep(0, n_pl)
   } else {
     Ini.Val$Beta.PL <- init.Beta.PL
   }
@@ -127,16 +141,10 @@ run_evinb <- function(
   object$par.mat$Beta.NB <- as.numeric(object$par.mat$Beta.NB)
   object$par.mat$Beta.PL <- as.numeric(object$par.mat$Beta.PL)
 
-  names(object$par.mat$Beta.NB) <- c('(Intercept)', all.vars(formula_nb)[-1])
+  names(object$par.mat$Beta.NB) <- c('(Intercept)', colnames(d_nb$X))
   #names(object$par.mat$Beta.multinom.ZC) <- c('(Intercept)',all.vars(formula_zi)[-1])
-  names(object$par.mat$Beta.multinom.PL) <- c(
-    '(Intercept)',
-    all.vars(formula_evi)[-1]
-  )
-  names(object$par.mat$Beta.PL) <- c(
-    '(Intercept)',
-    all.vars(formula_pareto)[-1]
-  )
+  names(object$par.mat$Beta.multinom.PL) <- c('(Intercept)', colnames(d_evi$X))
+  names(object$par.mat$Beta.PL) <- c('(Intercept)', colnames(d_pareto$X))
 
   object$formulas <- list(
     formula_nb = formula_nb,
@@ -144,16 +152,19 @@ run_evinb <- function(
     formula_evi = formula_evi,
     formula_pareto = formula_pareto
   )
+  object$terms <- list(
+    nb = d_nb$terms,
+    evi = d_evi$terms,
+    pareto = d_pareto$terms
+  )
+  object$xlevels <- list(
+    nb = d_nb$xlevels,
+    evi = d_evi$xlevels,
+    pareto = d_pareto$xlevels
+  )
   object$data <- list()
 
-  object$data$data <- data %>%
-    dplyr::select(dplyr::all_of(unique(c(
-      all.vars(formula_nb),
-      #all.vars(formula_zi),
-      all.vars(formula_evi),
-      all.vars(formula_pareto)
-    )))) %>%
-    na.omit()
+  object$data$data <- model_data
 
   object$data$y <- as.numeric(object$y)
   object$y <- NULL
@@ -241,10 +252,10 @@ bootrun_evinb <- function(
   OBS.Y <- object$data$y[boot_id]
 
   OBS.X.obj <- list()
-  OBS.X.obj$X.multinom.ZC <- object$data$x.nb[boot_id, ] # note: only for functionality, does not update
-  OBS.X.obj$X.multinom.PL <- object$data$x.multinom.pl[boot_id, ]
-  OBS.X.obj$X.NB <- object$data$x.nb[boot_id, ]
-  OBS.X.obj$X.PL <- object$data$x.pl[boot_id, ]
+  OBS.X.obj$X.multinom.ZC <- object$data$x.nb[boot_id, , drop = FALSE] # note: only for functionality, does not update
+  OBS.X.obj$X.multinom.PL <- object$data$x.multinom.pl[boot_id, , drop = FALSE]
+  OBS.X.obj$X.NB <- object$data$x.nb[boot_id, , drop = FALSE]
+  OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   Control <- object$control
 
   Ini.Val <- list()
@@ -266,16 +277,16 @@ bootrun_evinb <- function(
 
   names(evinb_boot$par.mat$Beta.NB) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_nb)[-1]
+    colnames(object$data$x.nb)
   )
   #names(evinb_boot$par.mat$Beta.multinom.ZC) <- c('(Intercept)',all.vars(object$formulas$formula_zi)[-1])
   names(evinb_boot$par.mat$Beta.multinom.PL) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_evi)[-1]
+    colnames(object$data$x.multinom.pl)
   )
   names(evinb_boot$par.mat$Beta.PL) <- c(
     '(Intercept)',
-    all.vars(object$formulas$formula_pareto)[-1]
+    colnames(object$data$x.pl)
   )
 
   evinb_boot$resp <- NULL
@@ -287,6 +298,8 @@ bootrun_evinb <- function(
   evinb_boot$par.mat <- NULL
   evinb_boot$coef$Beta.multinom.ZC <- NULL
   evinb_boot$formulas <- object$formulas
+  evinb_boot$terms <- object$terms
+  evinb_boot$xlevels <- object$xlevels
 
   evinb_boot$y.hat.plexpElogy <- NULL
   evinb_boot$y.hat.pl.E.inv.y <- NULL
@@ -466,27 +479,22 @@ evinb <- function(
   }
 
   if (bootstrap) {
+    be <- evinf_setup_backend(multicore, ncores)
+    on.exit(be$stop(), add = TRUE)
     if (multicore) {
-      if (is.null(ncores)) {
-        ncores <- parallel::detectCores() - 1
-      }
-      if (.Platform$OS.type == 'windows') {
-        cl <- parallel::makeCluster(ncores)
-        doParallel::registerDoParallel(cl)
-      } else {
-        doParallel::registerDoParallel(cores = ncores)
-      }
-      ex_time <- runtime * n_bootstraps / ncores
+      ex_time <- runtime * n_bootstraps / be$ncores
     } else {
       ex_time <- runtime * n_bootstraps
     }
-    cat(
-      "\n ======",
-      "Approximate runtime for bootstraps is",
-      ex_time,
-      attributes(runtime)$units,
-      ". Note: This is a very rough estimate of the runtime."
-    )
+    if (verbose) {
+      cat(
+        "\n ======",
+        "Approximate runtime for bootstraps is",
+        ex_time,
+        attributes(runtime)$units,
+        ". Note: This is a very rough estimate of the runtime."
+      )
+    }
 
     if (verbose) {
       boots <- foreach::foreach(
@@ -516,17 +524,8 @@ evinb <- function(
         ))
     }
 
-    out <- c(full_run, list(bootstraps = boots))
-
-    if (multicore) {
-      if (.Platform$OS.type == 'windows') {
-        parallel::stopCluster(cl)
-        foreach::registerDoSEQ()
-      } else {
-        doParallel::stopImplicitCluster()
-      }
-    }
     names(boots) <- paste('bootstrap_', 1:length(boots), sep = "")
+    out <- c(full_run, list(bootstraps = boots))
   } else {
     out <- full_run
   }
