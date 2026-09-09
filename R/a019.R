@@ -714,40 +714,21 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
 
   #Mean conditional on negative binomial component
   #Pareto shape parameter
-  mu.nb.vec <- c()
-  alpha.pl.vec <- c()
-  mean.pl.vec <- c()
-  exp.E.log.y <- c() #exp(E(log(y))), a third alternative for prediction
-  median.pl.vec <- c()
-  E.inv.y <- c()
-  y.hat.plmedian <- c()
-  y.hat.plmean <- c()
-  y.hat.plexpElogy <- c()
-  y.hat.pl.E.inv.y <- c()
-  for (i in 1:n) {
-    mu.nb.vec[i] <- exp(x.nb.extended[i, ] %*% prel.val$Beta.NB)
-    alpha.pl.vec[i] <- exp(x.pl.extended[i, ] %*% prel.val$Beta.PL)
-    exp.E.log.y[i] <- c.pl.new * exp(1 / alpha.pl.vec[i])
-    E.inv.y[i] <- alpha.pl.vec[i] / (c.pl.new * (alpha.pl.vec[i] + 1))
-    if (alpha.pl.vec[i] > 1) {
-      mean.pl.vec[i] <- alpha.pl.vec[i] * c.pl.new / (alpha.pl.vec[i] - 1)
-    } else {
-      mean.pl.vec[i] <- NA
-    }
-    median.pl.vec[i] <- median.pl.vec[i] <- c.pl.new * (2)^(1 / alpha.pl.vec[i])
-    y.hat.plmedian[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] * median.pl.vec[i]
-    y.hat.plmean[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] * mean.pl.vec[i]
-    y.hat.plexpElogy[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] * exp.E.log.y[i]
-    y.hat.pl.E.inv.y[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] / E.inv.y[i]
-  }
+  # audit 4.13: vectorised equivalent of the former per-observation loop.
+  mu.nb.vec <- as.numeric(exp(x.nb.extended %*% prel.val$Beta.NB))
+  alpha.pl.vec <- as.numeric(exp(x.pl.extended %*% prel.val$Beta.PL))
+  exp.E.log.y <- c.pl.new * exp(1 / alpha.pl.vec)
+  E.inv.y <- alpha.pl.vec / (c.pl.new * (alpha.pl.vec + 1))
+  mean.pl.vec <- ifelse(
+    alpha.pl.vec > 1,
+    alpha.pl.vec * c.pl.new / (alpha.pl.vec - 1),
+    NA_real_
+  )
+  median.pl.vec <- c.pl.new * 2^(1 / alpha.pl.vec)
+  y.hat.plmedian <- props.old[, 2] * mu.nb.vec + props.old[, 3] * median.pl.vec
+  y.hat.plmean <- props.old[, 2] * mu.nb.vec + props.old[, 3] * mean.pl.vec
+  y.hat.plexpElogy <- props.old[, 2] * mu.nb.vec + props.old[, 3] * exp.E.log.y
+  y.hat.pl.E.inv.y <- props.old[, 2] * mu.nb.vec + props.old[, 3] / E.inv.y
 
   par.all <- c(
     final.val$Beta.multinom.ZC,
@@ -775,13 +756,11 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
     x.pl.extended,
     y
   )
-  if (is.finite(ll.at.par) && abs(ll.at.par - func.val) > 1e-6) {
-    warning(
-      "The reported log-likelihood differed from the log-likelihood at the ",
-      "returned parameters by ", signif(ll.at.par - func.val, 3),
-      "; recomputing log.lik, AIC and BIC from the returned parameters.",
-      call. = FALSE
-    )
+  # audit R0.3: recompute silently and record whether the correction happened;
+  # run_*() decides whether to tell the user (never inside a bootstrap).
+  loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
+                                abs(ll.at.par - func.val) > 1e-6)
+  if (loglik_recomputed) {
     func.val <- ll.at.par
   }
 
@@ -817,6 +796,7 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
   out$par.all <- par.all
   out$BIC <- BIC
   out$AIC <- AIC
+  out$loglik_recomputed <- loglik_recomputed
 
   return(out)
 }
@@ -1436,40 +1416,21 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
 
   #Mean conditional on negative binomial component
   #Pareto shape parameter
-  mu.nb.vec <- c()
-  alpha.pl.vec <- c()
-  mean.pl.vec <- c()
-  exp.E.log.y <- c() #exp(E(log(y))), a third alternative for prediction
-  median.pl.vec <- c()
-  E.inv.y <- c()
-  y.hat.plmedian <- c()
-  y.hat.plmean <- c()
-  y.hat.plexpElogy <- c()
-  y.hat.pl.E.inv.y <- c()
-  for (i in 1:n) {
-    mu.nb.vec[i] <- exp(x.nb.extended[i, ] %*% prel.val$Beta.NB)
-    alpha.pl.vec[i] <- exp(x.pl.extended[i, ] %*% prel.val$Beta.PL)
-    exp.E.log.y[i] <- c.pl.new * exp(1 / alpha.pl.vec[i])
-    E.inv.y[i] <- alpha.pl.vec[i] / (c.pl.new * (alpha.pl.vec[i] + 1))
-    if (alpha.pl.vec[i] > 1) {
-      mean.pl.vec[i] <- alpha.pl.vec[i] * c.pl.new / (alpha.pl.vec[i] - 1)
-    } else {
-      mean.pl.vec[i] <- NA
-    }
-    median.pl.vec[i] <- median.pl.vec[i] <- c.pl.new * (2)^(1 / alpha.pl.vec[i])
-    y.hat.plmedian[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] * median.pl.vec[i]
-    y.hat.plmean[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] * mean.pl.vec[i]
-    y.hat.plexpElogy[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] * exp.E.log.y[i]
-    y.hat.pl.E.inv.y[i] <- props.old[i, 2] *
-      mu.nb.vec[i] +
-      props.old[i, 3] / E.inv.y[i]
-  }
+  # audit 4.13: vectorised equivalent of the former per-observation loop.
+  mu.nb.vec <- as.numeric(exp(x.nb.extended %*% prel.val$Beta.NB))
+  alpha.pl.vec <- as.numeric(exp(x.pl.extended %*% prel.val$Beta.PL))
+  exp.E.log.y <- c.pl.new * exp(1 / alpha.pl.vec)
+  E.inv.y <- alpha.pl.vec / (c.pl.new * (alpha.pl.vec + 1))
+  mean.pl.vec <- ifelse(
+    alpha.pl.vec > 1,
+    alpha.pl.vec * c.pl.new / (alpha.pl.vec - 1),
+    NA_real_
+  )
+  median.pl.vec <- c.pl.new * 2^(1 / alpha.pl.vec)
+  y.hat.plmedian <- props.old[, 2] * mu.nb.vec + props.old[, 3] * median.pl.vec
+  y.hat.plmean <- props.old[, 2] * mu.nb.vec + props.old[, 3] * mean.pl.vec
+  y.hat.plexpElogy <- props.old[, 2] * mu.nb.vec + props.old[, 3] * exp.E.log.y
+  y.hat.pl.E.inv.y <- props.old[, 2] * mu.nb.vec + props.old[, 3] / E.inv.y
 
   par.all <- c(
     final.val$Beta.multinom.ZC,
@@ -1497,13 +1458,11 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
     x.pl.extended,
     y
   )
-  if (is.finite(ll.at.par) && abs(ll.at.par - func.val) > 1e-6) {
-    warning(
-      "The reported log-likelihood differed from the log-likelihood at the ",
-      "returned parameters by ", signif(ll.at.par - func.val, 3),
-      "; recomputing log.lik, AIC and BIC from the returned parameters.",
-      call. = FALSE
-    )
+  # audit R0.3: recompute silently and record whether the correction happened;
+  # run_*() decides whether to tell the user (never inside a bootstrap).
+  loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
+                                abs(ll.at.par - func.val) > 1e-6)
+  if (loglik_recomputed) {
     func.val <- ll.at.par
   }
 
@@ -1539,6 +1498,7 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
   out$par.all <- par.all
   out$BIC <- BIC
   out$AIC <- AIC
+  out$loglik_recomputed <- loglik_recomputed
 
   return(out)
 }
