@@ -52,6 +52,13 @@ When \code{x} was fitted with \code{bootstrap = FALSE}, standard
   errors, p-values, t-values and confidence intervals are unavailable; the
   estimate column is returned on its own and a message is emitted. Requesting
   bootstrapped coefficients for such a model is an error.
+
+  With \code{component = "all"} the output has one row per coefficient
+  \emph{per component} (a \code{y.level} column names the component). Like
+  \code{nnet::multinom()}, this multi-component shape cannot be rendered by
+  \code{modelsummary::modelsummary()} with its default arguments; pass
+  \code{shape = term + y.level ~ model} so each component becomes its own
+  block of rows.
 }
 \examples{
 \donttest{

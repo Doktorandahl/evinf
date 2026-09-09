@@ -40,6 +40,7 @@ Suggests:
     modelsummary,
     ggplot2,
     marginaleffects,
+    insight,
     covr,
     quarto
 RoxygenNote: 7.3.3

@@ -24,8 +24,28 @@ label and format the goodness-of-fit rows produced by \code{glance.evzinb()} /
 \code{glance.evinb()}. The bundled data object \code{\link{gm_evzinb}} is
 simply \code{gof_map_evinf()}.
 }
+\details{
+The coefficient table produced by \code{tidy()} with
+  \code{component = "all"} has one row per coefficient \emph{per component}.
+  \code{modelsummary::modelsummary()} cannot render that with its default
+  arguments (the same limitation it has for \code{nnet::multinom()}); pass
+  \code{shape = term + y.level ~ model} together with
+  \code{gof_map = gof_map_evinf()}.
+}
 \examples{
 gof_map_evinf()
 gof_map_evinf(extra = data.frame(raw = "n_em_steps", clean = "EM steps",
                                  fmt = 0))
+
+\donttest{
+data(genevzinb2)
+model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
+if (requireNamespace("modelsummary", quietly = TRUE)) {
+  modelsummary::modelsummary(
+    model,
+    shape = term + y.level ~ model,
+    gof_map = gof_map_evinf()
+  )
+}
+}
 }

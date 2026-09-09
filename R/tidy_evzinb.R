@@ -19,6 +19,13 @@
 #'   estimate column is returned on its own and a message is emitted. Requesting
 #'   bootstrapped coefficients for such a model is an error.
 #'
+#'   With \code{component = "all"} the output has one row per coefficient
+#'   \emph{per component} (a \code{y.level} column names the component). Like
+#'   \code{nnet::multinom()}, this multi-component shape cannot be rendered by
+#'   \code{modelsummary::modelsummary()} with its default arguments; pass
+#'   \code{shape = term + y.level ~ model} so each component becomes its own
+#'   block of rows.
+#'
 #' @return A tibble with one row per coefficient
 #' @export
 #'
@@ -27,6 +34,15 @@
 #' data(genevzinb2)
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' tidy(model)
+#'
+#' # multi-component table with modelsummary
+#' if (requireNamespace("modelsummary", quietly = TRUE)) {
+#'   modelsummary::modelsummary(
+#'     model,
+#'     shape = term + y.level ~ model,
+#'     gof_map = gof_map_evinf()
+#'   )
+#' }
 #' }
 #'
 #' \dontrun{

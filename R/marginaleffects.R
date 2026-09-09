@@ -48,3 +48,12 @@ get_predict.evzinb <- function(model, newdata, type = "harmonic", ...) {
 get_predict.evinb <- function(model, newdata, type = "harmonic", ...) {
   evinf_get_predict(model, newdata, type)
 }
+
+# insight (used by marginaleffects) tries to recover the model frame from the
+# fitting environment first and warns when it cannot. The full model frame,
+# with the response and every raw covariate, is stored on the object, so hand
+# it straight back (issue 3.3).
+#' @exportS3Method insight::get_data evzinb
+get_data.evzinb <- function(x, ...) x$data$data
+#' @exportS3Method insight::get_data evinb
+get_data.evinb <- function(x, ...) x$data$data

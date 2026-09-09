@@ -47,6 +47,22 @@ Average, over the data, of the numerical effect of each covariate on the
 chosen predicted quantity, with bootstrap confidence intervals obtained by
 recomputing the effect on every bootstrap fit.
 }
+\details{
+The confidence interval is a percentile interval: \code{conf.low} /
+\code{conf.high} are the empirical quantiles of the effect recomputed on each
+bootstrap fit, and \code{std.error} is the standard deviation of those
+recomputed effects (reported for reference, not used to build the interval).
+
+\strong{Harmonic-mean effects and bootstrap intervals.} The harmonic-mean
+prediction is \eqn{C(1 + \alpha)/\alpha}, which blows up on bootstrap fits
+whose Pareto shape \eqn{\alpha} is very small. The point estimate for
+\code{type = "harmonic"} is well behaved, but the percentile interval can be
+extremely wide because a handful of bootstrap draws are enormous. For
+inference about how a covariate shifts the outcome, prefer
+\code{type = "quantile"} (effect on a predicted quantile) or
+\code{type = "states"} (effect on the state probabilities), whose bootstrap
+distributions are bounded.
+}
 \examples{
 \donttest{
 data(genevzinb2)

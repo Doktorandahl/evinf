@@ -49,3 +49,23 @@ test_that("avg_slopes() agrees with marginal_effects() for a numeric covariate",
   )
   expect_equal(unname(s$estimate[1]), me$estimate[1], tolerance = 0.1)
 })
+
+test_that("insight::get_data() and avg_slopes() work without newdata (issue 3.3)", {
+  skip_on_cran()
+  skip_if_not_installed("marginaleffects")
+  skip_if_not_installed("insight")
+  m <- fit_evzinb_fast(n_bootstraps = 8)
+
+  expect_equal(nrow(insight::get_data(m)), nrow(m$data$data))
+
+  w <- character(0)
+  s <- withCallingHandlers(
+    marginaleffects::avg_slopes(m, variables = "x1"),
+    warning = function(cond) {
+      w <<- c(w, conditionMessage(cond))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_length(w, 0L)
+  expect_true(is.finite(s$estimate[1]))
+})
