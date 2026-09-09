@@ -58,6 +58,12 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Bug fixes
 
+* `evinb()` no longer runs the EVZINB EM step (which updates the zero-inflation
+  block) during the warm-up phase -- a copy-paste artefact from the pre-0.10.0
+  code. The zero-inflation intercept is now held fixed throughout, as the model
+  intends. Estimates are unchanged to machine precision on the tested data (the
+  fixed intercept starts far enough from zero that the spurious update was
+  numerically inert).
 * Block-bootstrap: the block variable is now included in the single `na.omit()`
   step, so a model whose block column has missing values where the model
   variables do not no longer mis-indexes the resamples (previously could error

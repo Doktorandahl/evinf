@@ -47,10 +47,9 @@
 #'   matrices. The exact set and names are consumed by \code{run_evzinb()} /
 #'   \code{run_evinb()}.
 #'
-#' @details The convergence-phase behaviour of the zero-inflation block for
-#'   \code{model = "evinb"} preserves a quirk of the pre-0.10.1 code: the warm-up
-#'   phase does update that block (it reuses the EVZINB EM step) but every
-#'   \eqn{C_{EV}} profile and the whole convergence phase hold it fixed.
+#' @details For \code{model = "evinb"} the zero-inflation multinomial block is
+#'   held at its initial value (\code{ini.val$Beta.multinom.ZC}) throughout both
+#'   phases and in every \eqn{C_{EV}} profile.
 #'
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
@@ -71,19 +70,18 @@ em_fit <- function(y, x.obj, ini.val, control,
   log.lik.vec <- NULL
   est.obj <- NULL
 
+  fixed_zc <- model == "evinb"
+
   # --- warm-up phase -------------------------------------------------------
   cat("Begin warm-up", "\n", sep = "")
   c.abs.diff <- 100
   while (c.abs.diff > 0) {
-    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control.warmup, fixed_zc = FALSE)
+    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control.warmup,
+                              fixed_zc = fixed_zc)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
 
-    par_prof <- prel.val
-    if (model == "evinb") {
-      par_prof$Beta.multinom.ZC <- ini.val$Beta.multinom.ZC
-    }
-    prof <- em_profile_c(y, x.obj, par_prof, c.range)
+    prof <- em_profile_c(y, x.obj, prel.val, c.range)
     log.lik.vec <- prof$profile$loglik
     c.pl.new <- prof$c_hat
     c_trace <- c(c_trace, c.pl.new)
@@ -100,12 +98,8 @@ em_fit <- function(y, x.obj, ini.val, control,
   # --- convergence phase --------------------------------------------------
   cat("End warm-up. Run until convergence", "\n", sep = "")
   c.abs.diff <- 100
-  conv_fixed_zc <- model == "evinb"
   while (c.abs.diff > 0) {
-    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = conv_fixed_zc)
-    if (model == "evinb") {
-      est.obj$par.mat$Beta.multinom.ZC <- ini.val$Beta.multinom.ZC
-    }
+    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = fixed_zc)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
 

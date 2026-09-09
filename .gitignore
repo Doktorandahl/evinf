@@ -45,3 +45,6 @@ docs
 
 # Local working notes (not part of the package)
 /dev/
+
+# round 4 Q1: pre-change EVINB baselines (regenerated, not committed)
+tests/testthat/fixtures/pre_q1/

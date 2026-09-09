@@ -43,10 +43,9 @@ short "warm-up" phase (\code{control$max.no.em.steps.warmup} EM steps) and
 then in a "convergence" phase that runs to \code{control$max.diff.par}.
 }
 \details{
-The convergence-phase behaviour of the zero-inflation block for
-  \code{model = "evinb"} preserves a quirk of the pre-0.10.1 code: the warm-up
-  phase does update that block (it reuses the EVZINB EM step) but every
-  \eqn{C_{EV}} profile and the whole convergence phase hold it fixed.
+For \code{model = "evinb"} the zero-inflation multinomial block is
+  held at its initial value (\code{ini.val$Beta.multinom.ZC}) throughout both
+  phases and in every \eqn{C_{EV}} profile.
 }
 \seealso{
 \code{\link{evzinb}()}, \code{\link{evinb}()}
