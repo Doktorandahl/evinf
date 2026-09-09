@@ -92,6 +92,9 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Breaking changes / deprecations
 
+* The minimum R version is now 4.1.0. The `NAMESPACE` uses delayed S3 method
+  registration for `insight` / `marginaleffects`, which needs R >= 3.6.0; 4.1
+  is the common floor for packages using that pattern.
 * The approximate bootstrap runtime estimate is printed only when
   `verbose = TRUE` (it was always printed before 0.9.4; this note was missing
   from the 0.9.4 changelog).
