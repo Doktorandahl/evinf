@@ -38,7 +38,8 @@ LinkingTo:
 Suggests:
     testthat (>= 3.0.0),
     modelsummary,
-    ggplot2
+    ggplot2,
+    marginaleffects
 RoxygenNote: 7.3.3
 RdMacros: Rdpack
 Depends:

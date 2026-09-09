@@ -11,14 +11,17 @@ oob_evaluation(
 )
 }
 \arguments{
-\item{object}{A fitted evzinb or evinb with bootstraps on which to conduct out-of-bag evaluation}
+\item{object}{A fitted evzinb / evinb model with bootstraps, or an
+\code{evzinbcomp} object from \code{\link{compare_models}()}.}
 
 \item{predict_type}{What type of prediction should be made? Harmonic mean, or exp(log(prediction))?}
 
 \item{metric}{What metric should be used for the out of bag evaluation? Default options include rmsle, rmse, mse, and mae. Can also take a user supplied function of the form function(y_pred,y_true) which returns a single value}
 }
 \value{
-A vector of oob evaluation metrics of the length of the number of bootstraps in the evzinb/evinb object.
+For a single model, a vector of length \code{n_bootstraps}. For an
+  \code{evzinbcomp} object, a tibble with one column per compared model
+  (\code{evinf}, \code{nb}, \code{zinb}, ...) and one row per bootstrap.
 }
 \description{
 Out of bag predictive performance of EVZINB and EVINB models

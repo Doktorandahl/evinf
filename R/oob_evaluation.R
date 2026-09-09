@@ -1,11 +1,14 @@
 
 #' Out of bag predictive performance of EVZINB and EVINB models
 #'
-#' @param object A fitted evzinb or evinb with bootstraps on which to conduct out-of-bag evaluation
+#' @param object A fitted evzinb / evinb model with bootstraps, or an
+#'   \code{evzinbcomp} object from \code{\link{compare_models}()}.
 #' @param predict_type What type of prediction should be made? Harmonic mean, or exp(log(prediction))?
 #' @param metric What metric should be used for the out of bag evaluation? Default options include rmsle, rmse, mse, and mae. Can also take a user supplied function of the form function(y_pred,y_true) which returns a single value
 #'
-#' @return A vector of oob evaluation metrics of the length of the number of bootstraps in the evzinb/evinb object.
+#' @return For a single model, a vector of length \code{n_bootstraps}. For an
+#'   \code{evzinbcomp} object, a tibble with one column per compared model
+#'   (\code{evinf}, \code{nb}, \code{zinb}, ...) and one row per bootstrap.
 #' @export
 #'
 #' @examples
@@ -17,7 +20,30 @@
 oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
                            metric = c('rmsle','rmse','mse','mae')){
   i <- 'temp_iter'
-  
+
+  if (inherits(object, "evzinbcomp")) {
+    predict_type <- match.arg(predict_type, c('harmonic', 'explog'))
+    metric <- match.arg(metric, c('rmsle', 'rmse', 'mse', 'mae'))
+    slots <- setdiff(names(object), c('model', 'evzinb'))
+    out <- tibble::tibble(
+      evinf = oob_evaluation(object$model, predict_type = predict_type,
+                             metric = metric)
+    )
+    for (s in slots) {
+      out[[s]] <- switch(metric,
+        rmse = vapply(object[[s]]$bootstraps, function(b)
+          if (inherits(b, "try-error") || is.null(b$oob_rmse)) NA_real_ else b$oob_rmse,
+          numeric(1)),
+        rmsle = vapply(object[[s]]$bootstraps, function(b)
+          if (inherits(b, "try-error") || is.null(b$oob_rmsle)) NA_real_ else b$oob_rmsle,
+          numeric(1)),
+        rep(NA_real_, length(object[[s]]$bootstraps))
+      )
+    }
+    return(out)
+  }
+
+
   if(is.character(metric)){
     metric <- match.arg(metric, c('rmsle','rmse','mse','mae'))
     ev_metric <- switch(metric,

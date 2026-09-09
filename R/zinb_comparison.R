@@ -283,6 +283,11 @@ inner_nb <- function(bootstrap,data,formulas,init_theta){
   boot_nb$oob_predictions <- exp(predict(boot_nb,newdata=data_oob))
   boot_nb$oob_rmse <- sqrt(mean((dv-boot_nb$oob_predictions)^2))
   boot_nb$oob_rmsle <- sqrt(mean((log1p(dv)-log1p(boot_nb$oob_predictions))^2))
+  # audit 4.7: keep the per-bootstrap fit statistics for compare_fit().
+  boot_nb$fit_stats <- c(logLik = as.numeric(stats::logLik(boot_nb)),
+                         npar = boot_nb$rank + 1,
+                         AIC = stats::AIC(boot_nb),
+                         BIC = stats::BIC(boot_nb))
   boot_nb$model <- NULL
   boot_nb$y <- NULL
   boot_nb$linear.predictors <- NULL
@@ -306,6 +311,12 @@ inner_zinb <- function(bootstrap,data,formulas,f_zinb){
     boot_zinb$oob_predictions <- predict(boot_zinb,newdata=data_oob)
     boot_zinb$oob_rmse <- sqrt(mean((dv-boot_zinb$oob_predictions)^2))
     boot_zinb$oob_rmsle <- sqrt(mean((log1p(dv)-log1p(boot_zinb$oob_predictions))^2))
+    # audit 4.7: keep the per-bootstrap fit statistics for compare_fit().
+    ll <- stats::logLik(boot_zinb)
+    boot_zinb$fit_stats <- c(logLik = as.numeric(ll),
+                             npar = attr(ll, "df"),
+                             AIC = stats::AIC(boot_zinb),
+                             BIC = stats::BIC(boot_zinb))
     boot_zinb$model <- NULL
     boot_zinb$y <- NULL
     boot_zinb$weights <- NULL

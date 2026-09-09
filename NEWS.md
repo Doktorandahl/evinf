@@ -65,6 +65,27 @@ review follow-ups in `dev/review_round1.md`.
   vectorised (no change to results).
 * `print(summary(model))` reports the number of observations at or above C_EV
   and notes when the log-likelihood was recomputed.
+* `predict_grid()` builds a one-variable prediction grid (other covariates held
+  at their mean/median or modal level, or pinned via `at`) and evaluates the
+  model over it in long form, optionally with bootstrap confidence intervals.
+* `plot()` methods for fitted models: `type = "states"` (prior state
+  probabilities over a covariate), `"prediction"` (harmonic-mean prediction with
+  a bootstrap ribbon and quantile lines), `"coefficients"` (bootstrap
+  coefficient densities), and `"ppc"` (observed-vs-expected binned frequencies).
+* `compare_fit()` summarises the paired bootstrap differences (`compared -
+  evinf`) in AIC, BIC and out-of-bag RMSE / RMSLE for an `evzinbcomp` object,
+  with the proportion of bootstraps favouring the extreme-value model;
+  `plot()`, `tidy()` and `glance()` methods for `evzinbcomp` and an
+  `oob_evaluation()` method that tabulates the out-of-bag error per model.
+* `marginal_effects()` computes average marginal effects (central difference for
+  numeric covariates, level-vs-reference contrasts for factors) on the harmonic
+  mean, the state probabilities or a predicted quantile, with bootstrap
+  confidence intervals.
+* `marginaleffects` compatibility: `evzinb` / `evinb` models register with
+  `marginaleffects` on load, so `marginaleffects::avg_slopes()` and friends work
+  with bootstrap delta-method standard errors.
+* The three internal `marginal.effect.*` helpers (never exported, superseded by
+  `marginal_effects()`) were removed.
 
 
 # evinf 0.9.4
