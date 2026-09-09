@@ -11,10 +11,36 @@ test_that("add_bootstraps() appends replicates and records the seed", {
 })
 
 test_that("add_bootstraps() with a seed is reproducible", {
-  m <- fit_evzinb_fast(n_bootstraps = 3)
-  a <- suppressWarnings(suppressMessages(add_bootstraps(m, 3, boot_seed = 123)))
-  b <- suppressWarnings(suppressMessages(add_bootstraps(m, 3, boot_seed = 123)))
+  m <- fit_evzinb_fast(n_bootstraps = 3)   # fitted with boot_seed = 123
+  a <- suppressWarnings(suppressMessages(add_bootstraps(m, 3, boot_seed = 456)))
+  b <- suppressWarnings(suppressMessages(add_bootstraps(m, 3, boot_seed = 456)))
   expect_equal(a$bootstraps[[4]]$coef$Beta.NB, b$bootstraps[[4]]$coef$Beta.NB)
+})
+
+test_that("add_bootstraps() rejects a seed the model already used (N4)", {
+  m <- fit_evzinb_fast(n_bootstraps = 3)   # boot_seed = 123
+  expect_error(add_bootstraps(m, 2, boot_seed = 123), "already used")
+
+  m2 <- suppressWarnings(suppressMessages(add_bootstraps(m, 2, boot_seed = 456)))
+  expect_error(add_bootstraps(m2, 2, boot_seed = 456), "already used")
+  expect_error(add_bootstraps(m2, 2, boot_seed = 123), "already used")
+
+  # a fresh seed appends replicates that differ from the first batch
+  m3 <- suppressWarnings(suppressMessages(add_bootstraps(m, 3, boot_seed = 789)))
+  first <- as.numeric(m3$bootstraps[[1]]$coef$Beta.NB)
+  new   <- as.numeric(m3$bootstraps[[5]]$coef$Beta.NB)
+  expect_false(isTRUE(all.equal(first, new)))
+})
+
+test_that("bootstrapped models always record a seed, even with boot_seed = NULL (N4)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  ctl <- evinf_control(c.lim = c(50, 1000), init.C = 200)
+  m <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 3, verbose = FALSE,
+    control = ctl)))
+  expect_length(m$boot_seeds, 1L)
+  expect_false(is.null(m$boot_seeds[[1]]))
+  expect_true(is.numeric(m$boot_seeds[[1]]))
 })
 
 test_that("two fits with the same boot_seed give identical bootstrap coefficients", {

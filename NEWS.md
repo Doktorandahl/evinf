@@ -73,6 +73,11 @@ review follow-ups in `dev/review_round1.md`.
   2e5`, or whenever set explicitly; `n_max = Inf` disables it), with a message.
   The per-observation `mistr` quantile machinery made this prohibitively slow
   on data the size of `hks`.
+* `add_bootstraps()` errors if `boot_seed` was already used for this model (the
+  `%dorng%` stream is fully determined by the seed, so it would silently
+  duplicate existing draws and shrink the bootstrap SEs). `evzinb()` / `evinb()`
+  now always record the seed actually used (drawing one when `boot_seed = NULL`),
+  so `object$boot_seeds` is complete.
 * `mixture_p()` (the mixture CDF behind `residuals(type = "quantile")`) now
   uses the discretised Pareto CDF that matches the pmf the likelihood uses
   (`1 - (C/(y+1))^a` for `y >= C`), rather than the continuous `1 - (C/y)^a`.

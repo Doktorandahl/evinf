@@ -329,7 +329,10 @@ bootrun_evinb <- function(
 #'   no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 #'   and Vegelius (2024) cannot be reproduced from them directly (see
 #'   \code{?hks}).
-#' @param boot_seed Optional bootstrap seed to ensure reproducible results.
+#' @param boot_seed Optional bootstrap seed for reproducibility. When supplied
+#'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
+#'   \code{object$boot_seeds} is always populated for a bootstrapped model
+#'   (see \code{\link{add_bootstraps}}).
 #' @param control An \code{\link{evinf_control}()} object holding the EM tuning
 #'   settings.
 #' @param max.diff.par,max.no.em.steps,max.no.em.steps.warmup,c.lim,prune.c.range,max.upd.par.pl.multinomial,max.upd.par.nb,max.upd.par.pl,no.m.bfgs.steps.multinomial,no.m.bfgs.steps.nb,no.m.bfgs.steps.pl,pdf.pl.type,eta.int,init.Beta.multinom.PL,init.Beta.NB,init.Beta.PL,init.Alpha.NB,init.C
@@ -400,12 +403,17 @@ evinb <- function(
     verbose = verbose
   )
   full_run$call <- stored_call
-  full_run$boot_seeds <- list(boot_seed)
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
 
   if (bootstrap) {
+    # Always record the seed actually used (audit N4).
+    if (is.null(boot_seed)) {
+      boot_seed <- sample.int(.Machine$integer.max, 1L)
+    }
+    full_run$boot_seeds <- list(boot_seed)
+
     be <- evinf_setup_backend(multicore, ncores)
     on.exit(be$stop(), add = TRUE)
     if (multicore) {

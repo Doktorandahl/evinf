@@ -66,7 +66,10 @@ no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 and Vegelius (2024) cannot be reproduced from them directly (see
 \code{?hks}).}
 
-\item{boot_seed}{Optional bootstrap seed to ensure reproducible results.}
+\item{boot_seed}{Optional bootstrap seed for reproducibility. When supplied
+it is used as-is; when \code{NULL} a seed is drawn and recorded, so
+\code{object$boot_seeds} is always populated for a bootstrapped model
+(see \code{\link{add_bootstraps}}).}
 
 \item{control}{An \code{\link{evinf_control}()} object holding the EM tuning
 settings (tolerances, candidate range for \eqn{C_{EV}}, BFGS steps, starting

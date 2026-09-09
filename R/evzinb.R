@@ -232,7 +232,10 @@ run_evzinb <- function(
 #'   no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 #'   and Vegelius (2024) cannot be reproduced from them directly (see
 #'   \code{?hks}).
-#' @param boot_seed Optional bootstrap seed to ensure reproducible results.
+#' @param boot_seed Optional bootstrap seed for reproducibility. When supplied
+#'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
+#'   \code{object$boot_seeds} is always populated for a bootstrapped model
+#'   (see \code{\link{add_bootstraps}}).
 #' @param control An \code{\link{evinf_control}()} object holding the EM tuning
 #'   settings (tolerances, candidate range for \eqn{C_{EV}}, BFGS steps, starting
 #'   values, ...).
@@ -315,13 +318,20 @@ evzinb <- function(
     verbose = verbose
   )
   full_run$call <- stored_call
-  full_run$boot_seeds <- list(boot_seed)
 
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
 
   if (bootstrap) {
+    # Always record the seed actually used (draw one when the user passed NULL)
+    # so object$boot_seeds is complete and add_bootstraps() can guard against a
+    # reused seed (audit N4).
+    if (is.null(boot_seed)) {
+      boot_seed <- sample.int(.Machine$integer.max, 1L)
+    }
+    full_run$boot_seeds <- list(boot_seed)
+
     be <- evinf_setup_backend(multicore, ncores)
     on.exit(be$stop(), add = TRUE)
     # The %dorng% loop auto-exports the referenced globals and .packages =

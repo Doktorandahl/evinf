@@ -18,8 +18,11 @@ add_bootstraps(
 
 \item{n}{Number of additional bootstrap replicates.}
 
-\item{boot_seed}{Optional RNG seed for this batch (recorded in
-\code{object$boot_seeds}).}
+\item{boot_seed}{RNG seed for this batch. Each batch needs its own seed:
+the bootstrap stream is fully determined by the seed, so reusing one that
+the model (or an earlier \code{add_bootstraps()} call) already used would
+silently duplicate those draws and is an error. When \code{NULL} a fresh
+seed is drawn and recorded in \code{object$boot_seeds}.}
 
 \item{multicore, ncores}{Passed to the parallel backend.}
 
