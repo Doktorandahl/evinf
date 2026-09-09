@@ -25,6 +25,7 @@
 #' @param init.Beta.PL Initial values for beta parameters in the pareto component. Vector of same length as number of parameters in the pareto component or NULL (which gives starting values of 0)
 #' @param init.Alpha.NB Initial value of Alpha NB, integer or NULL (giving a starting value of 0)
 #' @param init.C Initial value of C. Integer which should be within the C_lim range.
+#' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
 #' @param verbose Should progress be printed for the first run of evzinb
 #'
 #' @return An object of class 'evzinb'
@@ -55,8 +56,13 @@ run_evzinb <- function(
   init.Beta.PL = NULL,
   init.Alpha.NB = 0.01,
   init.C = 200,
+  block = NULL,
   verbose = TRUE
 ) {
+  if (!is.null(block) && !(is.character(block) && length(block) == 1L)) {
+    stop("`block` must be NULL or a single string naming a column of `data`.",
+         call. = FALSE)
+  }
   if (is.null(formula_evi)) {
     formula_evi <- formula_nb
   }
@@ -84,13 +90,15 @@ run_evzinb <- function(
   formula_evi <- ensure_response(formula_evi)
   formula_pareto <- ensure_response(formula_pareto)
 
-  # Restrict to the union of variables used by any component and drop incomplete
-  # rows once, so all four design matrices stay row-consistent (audit 1.7).
+  # Restrict to the union of variables used by any component (plus the block
+  # variable, audit R0.1) and drop incomplete rows once, so the design matrices
+  # and the block vector all refer to the same rows (audit 1.7, R0.1).
   model_vars <- unique(c(
     all.vars(formula_nb),
     all.vars(formula_zi),
     all.vars(formula_evi),
-    all.vars(formula_pareto)
+    all.vars(formula_pareto),
+    block
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -166,6 +174,13 @@ run_evzinb <- function(
       object <- zerinfl.nb.pl.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
     )
   }
+  if (verbose && isTRUE(object$loglik_recomputed)) {
+    message(
+      "The trace-maximum log-likelihood differed from the value at the ",
+      "returned parameters; log.lik / AIC / BIC were recomputed from the ",
+      "returned parameters."
+    )
+  }
   object$par.mat$Beta.multinom.ZC <- as.numeric(object$par.mat$Beta.multinom.ZC)
   object$par.mat$Beta.multinom.PL <- as.numeric(object$par.mat$Beta.multinom.PL)
   object$par.mat$Beta.NB <- as.numeric(object$par.mat$Beta.NB)
@@ -197,6 +212,8 @@ run_evzinb <- function(
   object$data <- list()
 
   object$data$data <- model_data
+  object$block <- block
+  object$block_vec <- if (!is.null(block)) model_data[[block]] else NULL
   object$data$y <- as.numeric(object$y)
   object$y <- NULL
   object$data$x.nb <- object$x.nb
@@ -371,42 +388,13 @@ evzinb <- function(
     init.Beta.PL = init.Beta.PL,
     init.Alpha.NB = init.Alpha.NB,
     init.C = init.C,
+    block = block,
     verbose = verbose
   )
 
   runtime <- difftime(Sys.time(), t1)
 
-  full_run$block <- block
-  if (!is.null(block)) {
-    if (is.character(block)) {
-      block2 <- data %>%
-        dplyr::select(dplyr::all_of(unique(c(
-          all.vars(formula_nb),
-          all.vars(formula_zi),
-          all.vars(formula_evi),
-          all.vars(formula_pareto),
-          block
-        )))) %>%
-        na.omit() %>%
-        dplyr::select(dplyr::all_of(block)) %>%
-        dplyr::pull()
-      full_run$data$data <- dplyr::bind_cols(
-        data %>%
-          dplyr::select(dplyr::all_of(unique(c(
-            all.vars(formula_nb),
-            all.vars(formula_zi),
-            all.vars(formula_evi),
-            all.vars(formula_pareto),
-            block
-          )))) %>%
-          na.omit() %>%
-          dplyr::select(dplyr::all_of(block)),
-        full_run$data$data
-      )
-    }
-  } else {
-    block2 <- NULL
-  }
+  block2 <- full_run$block_vec
 
   if (bootstrap) {
     be <- evinf_setup_backend(multicore, ncores)
