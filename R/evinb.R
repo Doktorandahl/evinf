@@ -215,9 +215,6 @@ run_evinb <- function(
 #' @param object The evinb object to run the bootstrap on
 #' @param block Optional string specifying varible for block bootstrapping
 #' @param timing Should time be kept
-#' @param track_progress Should progress be tracked (experimental)
-#' @param id Id when tracking progress
-#' @param maxboot Number of bootstraps when tracking progress
 #'
 #' @return A bootstrapped evinb object
 #'
@@ -225,10 +222,7 @@ run_evinb <- function(
 bootrun_evinb <- function(
   object,
   block = NULL,
-  timing = TRUE,
-  track_progress = FALSE,
-  id = NULL,
-  maxboot = NULL
+  timing = TRUE
 ) {
   tim <- Sys.time()
   if (is.null(block)) {
@@ -316,21 +310,6 @@ bootrun_evinb <- function(
   if (timing) {
     evinb_boot$time <- difftime(Sys.time(), tim, units = 'secs')
   }
-  if (track_progress) {
-    cat(
-      "\n ======= Bootstrap ",
-      id,
-      " of ",
-      maxboot,
-      "done in ",
-      round(evinb_boot$time, 1),
-      "seconds =====  Converged:",
-      evinb_boot$converge,
-      '. Number of em steps:',
-      length(evinb_boot$log.lik.vec.all),
-      "===== \n"
-    )
-  }
   return(evinb_boot)
 }
 
@@ -385,7 +364,13 @@ evinb <- function(
   verbose = FALSE
 ) {
   i <- 'temp_iter'
-  ctrl <- resolve_evinf_control(control, match.call(), environment(), fn = "evinb")
+  mc <- match.call()
+  ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evinb")
+
+  stored_call <- as.call(c(quote(evinf::evinb), list(
+    bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
+    ncores = ncores, boot_seed = boot_seed, verbose = verbose
+  )))
 
   # NULL component formulas are resolved in run_evinb() (audit 4.4).
   t1 <- Sys.time()
@@ -398,6 +383,8 @@ evinb <- function(
     block = block,
     verbose = verbose
   )
+  full_run$call <- stored_call
+  full_run$boot_seeds <- list(boot_seed)
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
@@ -420,33 +407,17 @@ evinb <- function(
       )
     }
 
-    if (verbose) {
-      boots <- foreach::foreach(
+    boots <- evinf_progress_run(n_bootstraps, verbose, function(p) {
+      foreach::foreach(
         i = 1:n_bootstraps,
         .options.RNG = boot_seed,
         .packages = 'evinf'
-      ) %dorng%
-        try(bootrun_evinb(
-          full_run,
-          block2,
-          track_progress = T,
-          id = i,
-          maxboot = n_bootstraps
-        ))
-    } else {
-      boots <- foreach::foreach(
-        i = 1:n_bootstraps,
-        .options.RNG = boot_seed,
-        .packages = 'evinf'
-      ) %dorng%
-        try(bootrun_evinb(
-          full_run,
-          block2,
-          track_progress = F,
-          id = i,
-          maxboot = n_bootstraps
-        ))
-    }
+      ) %dorng% {
+        res <- try(bootrun_evinb(full_run, block2))
+        p()
+        res
+      }
+    })
 
     names(boots) <- paste('bootstrap_', 1:length(boots), sep = "")
     out <- c(full_run, list(bootstraps = boots))

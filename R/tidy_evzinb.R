@@ -213,6 +213,10 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
     return(build_component(component))
   }
 
+  # `y.level` follows the broom multinomial convention. As with nnet::multinom,
+  # modelsummary() needs `shape = term + y.level ~ model` (or a vcov= argument)
+  # to lay out the components; there is no way to make bare modelsummary(model)
+  # work while keeping one row per (component, term).
   dplyr::bind_rows(lapply(y_levels, function(cn) {
     dplyr::mutate(build_component(cn), y.level = cn, .before = 1)
   })) %>%

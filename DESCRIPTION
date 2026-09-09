@@ -30,7 +30,8 @@ Imports:
     stats,
     utils,
     parallel,
-    generics
+    generics,
+    progressr
 LinkingTo:
     Rcpp,
     RcppArmadillo

@@ -42,6 +42,9 @@ evinf_print_fit <- function(x, kind, zi) {
       if (is.na(n_boot$n_bootstraps)) 'none' else
         paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ')'),
       sep = ' ')
+  if (!is.na(n_boot$n_failed_bootstraps) && n_boot$n_failed_bootstraps > 0) {
+    cat('\n   (call failed_bootstraps() for the error messages)')
+  }
   if (on_boundary) {
     cat('\n Note: C_EV lies on the boundary of the candidate range.')
   }

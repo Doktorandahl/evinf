@@ -977,6 +977,9 @@ predict.evinb <- function(
 
 #' Random draws from a fitted evzinb model
 #'
+#' `revzinb_fit()` is superseded by [simulate()][simulate.evzinb], which returns a
+#' tidy data frame; it is kept for backwards compatibility.
+#'
 #' @param object A fitted EVZINB object
 #' @param newdata Optional newdata
 #' @param n_draws Number of random draws to make
@@ -1032,6 +1035,9 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 }
 
 #' Random draws from a fitted evinb model
+#'
+#' `revinb_fit()` is superseded by [simulate()][simulate.evinb], which returns a
+#' tidy data frame; it is kept for backwards compatibility.
 #'
 #' @param object A fitted EVINB object
 #' @param newdata Optional newdata

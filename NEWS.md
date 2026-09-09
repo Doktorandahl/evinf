@@ -38,6 +38,29 @@ review follow-ups in `dev/review_round1.md`.
 
 ## New features
 
+* `evinf_control()` bundles the EM tuning settings; `evzinb()` / `evinb()` gain
+  a `control` argument. The individual tuning arguments still work but are
+  deprecated in favour of `control`.
+* The candidate range for C_EV is now chosen from the data by default
+  (`c.lim = NULL`); it is printed with a message. `c_profile()` /
+  `plot_c_profile()` show the log-likelihood profile over that range;
+  `glance()` gains `n_above_c` and `n_em_steps`; the fitted object carries
+  `$c_profile`, `$c_trace`, `$loglik_trace`.
+* `offset()` in the count-component formula is supported
+  (`mu_NB = exp(x'b + offset)`), e.g. `y ~ x + offset(log(exposure))`.
+* Standard S3 methods: `coef()`, `vcov()` (bootstrap covariance), `confint()`,
+  `logLik()` / `AIC()` / `BIC()`, `nobs()`, `formula()`, `terms()`,
+  `model.frame()`, `fitted()`, `residuals()` (response and randomized quantile),
+  `simulate()`, `update()`. `revzinb_fit()` / `revinb_fit()` are superseded by
+  `simulate()`.
+* `add_bootstraps()` extends an existing fit with more replicates;
+  `failed_bootstraps()` returns the error messages of the replicates that
+  failed. Bootstrap seeds are recorded in `$boot_seeds`.
+* Progress reporting for the bootstrap loops through `progressr` (shown when
+  `verbose = TRUE` or a global handler is set), replacing the old `cat()`
+  messages.
+* `classify_states()` returns the prior and posterior state classification per
+  observation; `state_table()` cross-tabulates them.
 * The per-observation fitted-value loop in the estimation routines is
   vectorised (no change to results).
 * `print(summary(model))` reports the number of observations at or above C_EV

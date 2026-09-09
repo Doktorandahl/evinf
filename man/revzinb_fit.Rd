@@ -17,7 +17,8 @@ revzinb_fit(object, newdata = NULL, n_draws = 1)
 A vector of randomly drawn values from the fitted evzinb if n_draws == 1, or a list of length n_draws with random drawn values if n_draws > 1
 }
 \description{
-Random draws from a fitted evzinb model
+`revzinb_fit()` is superseded by [simulate()][simulate.evzinb], which returns a
+tidy data frame; it is kept for backwards compatibility.
 }
 \examples{
 \donttest{
