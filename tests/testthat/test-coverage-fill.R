@@ -45,29 +45,75 @@ test_that("bootstrap_mean / bootstrap_median predictions run for every type", {
   }
 })
 
-test_that("the multicore backend path works end to end", {
+# Q2: exercise the multicore (PSOCK on Windows CI, fork elsewhere) bootstrap
+# path and assert it is identical to the sequential path for the same boot_seed
+# -- the %dorng% stream is backend-independent, so results must match to 1e-10.
+# skip_on_cran() only (was skip_on_os("windows")) so R-CMD-check.yaml runs it.
+coef_num <- function(m) {
+  ce <- suppressWarnings(coefficient_extractor(m, "all"))
+  as.matrix(ce[vapply(ce, is.numeric, logical(1))])
+}
+
+test_that("multicore bootstrap == sequential for the same boot_seed (Q2)", {
   skip_on_cran()
-  skip_on_os("windows")
   skip_if_not_installed("doParallel")
 
   data(genevzinb2, package = "evinf", envir = environment())
-  m <- suppressWarnings(suppressMessages(evinf::evzinb(
-    y ~ x1 + x2 + x3, data = genevzinb2, control = .fast_control(),
-    bootstrap = TRUE, n_bootstraps = 4, multicore = TRUE, ncores = 2,
-    boot_seed = 1, verbose = FALSE
-  )))
-  expect_length(m$bootstraps, 4L)
+  ctl <- .fast_control()
+  fitz <- function(mc) suppressWarnings(suppressMessages(evinf::evzinb(
+    y ~ x1 + x2 + x3, data = genevzinb2, control = ctl, bootstrap = TRUE,
+    n_bootstraps = 4, boot_seed = 99, multicore = mc, ncores = 2,
+    verbose = FALSE)))
+  fiti <- function(mc) suppressWarnings(suppressMessages(evinf::evinb(
+    y ~ x1 + x2 + x3, data = genevzinb2, control = ctl, bootstrap = TRUE,
+    n_bootstraps = 4, boot_seed = 99, multicore = mc, ncores = 2,
+    verbose = FALSE)))
 
-  p <- suppressWarnings(predict(m, type = "harmonic", confint = TRUE,
-                                multicore = TRUE, ncores = 2))
-  expect_true(all(c("ci_lb", "ci_ub") %in% names(p)))
+  mz_seq <- fitz(FALSE); mz_par <- fitz(TRUE)
+  expect_equal(coef_num(mz_par), coef_num(mz_seq), tolerance = 1e-10)
 
-  comp <- suppressWarnings(suppressMessages(
-    compare_models(m, multicore = TRUE, ncores = 2)
-  ))
-  expect_length(comp$nb$bootstraps, 4L)
+  mi_seq <- fiti(FALSE); mi_par <- fiti(TRUE)
+  expect_equal(coef_num(mi_par), coef_num(mi_seq), tolerance = 1e-10)
 
-  # a user-registered backend is left untouched when multicore = FALSE
+  # add_bootstraps(): the new batch must match across backends
+  ab_seq <- suppressWarnings(add_bootstraps(mz_seq, 3, boot_seed = 7,
+                                            multicore = FALSE))
+  ab_par <- suppressWarnings(add_bootstraps(mz_seq, 3, boot_seed = 7,
+                                            multicore = TRUE, ncores = 2))
+  expect_equal(coef_num(ab_par), coef_num(ab_seq), tolerance = 1e-10)
+
+  # predict(pred = "bootstrap_median")
+  p_seq <- suppressWarnings(predict(mz_seq, type = "harmonic",
+                                    pred = "bootstrap_median", multicore = FALSE))
+  p_par <- suppressWarnings(predict(mz_seq, type = "harmonic",
+                                    pred = "bootstrap_median",
+                                    multicore = TRUE, ncores = 2))
+  expect_equal(as.numeric(p_par), as.numeric(p_seq), tolerance = 1e-10)
+
+  # lr_test(bootstrap = TRUE)
+  lr_seq <- suppressWarnings(suppressMessages(
+    lr_test(mz_seq, "x1", bootstrap = TRUE, multicore = FALSE)))
+  lr_par <- suppressWarnings(suppressMessages(
+    lr_test(mz_seq, "x1", bootstrap = TRUE, multicore = TRUE, ncores = 2)))
+  expect_equal(lr_par$results$chisq_mean, lr_seq$results$chisq_mean,
+               tolerance = 1e-10)
+
+  # compare_models()
+  cm_seq <- suppressWarnings(suppressMessages(
+    compare_models(mz_seq, multicore = FALSE)))
+  cm_par <- suppressWarnings(suppressMessages(
+    compare_models(mz_seq, multicore = TRUE, ncores = 2)))
+  expect_equal(
+    suppressWarnings(oob_evaluation(cm_par, metric = "rmse")$nb),
+    suppressWarnings(oob_evaluation(cm_seq, metric = "rmse")$nb),
+    tolerance = 1e-10
+  )
+})
+
+test_that("a user-registered parallel backend survives multicore = FALSE", {
+  skip_on_cran()
+  skip_if_not_installed("doParallel")
+
   cl <- parallel::makeCluster(2)
   doParallel::registerDoParallel(cl)
   on.exit({

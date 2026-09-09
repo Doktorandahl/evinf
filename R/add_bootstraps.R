@@ -43,7 +43,8 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = FALSE,
   on.exit(be$stop(), add = TRUE)
 
   new_boots <- evinf_progress_run(n, verbose, function(p) {
-    foreach::foreach(i = 1:n, .options.RNG = boot_seed, .packages = "evinf") %dorng% {
+    foreach::foreach(i = 1:n, .options.RNG = boot_seed, .packages = "evinf",
+                     .export = c("object", "block2")) %dorng% {
       res <- try(runner(object, block2))
       p()
       res

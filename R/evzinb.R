@@ -346,7 +346,8 @@ evzinb <- function(
       foreach::foreach(
         i = 1:n_bootstraps,
         .options.RNG = boot_seed,
-        .packages = 'evinf'
+        .packages = 'evinf',
+        .export = c('full_run', 'block2', 'n_bootstraps')
       ) %dorng% {
         res <- try(bootrun_evzinb(full_run, block2))
         p()
