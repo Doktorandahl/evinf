@@ -356,9 +356,19 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
   is_zinb <- inherits(object, "evzinb")
   cl[[1L]] <- if (is_zinb) quote(evinf::evzinb) else quote(evinf::evinb)
 
-  # Rebuild the call from concrete values so re-fitting does not depend on the
-  # environment the model was originally fitted in.
-  cl$data <- object$data$data
+  # data: keep the user's original expression and evaluate the call in a child
+  # of `env`; fall back to the embedded data frame (bound to `.evinf_data`) only
+  # when that expression can no longer be resolved (audit N6). Either way the
+  # refitted object's $call$data is an expression, never a data frame.
+  eval_env <- new.env(parent = env)
+  eval_env$.evinf_data <- object$data$data
+  data_expr <- cl$data
+  can_eval <- !is.null(data_expr) &&
+    is.data.frame(tryCatch(eval(data_expr, env), error = function(e) NULL))
+  if (!can_eval) {
+    cl$data <- quote(.evinf_data)
+  }
+
   cl$control <- object$control
   cl$block <- object$block
 
@@ -376,5 +386,5 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
   for (nm in names(extras)) {
     cl[[nm]] <- extras[[nm]]
   }
-  if (evaluate) eval(cl, env) else cl
+  if (evaluate) eval(cl, eval_env) else cl
 }

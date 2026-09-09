@@ -390,6 +390,7 @@ evinb <- function(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
     ncores = ncores, boot_seed = boot_seed, verbose = verbose
   )))
+  stored_call$data <- mc$data  # the expression, not the data frame (audit N6)
 
   # NULL component formulas are resolved in run_evinb() (audit 4.4).
   t1 <- Sys.time()

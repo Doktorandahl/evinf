@@ -77,6 +77,29 @@ test_that("update() edits per-component formulas and other arguments", {
   expect_null(m3$bootstraps)
 })
 
+test_that("update() does not embed the data frame in the stored call (N6)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  ctl <- evinf_control(c.lim = c(50, 1000), init.C = 200)
+  m <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2 + x3, data = genevzinb2, bootstrap = FALSE, verbose = FALSE,
+    control = ctl)))
+
+  expect_false(is.data.frame(m$call$data))
+
+  u <- suppressWarnings(suppressMessages(
+    update(m, formula_pareto. = . ~ . - x3)))
+  expect_false(is.data.frame(u$call$data))
+  expect_true(is.symbol(u$call$data))          # `genevzinb2` or `.evinf_data`
+  expect_lt(as.numeric(object.size(u$call)), 1e4)
+
+  # the refit reproduces a direct call with the reduced Pareto formula
+  d <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2 + x3,
+    formula_pareto = stats::update.formula(y ~ x1 + x2 + x3, . ~ . - x3),
+    data = genevzinb2, bootstrap = FALSE, verbose = FALSE, control = m$control)))
+  expect_equal(unname(coef(u, "all")), unname(coef(d, "all")), tolerance = 1e-8)
+})
+
 test_that("modelsummary works with a grouped shape (skip if absent)", {
   skip_if_not_installed("modelsummary")
   m <- fit_evzinb_fast(n_bootstraps = 6)

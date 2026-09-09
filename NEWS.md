@@ -73,6 +73,11 @@ review follow-ups in `dev/review_round1.md`.
   2e5`, or whenever set explicitly; `n_max = Inf` disables it), with a message.
   The per-observation `mistr` quantile machinery made this prohibitively slow
   on data the size of `hks`.
+* `update()` no longer embeds the whole data frame in the refitted model's
+  stored call. `evzinb()` / `evinb()` keep `data` as the expression the user
+  passed; `update()` re-evaluates it, falling back to the embedded copy (bound
+  to a symbol) only when the expression can no longer be resolved. `model$call`
+  and `str(model)` stay small on large data.
 * `evzinb()` / `evinb()` resolve a bare `block` name to the matching column of
   `data` before trying to evaluate it, so an unrelated object of the same name
   in the calling environment no longer shadows the column.

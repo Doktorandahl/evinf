@@ -298,12 +298,14 @@ evzinb <- function(
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evzinb")
 
   # A self-contained call for update(): the bootstrap-related arguments are
-  # inlined by value; update.evzinb() fills in formulas / data / control / block
-  # from the fitted object.
+  # inlined by value and `data` is kept as the *expression* the user passed
+  # (never the data frame itself, audit N6); update.evzinb() fills in
+  # formulas / control / block from the fitted object.
   stored_call <- as.call(c(quote(evinf::evzinb), list(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
     ncores = ncores, boot_seed = boot_seed, verbose = verbose
   )))
+  stored_call$data <- mc$data
 
   # NULL component formulas are resolved in run_evzinb() (audit 4.4).
   t1 <- Sys.time()
