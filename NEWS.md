@@ -153,6 +153,11 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Documentation
 
+* `?vcov.evzinb`, `?confint.evzinb` and the new `?marginaleffects-methods` page
+  note that `c_ev` is estimated on a discrete grid, so continuous delta-method
+  standard errors that perturb it should be read with care;
+  `marginal_effects()` (bootstrap) is the recommended route for effect
+  uncertainty. `?confint.evzinb` gains an example using `c_ev` / `alpha_nb`.
 * New `pkgdown` reference index grouping the exported functions (Fitting,
   Summaries & tables, Prediction & effects, Diagnostics & plots, Model
   comparison, Simulation, Data).

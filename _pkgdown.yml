@@ -85,6 +85,7 @@ reference:
 - title: internal
   contents:
   - evinf-package
+  - marginaleffects-methods
   - predict.nbboot
   - predict.zinbboot
   - tidy.nbboot

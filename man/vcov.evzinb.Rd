@@ -22,3 +22,12 @@ The covariance matrix of the bootstrap coefficient draws, with the
 \description{
 Bootstrap covariance matrix of an evzinb / evinb model
 }
+\details{
+\code{c_ev} is estimated on the grid of unique observed values of
+  the response, not by a smooth optimiser, so it sits on a discrete scale.
+  Its bootstrap variance (and a percentile \code{confint()} on it) is
+  meaningful, but delta-method standard errors that perturb \code{c_ev}
+  continuously -- as \code{marginaleffects::avg_slopes()} etc. do -- should
+  be read with that in mind. For uncertainty on covariate \emph{effects},
+  prefer the bootstrap route, \code{\link{marginal_effects}()}.
+}

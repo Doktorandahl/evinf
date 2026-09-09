@@ -1,8 +1,25 @@
 # audit 4.8 - marginaleffects compatibility.
-#
-# marginaleffects dispatches on get_coef / set_coef / get_vcov / get_predict for
-# a custom class. With these, marginaleffects::avg_slopes(model) etc. work with
-# delta-method standard errors from the bootstrap vcov().
+
+#' \code{marginaleffects} support for evzinb / evinb models
+#'
+#' On load the package registers the \code{"evzinb"} / \code{"evinb"} classes
+#' with \pkg{marginaleffects} and provides \code{get_coef()}, \code{set_coef()},
+#' \code{get_vcov()} and \code{get_predict()} methods, so
+#' \code{marginaleffects::avg_slopes()}, \code{predictions()} etc. work.
+#' Standard errors come from the delta method applied to the bootstrap
+#' covariance matrix (\code{\link{vcov.evzinb}}).
+#'
+#' @details The coefficient vector includes \code{c_ev}, the extreme-value
+#'   threshold, which is estimated on the grid of unique observed response
+#'   values rather than by a smooth optimiser. \pkg{marginaleffects} perturbs
+#'   every coefficient continuously when it builds the delta-method Jacobian, so
+#'   standard errors for quantities that depend strongly on \code{c_ev} should
+#'   be treated as approximate. The recommended route for uncertainty on
+#'   covariate effects is the bootstrap-based \code{\link{marginal_effects}()}.
+#'
+#' @name marginaleffects-methods
+#' @keywords internal
+NULL
 
 evinf_set_flat_coef <- function(model, coefs) {
   comps <- evinf_components(model)

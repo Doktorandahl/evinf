@@ -100,6 +100,13 @@ coef.evinb <- function(object, component = "all", ...) {
 #' @return The covariance matrix of the bootstrap coefficient draws, with the
 #'   same names and order as \code{coef(object)} (includes \code{alpha_nb} and
 #'   \code{c_ev}).
+#' @details \code{c_ev} is estimated on the grid of unique observed values of
+#'   the response, not by a smooth optimiser, so it sits on a discrete scale.
+#'   Its bootstrap variance (and a percentile \code{confint()} on it) is
+#'   meaningful, but delta-method standard errors that perturb \code{c_ev}
+#'   continuously -- as \code{marginaleffects::avg_slopes()} etc. do -- should
+#'   be read with that in mind. For uncertainty on covariate \emph{effects},
+#'   prefer the bootstrap route, \code{\link{marginal_effects}()}.
 #' @export
 vcov.evzinb <- function(object, ...) {
   stats::cov(evinf_boot_coef_matrix(object))
@@ -120,6 +127,13 @@ vcov.evinb <- function(object, ...) {
 #'   or \code{"approx"} (\code{estimate +/- qnorm() * sqrt(diag(vcov))}).
 #' @param ... Unused.
 #' @return A two-column matrix.
+#' @examples
+#' \donttest{
+#' data(genevzinb2)
+#' m <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 25)
+#' # the Pareto shape (alpha_nb) and the threshold (c_ev) are in coef()/confint()
+#' confint(m, parm = c("count_x1", "alpha_nb", "c_ev"))
+#' }
 #' @export
 confint.evzinb <- function(object, parm, level = 0.95,
                            type = c("percentile", "approx"), ...) {

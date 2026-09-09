@@ -27,3 +27,11 @@ A two-column matrix.
 \description{
 Confidence intervals for an evzinb / evinb model
 }
+\examples{
+\donttest{
+data(genevzinb2)
+m <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 25)
+# the Pareto shape (alpha_nb) and the threshold (c_ev) are in coef()/confint()
+confint(m, parm = c("count_x1", "alpha_nb", "c_ev"))
+}
+}
