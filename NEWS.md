@@ -34,7 +34,8 @@ review follow-ups in `dev/review_round1.md`.
 * `plot()` methods for fitted models: `type = "states"` (prior state
   probabilities over a covariate), `"prediction"` (harmonic-mean prediction with
   a bootstrap ribbon and quantile lines), `"coefficients"` (bootstrap
-  coefficient densities), and `"ppc"` (observed-vs-expected binned frequencies).
+  coefficient densities), `"ppc"` (observed-vs-expected binned frequencies) and
+  `"ppc_quantiles"` (observed vs. simulated tail quantiles with a 5-95\% band).
 * `compare_fit()` summarises the paired bootstrap differences (`compared -
   evinf`) in AIC, BIC and out-of-bag RMSE / RMSLE for an `evzinbcomp` object,
   with the proportion of bootstraps favouring the extreme-value model;

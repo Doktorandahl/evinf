@@ -7,7 +7,7 @@
 \usage{
 \method{plot}{evzinb}(
   x,
-  type = c("states", "prediction", "coefficients", "ppc"),
+  type = c("states", "prediction", "coefficients", "ppc", "ppc_quantiles"),
   variable = NULL,
   quantiles = c(0.5, 0.95),
   ...
@@ -15,7 +15,7 @@
 
 \method{plot}{evinb}(
   x,
-  type = c("states", "prediction", "coefficients", "ppc"),
+  type = c("states", "prediction", "coefficients", "ppc", "ppc_quantiles"),
   variable = NULL,
   quantiles = c(0.5, 0.95),
   ...
@@ -30,8 +30,13 @@
   the requested quantiles over \code{variable} (log1p y axis);
 \code{"coefficients"} - bootstrap densities of each coefficient, faceted by
   component and term, with the point estimate marked;
-\code{"ppc"} - posterior predictive check: observed vs simulated quantiles
-  and a binned observed-vs-expected frequency panel.}
+\code{"ppc"} - posterior predictive check: a binned observed-vs-expected
+  frequency panel;
+\code{"ppc_quantiles"} - posterior predictive check on the tails: the
+  observed sample quantiles for probabilities
+  \code{c(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)} against the median simulated
+  quantile (with a 5-95\% band across simulations) on \code{log1p} axes,
+  with a 45-degree reference line.}
 
 \item{variable}{Covariate to vary (required for \code{"states"} and
 \code{"prediction"}).}
@@ -41,8 +46,7 @@
 \item{...}{Passed to \code{\link{predict_grid}}.}
 }
 \value{
-A \code{ggplot} object (or, for \code{"ppc"}, a patchwork-free
-  two-panel plot built with \code{ggplot2}).
+A \code{ggplot} object.
 }
 \description{
 Plots for evzinb / evinb models

@@ -58,6 +58,13 @@ test_that("each plot type returns a ggplot", {
   expect_s3_class(plot(m, type = "prediction", variable = "x1"), "ggplot")
   expect_s3_class(plot(m, type = "coefficients"), "ggplot")
   expect_s3_class(plot(m, type = "ppc"), "ggplot")
+  expect_s3_class(plot(m, type = "ppc_quantiles"), "ggplot")
+})
+
+test_that("ppc_quantiles works for evinb too", {
+  skip_if_not_installed("ggplot2")
+  m <- fit_evinb_fast(n_bootstraps = 5)
+  expect_s3_class(plot(m, type = "ppc_quantiles"), "ggplot")
 })
 
 test_that("plot() needs a variable for states / prediction and bootstraps for coefficients", {

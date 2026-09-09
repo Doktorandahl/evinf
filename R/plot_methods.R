@@ -10,15 +10,19 @@
 #'     the requested quantiles over \code{variable} (log1p y axis);
 #'   \code{"coefficients"} - bootstrap densities of each coefficient, faceted by
 #'     component and term, with the point estimate marked;
-#'   \code{"ppc"} - posterior predictive check: observed vs simulated quantiles
-#'     and a binned observed-vs-expected frequency panel.
+#'   \code{"ppc"} - posterior predictive check: a binned observed-vs-expected
+#'     frequency panel;
+#'   \code{"ppc_quantiles"} - posterior predictive check on the tails: the
+#'     observed sample quantiles for probabilities
+#'     \code{c(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)} against the median simulated
+#'     quantile (with a 5-95\% band across simulations) on \code{log1p} axes,
+#'     with a 45-degree reference line.
 #' @param variable Covariate to vary (required for \code{"states"} and
 #'   \code{"prediction"}).
 #' @param quantiles Quantiles to draw for \code{type = "prediction"}.
 #' @param ... Passed to \code{\link{predict_grid}}.
 #'
-#' @return A \code{ggplot} object (or, for \code{"ppc"}, a patchwork-free
-#'   two-panel plot built with \code{ggplot2}).
+#' @return A \code{ggplot} object.
 #' @export
 #'
 #' @examples
@@ -35,7 +39,8 @@
 #'                   data = hks, n_bootstraps = 5, multicore = FALSE)
 #' plot(hks_mod, type = "prediction", variable = "troopLag")
 #' }
-plot.evzinb <- function(x, type = c("states", "prediction", "coefficients", "ppc"),
+plot.evzinb <- function(x, type = c("states", "prediction", "coefficients",
+                                    "ppc", "ppc_quantiles"),
                         variable = NULL, quantiles = c(0.5, 0.95), ...) {
   rlang::check_installed("ggplot2", "for plot.evzinb() / plot.evinb()")
   type <- match.arg(type)
@@ -44,7 +49,8 @@ plot.evzinb <- function(x, type = c("states", "prediction", "coefficients", "ppc
     states = evinf_plot_states(x, variable, ...),
     prediction = evinf_plot_prediction(x, variable, quantiles, ...),
     coefficients = evinf_plot_coefficients(x),
-    ppc = evinf_plot_ppc(x)
+    ppc = evinf_plot_ppc(x),
+    ppc_quantiles = evinf_plot_ppc_quantiles(x)
   )
 }
 
@@ -148,5 +154,39 @@ evinf_plot_ppc <- function(x) {
     ggplot2::scale_y_continuous(transform = "log1p") +
     ggplot2::labs(x = "y (binned)", y = "count (log1p scale)", fill = NULL,
                   title = "Posterior predictive check: observed vs expected frequencies") +
+    ggplot2::theme_minimal()
+}
+
+evinf_plot_ppc_quantiles <- function(x) {
+  y <- x$data$y
+  probs <- c(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)
+  sims <- simulate(x, nsim = 100)
+
+  obs_q <- stats::quantile(y, probs, names = FALSE)
+  # sim_q: one column of quantiles per simulation
+  sim_q <- vapply(sims, function(s) stats::quantile(s, probs, names = FALSE),
+                  numeric(length(probs)))
+
+  dat <- tibble::tibble(
+    prob = probs,
+    observed = obs_q,
+    simulated = apply(sim_q, 1L, stats::median),
+    lo = apply(sim_q, 1L, stats::quantile, 0.05, names = FALSE),
+    hi = apply(sim_q, 1L, stats::quantile, 0.95, names = FALSE)
+  )
+
+  ggplot2::ggplot(dat, ggplot2::aes(.data$observed, .data$simulated)) +
+    ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggplot2::geom_linerange(ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
+                            colour = "grey50") +
+    ggplot2::geom_point() +
+    ggplot2::geom_text(ggplot2::aes(label = paste0(100 * .data$prob, "%")),
+                       vjust = -0.8, size = 3) +
+    ggplot2::scale_x_continuous(transform = "log1p") +
+    ggplot2::scale_y_continuous(transform = "log1p") +
+    ggplot2::labs(x = "observed quantile (log1p scale)",
+                  y = "simulated quantile (log1p scale)",
+                  title = paste("Posterior predictive check: tail quantiles",
+                                "(5-95% band across simulations)")) +
     ggplot2::theme_minimal()
 }
