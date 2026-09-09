@@ -19,7 +19,6 @@
 #' }
 oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
                            metric = c('rmsle','rmse','mse','mae')){
-  i <- 'temp_iter'
 
   if (inherits(object, "evzinbcomp")) {
     predict_type <- match.arg(predict_type, c('harmonic', 'explog'))
@@ -56,12 +55,13 @@ oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
   }
   predict_type <- match.arg(predict_type, c('harmonic','explog'))
   
-  evals <- foreach::foreach(i = 1:length(object$bootstraps)) %do%
-    try(oob_inner(object$bootstraps[[i]],object$data,predict_type,ev_metric,model_type = class(object)))
-  
-  evals <- purrr::map(evals,err2na)
-  evals <- purrr::reduce(evals,c)
-  
+  evals <- purrr::map(object$bootstraps, function(b)
+    try(oob_inner(b, object$data, predict_type, ev_metric,
+                  model_type = class(object))))
+
+  evals <- purrr::map(evals, err2na)
+  evals <- purrr::reduce(evals, c)
+
   return(evals)
 }
 

@@ -44,16 +44,20 @@ test_that("log-likelihood recompute is silent and recorded (R0.3)", {
   expect_no_warning(suppressMessages(fit_evzinb_fast(n_bootstraps = 4)))
 })
 
-test_that("evinf_setup_backend() leaves a user-registered backend alone (R0.4)", {
-  skip_if_not_installed("doParallel")
-  doParallel::registerDoParallel(2)
-  on.exit({foreach::registerDoSEQ()}, add = TRUE)
-  name_before <- foreach::getDoParName()
+test_that("multicore = NULL leaves the user's future plan untouched (R0.4)", {
+  oplan <- future::plan(future::multisession, workers = 2)
+  on.exit(future::plan(oplan), add = TRUE)
+  plan_before <- future::plan()
 
-  be <- evinf_setup_backend(multicore = FALSE)
-  be$stop()
-  expect_identical(foreach::getDoParName(), name_before)
-  expect_true(be$user_backend)
+  # multicore = NULL: evinf must not touch the plan the user set.
+  evinf:::evinf_with_plan(NULL, NULL, invisible(NULL))
+  expect_identical(class(future::plan()), class(plan_before))
+
+  # multicore = TRUE / FALSE set a temporary plan but restore it on exit.
+  f <- function(mc) evinf:::evinf_with_plan(mc, 2, future::plan())
+  inner <- f(FALSE)
+  expect_identical(class(future::plan()), class(plan_before))
+  expect_true(inherits(inner, "sequential"))
 })
 
 test_that("predict() type='all' and confint use canonical state names first (R0.5)", {

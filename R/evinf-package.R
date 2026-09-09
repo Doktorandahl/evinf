@@ -2,10 +2,8 @@
 "_PACKAGE"
 
 ## usethis namespace: start
-#' @importFrom doRNG %dorng%
-#' @importFrom foreach %:%
-#' @importFrom foreach %do%
-#' @importFrom foreach %dopar%
+#' @importFrom furrr future_map
+#' @importFrom future plan
 #' @importFrom generics glance
 #' @importFrom generics tidy
 #' @importFrom magrittr %>%
@@ -14,6 +12,7 @@
 #' @importFrom RcppArmadillo armadillo_set_seed
 #' @importFrom Rdpack reprompt
 #' @importFrom rlang .data
+#' @importFrom rlang %||%
 #' @importFrom stats AIC
 #' @importFrom stats as.formula
 #' @importFrom stats BIC

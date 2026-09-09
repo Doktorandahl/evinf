@@ -48,3 +48,4 @@ docs
 
 # round 4 Q1: pre-change EVINB baselines (regenerated, not committed)
 tests/testthat/fixtures/pre_q1/
+tests/testthat/fixtures/pre_furrr/

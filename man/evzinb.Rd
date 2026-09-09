@@ -12,7 +12,7 @@ evzinb(
   data,
   bootstrap = TRUE,
   n_bootstraps = 100,
-  multicore = FALSE,
+  multicore = NULL,
   ncores = NULL,
   block = NULL,
   boot_seed = NULL,
@@ -55,9 +55,16 @@ evzinb(
 
 \item{n_bootstraps}{Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient}
 
-\item{multicore}{Should multiple cores be used?}
+\item{multicore}{Bootstrap parallelisation shortcut. The default
+(\code{NULL}) respects whatever \code{future} plan is currently set (see
+the \strong{Parallel processing} section). \code{TRUE} sets a temporary
+\code{\link[future]{multisession}} plan for the duration of the call;
+\code{FALSE} forces sequential execution. The previous plan is always
+restored on exit.}
 
-\item{ncores}{Number of cores if multicore is used. Default (NULL) is one less than the available number of cores}
+\item{ncores}{Number of workers when \code{multicore = TRUE}. Default
+(\code{NULL}) is one less than the number of available cores. Ignored when
+\code{multicore} is \code{NULL} or \code{FALSE}.}
 
 \item{block}{Optional case-identifier column for block bootstrapping, given
 either as a bare column name (\code{block = id}) or a string
@@ -88,6 +95,28 @@ An object of class 'evzinb'
 \description{
 Running an extreme value and zero inflated negative binomial model with bootstrapping
 }
+\section{Parallel processing}{
+
+Bootstrap fits (and the per-bootstrap work in \code{\link{add_bootstraps}},
+\code{\link{lr_test}}, \code{\link{compare_models}},
+\code{\link{predict.evzinb}} and \code{\link{marginal_effects}}) are
+dispatched with \pkg{furrr} on top of a \pkg{future} plan. Set the plan
+once for your session and leave \code{multicore} at its default:
+\preformatted{
+future::plan(future::multisession, workers = 8)
+progressr::handlers(global = TRUE)   # opt in to progress bars
+model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 1000)
+}
+Any \code{future} backend works (\code{multisession}, \code{cluster},
+\code{callr}, a HPC batchtools plan, ...). As a convenience
+\code{multicore = TRUE} sets a temporary \code{multisession} plan for the
+single call and restores the previous plan on exit. Bootstrap draws are
+reproducible from \code{boot_seed} and do not depend on the number of
+workers. Large models may need
+\code{options(future.globals.maxSize = <bytes>)} to raise the default limit
+on the data shipped to each worker.
+}
+
 \examples{
 \donttest{
 data(genevzinb2)

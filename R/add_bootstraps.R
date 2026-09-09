@@ -11,8 +11,10 @@
 #'   the model (or an earlier \code{add_bootstraps()} call) already used would
 #'   silently duplicate those draws and is an error. When \code{NULL} a fresh
 #'   seed is drawn and recorded in \code{object$boot_seeds}.
-#' @param multicore,ncores Passed to the parallel backend.
+#' @inheritParams evzinb
 #' @param verbose Show a progress bar.
+#'
+#' @inheritSection evzinb Parallel processing
 #'
 #' @return The model with \code{n} more replicates in \code{object$bootstraps}
 #'   (names continue \code{bootstrap_<k>}).
@@ -24,7 +26,7 @@
 #' model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #' model <- add_bootstraps(model, 5)
 #' }
-add_bootstraps <- function(object, n, boot_seed = NULL, multicore = FALSE,
+add_bootstraps <- function(object, n, boot_seed = NULL, multicore = NULL,
                            ncores = NULL, verbose = FALSE) {
   if (!inherits(object, c("evzinb", "evinb"))) {
     stop("`object` must be a fitted evzinb / evinb model.", call. = FALSE)
@@ -37,7 +39,7 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = FALSE,
     stop("`n` must be a positive integer.", call. = FALSE)
   }
 
-  # Reusing a seed replays the exact same %dorng% stream, silently duplicating
+  # Reusing a seed replays the exact same L'Ecuyer stream, silently duplicating
   # the existing draws (audit N4). Draw one when NULL so it is always recorded.
   used <- unlist(object$boot_seeds)
   if (!is.null(boot_seed) && boot_seed %in% used) {
@@ -52,21 +54,18 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = FALSE,
     }
   }
 
-  i <- "temp_iter"
   runner <- if (inherits(object, "evzinb")) bootrun_evzinb else bootrun_evinb
   block2 <- object$block_vec
   start <- length(object$bootstraps)
+  boot_spec <- evinf_boot_spec(object)
 
-  be <- evinf_setup_backend(multicore, ncores)
-  on.exit(be$stop(), add = TRUE)
-
-  new_boots <- evinf_progress_run(n, verbose, function(p) {
-    foreach::foreach(i = 1:n, .options.RNG = boot_seed, .packages = "evinf",
-                     .export = c("object", "block2")) %dorng% {
-      res <- try(runner(object, block2))
-      p()
-      res
-    }
+  new_boots <- evinf_with_plan(multicore, ncores, {
+    evinf_pmap(
+      seq_len(n),
+      function(i, spec, blk) try(runner(spec, blk)),
+      spec = boot_spec, blk = block2,
+      seed = boot_seed, label = "bootstrap", verbose = verbose
+    )
   })
   names(new_boots) <- paste0("bootstrap_", start + seq_len(n))
 

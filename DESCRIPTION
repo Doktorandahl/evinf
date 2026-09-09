@@ -14,10 +14,10 @@ Imports:
     dplyr,
     Rcpp,
     RcppArmadillo,
-    foreach,
-    doParallel,
+    future,
+    furrr,
+    parallelly,
     magrittr,
-    doRNG,
     tibble,
     mistr,
     tidyr,
@@ -29,7 +29,6 @@ Imports:
     methods,
     stats,
     utils,
-    parallel,
     generics,
     progressr
 LinkingTo:
@@ -42,7 +41,8 @@ Suggests:
     marginaleffects,
     insight,
     covr,
-    quarto
+    quarto,
+    withr
 RoxygenNote: 7.3.3
 RdMacros: Rdpack
 Depends:

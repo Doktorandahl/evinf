@@ -66,6 +66,9 @@ saveRDS(capture_fit(fit_i(f3, gf, bootstrap = FALSE)),
         file.path(fixtures_dir, "em_baseline_evinb_factor.rds"))
 
 ## 4: bootstrap coefficient matrices (n = 3, fixed seed)
+## NB: regenerated in round 5 Part A - the parallel backend moved from
+## foreach/%dorng% to future/furrr, so the per-bootstrap resamples (and hence
+## these coefficient matrices) changed. The sampling distribution is unchanged.
 mzb <- fit_z(y ~ x1 + x2 + x3, genevzinb2, bootstrap = TRUE,
              n_bootstraps = 3, boot_seed = 123, multicore = FALSE)
 mib <- fit_i(y ~ x1 + x2 + x3, genevzinb2, bootstrap = TRUE,

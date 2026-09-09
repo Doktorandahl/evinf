@@ -125,6 +125,23 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Breaking changes / deprecations
 
+* The parallel backend is now **`future` / `furrr`** instead of
+  `foreach` / `doParallel` / `doRNG` (which are no longer imported).
+  Set a plan once for your session — `future::plan(future::multisession,
+  workers = 8)` — and every bootstrap loop (`evzinb()`, `evinb()`,
+  `add_bootstraps()`, `lr_test(bootstrap = TRUE)`, `compare_models()`,
+  `predict()`, `marginal_effects()`) uses it. The `multicore` argument now
+  defaults to `NULL` (respect the current plan); `multicore = TRUE` still
+  works as a shortcut that sets a temporary `multisession` plan for the one
+  call and restores the previous plan on exit, and `multicore = FALSE` still
+  forces sequential execution. See the new "Parallel processing" section in
+  `?evzinb`.
+* Because the RNG is now derived with `furrr`'s per-element L'Ecuyer streams,
+  the bootstrap resamples drawn for a given `boot_seed` differ from earlier
+  versions (the resampling distribution is unchanged, and results no longer
+  depend on the number of workers). Pin results you need to reproduce.
+* `future` and `furrr` are new hard dependencies; `foreach`, `doParallel` and
+  `doRNG` are dropped.
 * The minimum R version is now 4.1.0. The `NAMESPACE` uses delayed S3 method
   registration for `insight` / `marginaleffects`, which needs R >= 3.6.0; 4.1
   is the common floor for packages using that pattern.

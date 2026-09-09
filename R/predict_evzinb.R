@@ -27,6 +27,50 @@ explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
   pr_count * count + C * pr_pareto * exp(1 / pareto_alpha)
 }
 
+# All per-bootstrap prediction quantities for predict.evzinb() / predict.evinb()
+# in a single parallel pass (round 5). Returns a list of length length(boots),
+# each element list(prbs, cnts, alphs, C, q, harmonic, explog).
+evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
+                                   multicore, ncores, seed) {
+  nd_id <- 1:nrow(newdata)
+  evinf_with_plan(multicore, ncores, {
+    evinf_pmap(
+      boots,
+      function(b, newdata, quantile, want_q, evzinb, nd_id) {
+        prob_fn  <- if (evzinb) prob_from_evzinb else prob_from_evinb
+        qfn      <- if (evzinb) quantiles_from_evzinb else quantiles_from_evinb
+        prbs  <- prob_fn(b, newdata = newdata)
+        cnts  <- counts_from_evzinb(b, newdata = newdata)
+        alphs <- fitted_alpha_from_evzinb(b, newdata = newdata)
+        C     <- b$coef$C
+        list(
+          prbs  = dplyr::bind_cols(prbs, tibble::tibble(id = nd_id)),
+          cnts  = dplyr::bind_cols(cnts, tibble::tibble(id = nd_id)),
+          alphs = dplyr::bind_cols(alphs, tibble::tibble(id = nd_id)),
+          C = C,
+          # A single near-degenerate bootstrap fit can make the mixture-quantile
+          # solver fail; drop that replicate from the interval rather than
+          # aborting the whole prediction (cf. the try-error tolerance elsewhere).
+          q = if (want_q) tryCatch(
+            tibble::tibble(
+              q = qfn(b, quantile, newdata = newdata, return_data = FALSE,
+                      multicore = FALSE),
+              id = nd_id),
+            error = function(e) NULL) else NULL,
+          harmonic = tibble::tibble(harmonic = harmonic_calc(
+            prbs$pr_count, cnts$count, pr_pareto = prbs$pr_pareto,
+            C = C, pareto_alpha = alphs$pareto_alpha), id = nd_id),
+          explog = tibble::tibble(explog = explog_calc(
+            prbs$pr_count, cnts$count, pr_pareto = prbs$pr_pareto,
+            C = C, pareto_alpha = alphs$pareto_alpha), id = nd_id)
+        )
+      },
+      newdata = newdata, quantile = quantile, want_q = want_q, evzinb = evzinb,
+      nd_id = nd_id, seed = seed, label = "predict bootstrap"
+    )
+  })
+}
+
 
 #' Predictions from evzinb object
 #'
@@ -35,12 +79,13 @@ explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
 #' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state,'zi' for the predicted probability of the zero state, 'all' for all predicted values, and 'quantile' for quantile prediction.
 #' @param ... Other arguments passed to predict function
 #' @param quantile Quantile for which to produce quantile prediction
-#' @param multicore Should multicore be used when calculating quantile prediction? Often it is enough to run quantile prediction on a single core, but in cases of large data or very skewed distributions it may be useful to run multicore
-#' @param ncores Number of cores to be used for multicore.
+#' @inheritParams evzinb
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
 #' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
 #' @param conf_level What confidence level should be used for confidence intervals
 #' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
+#'
+#' @inheritSection evzinb Parallel processing
 #'
 #' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
 #'
@@ -74,7 +119,7 @@ predict.evzinb <- function(
   quantile = NULL,
   confint = FALSE,
   conf_level = 0.9,
-  multicore = FALSE,
+  multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
   ...
@@ -97,14 +142,9 @@ predict.evzinb <- function(
     )
   )
 
-  be <- evinf_setup_backend(multicore, ncores)
-  on.exit(be$stop(), add = TRUE)
-  `%dopar%` <- be$operator
-
   if (type %in% c('states', 'all') & confint) {
     stop('Confidence interval prediction only available for vector outputs')
   }
-  i <- 'temp_iter'
 
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
     object$bootstraps <- object$bootstraps %>%
@@ -113,69 +153,23 @@ predict.evzinb <- function(
     if (is.null(newdata)) {
       newdata <- object$data$data
     }
-    prbs_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      dplyr::bind_cols(
-        prob_from_evzinb(object$bootstraps[[i]], newdata = newdata),
-        tibble::tibble(id = 1:nrow(newdata))
-      )
-    cnts_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      dplyr::bind_cols(
-        counts_from_evzinb(object$bootstraps[[i]], newdata = newdata),
-        tibble::tibble(id = 1:nrow(newdata))
-      )
-    alphs_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      dplyr::bind_cols(
-        fitted_alpha_from_evzinb(object$bootstraps[[i]], newdata = newdata),
-        tibble::tibble(id = 1:nrow(newdata))
-      )
-    C_boot <- object$bootstraps %>%
-      purrr::map('coef') %>%
-      purrr::map('C') %>%
-      purrr::reduce(c)
-    if (type %in% c('quantile', 'all')) {
-      if (type == 'quantile' & is.null(quantile)) {
-        stop('quantile must be provided for quantile prediction')
-      } else if (!is.null(quantile)) {
-        q_boot <- foreach::foreach(i = 1:nboots) %dopar%
-          tibble::tibble(
-            q = quantiles_from_evzinb(
-              object$bootstraps[[i]],
-              quantile,
-              newdata = newdata,
-              return_data = F,
-              multicore = F
-            ),
-            id = 1:nrow(newdata)
-          )
-      } else {
-        q_boot <- NULL
-      }
-    } else {
-      q_boot <- NULL
+    if (type %in% c('quantile', 'all') && type == 'quantile' && is.null(quantile)) {
+      stop('quantile must be provided for quantile prediction')
     }
-    harmonic_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      tibble::tibble(
-        harmonic = harmonic_calc(
-          prbs_boot[[i]]$pr_count,
-          cnts_boot[[i]]$count,
-          pr_pareto = prbs_boot[[i]]$pr_pareto,
-          C = C_boot[i],
-          pareto_alpha = alphs_boot[[i]]$pareto_alpha
-        ),
-        id = 1:nrow(newdata)
-      )
-
-    explog_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      tibble::tibble(
-        explog = explog_calc(
-          prbs_boot[[i]]$pr_count,
-          cnts_boot[[i]]$count,
-          pr_pareto = prbs_boot[[i]]$pr_pareto,
-          C = C_boot[i],
-          pareto_alpha = alphs_boot[[i]]$pareto_alpha
-        ),
-        id = 1:nrow(newdata)
-      )
+    per_boot <- evinf_predict_per_boot(
+      object$bootstraps, newdata, quantile,
+      want_q = type %in% c('quantile', 'all') && !is.null(quantile),
+      evzinb = TRUE, multicore = multicore, ncores = ncores,
+      seed = object$boot_seeds[[1]] %||% 1L
+    )
+    prbs_boot     <- purrr::map(per_boot, "prbs")
+    cnts_boot     <- purrr::map(per_boot, "cnts")
+    alphs_boot    <- purrr::map(per_boot, "alphs")
+    C_boot        <- purrr::map_dbl(per_boot, "C")
+    q_boot        <- if (type %in% c('quantile', 'all') && !is.null(quantile))
+      purrr::map(per_boot, "q") else NULL
+    harmonic_boot <- purrr::map(per_boot, "harmonic")
+    explog_boot   <- purrr::map(per_boot, "explog")
   }
 
   if (pred == 'original') {
@@ -521,12 +515,13 @@ predict.evzinb <- function(
 #' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, and 'quantile' for quantile prediction.
 #' @param ... Other arguments passed to predict function
 #' @param quantile Quantile for which to produce quantile prediction
-#' @param multicore Should multicore be used when calculating quantile prediction? Often it is enough to run quantile prediction on a single core, but in cases of large data or very skewed distributions it may be useful to run multicore
-#' @param ncores Number of cores to be used for multicore.
+#' @inheritParams evzinb
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
 #' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
 #' @param conf_level What confidence level should be used for confidence intervals
 #' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
+#'
+#' @inheritSection evzinb Parallel processing
 #'
 #' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
 #' @export
@@ -558,7 +553,7 @@ predict.evinb <- function(
   quantile = NULL,
   confint = FALSE,
   conf_level = 0.9,
-  multicore = FALSE,
+  multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
   ...
@@ -579,15 +574,10 @@ predict.evinb <- function(
       'quantile'
     )
   )
-  i <- 'temp_iter'
 
   if (type %in% c('states', 'all') & confint) {
     stop('Confidence interval prediction only available for vector outputs')
   }
-
-  be <- evinf_setup_backend(multicore, ncores)
-  on.exit(be$stop(), add = TRUE)
-  `%dopar%` <- be$operator
 
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
     object$bootstraps <- object$bootstraps %>%
@@ -597,69 +587,23 @@ predict.evinb <- function(
     if (is.null(newdata)) {
       newdata <- object$data$data
     }
-    prbs_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      dplyr::bind_cols(
-        prob_from_evinb(object$bootstraps[[i]], newdata = newdata),
-        tibble::tibble(id = 1:nrow(newdata))
-      )
-    cnts_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      dplyr::bind_cols(
-        counts_from_evzinb(object$bootstraps[[i]], newdata = newdata),
-        tibble::tibble(id = 1:nrow(newdata))
-      )
-    alphs_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      dplyr::bind_cols(
-        fitted_alpha_from_evzinb(object$bootstraps[[i]], newdata = newdata),
-        tibble::tibble(id = 1:nrow(newdata))
-      )
-    C_boot <- object$bootstraps %>%
-      purrr::map('coef') %>%
-      purrr::map('C') %>%
-      purrr::reduce(c)
-    if (type %in% c('quantile', 'all')) {
-      if (type == 'quantile' & is.null(quantile)) {
-        stop('quantile must be provided for quantile prediction')
-      } else if (!is.null(quantile)) {
-        q_boot <- foreach::foreach(i = 1:nboots) %dopar%
-          tibble::tibble(
-            q = quantiles_from_evinb(
-              object$bootstraps[[i]],
-              quantile,
-              newdata = newdata,
-              return_data = F,
-              multicore = F
-            ),
-            id = 1:nrow(newdata)
-          )
-      } else {
-        q_boot <- NULL
-      }
-    } else {
-      q_boot <- NULL
+    if (type %in% c('quantile', 'all') && type == 'quantile' && is.null(quantile)) {
+      stop('quantile must be provided for quantile prediction')
     }
-    harmonic_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      tibble::tibble(
-        harmonic = harmonic_calc(
-          prbs_boot[[i]]$pr_count,
-          cnts_boot[[i]]$count,
-          pr_pareto = prbs_boot[[i]]$pr_pareto,
-          C = C_boot[i],
-          pareto_alpha = alphs_boot[[i]]$pareto_alpha
-        ),
-        id = 1:nrow(newdata)
-      )
-
-    explog_boot <- foreach::foreach(i = 1:nboots) %dopar%
-      tibble::tibble(
-        explog = explog_calc(
-          prbs_boot[[i]]$pr_count,
-          cnts_boot[[i]]$count,
-          pr_pareto = prbs_boot[[i]]$pr_pareto,
-          C = C_boot[i],
-          pareto_alpha = alphs_boot[[i]]$pareto_alpha
-        ),
-        id = 1:nrow(newdata)
-      )
+    per_boot <- evinf_predict_per_boot(
+      object$bootstraps, newdata, quantile,
+      want_q = type %in% c('quantile', 'all') && !is.null(quantile),
+      evzinb = FALSE, multicore = multicore, ncores = ncores,
+      seed = object$boot_seeds[[1]] %||% 1L
+    )
+    prbs_boot     <- purrr::map(per_boot, "prbs")
+    cnts_boot     <- purrr::map(per_boot, "cnts")
+    alphs_boot    <- purrr::map(per_boot, "alphs")
+    C_boot        <- purrr::map_dbl(per_boot, "C")
+    q_boot        <- if (type %in% c('quantile', 'all') && !is.null(quantile))
+      purrr::map(per_boot, "q") else NULL
+    harmonic_boot <- purrr::map(per_boot, "harmonic")
+    explog_boot   <- purrr::map(per_boot, "explog")
   }
 
   if (pred == 'original') {
@@ -994,7 +938,6 @@ predict.evinb <- function(
 #' revzinb_fit(model)
 #' }
 revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
-  i <- j <- 'iter_temp'
   ## Estimate component probabilities for all individuals
   prbs <- prob_from_evzinb(object, newdata = newdata)
   ## Estimate mu_nb for all individuals
@@ -1011,8 +954,7 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   } else {
     n <- nrow(newdata)
   }
-  out <- foreach::foreach(i = 1:n_draws) %do%
-    {
+  out <- purrr::map(seq_len(n_draws), function(draw) {
       # mistr::rpareto() is not vectorised over `shape`; this is its formula.
       pl_draws <- round(C_est * stats::runif(n)^(-1 / alphs))
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
@@ -1026,7 +968,7 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
           )
         ) %>%
         dplyr::pull(.data$rdraw)
-    }
+    })
   if (n_draws == 1) {
     return(out[[1]])
   } else {
@@ -1054,7 +996,6 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 #' }
 #'
 revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
-  i <- j <- 'iter_temp'
   ## Estimate component probabilities for all individuals
   prbs <- prob_from_evinb(object, newdata = newdata)
   ## Estimate mu_nb for all individuals
@@ -1071,8 +1012,7 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
     n <- nrow(newdata)
   }
 
-  out <- foreach::foreach(i = 1:n_draws) %do%
-    {
+  out <- purrr::map(seq_len(n_draws), function(draw) {
       # mistr::rpareto() is not vectorised over `shape`; this is its formula.
       pl_draws <- round(C_est * stats::runif(n)^(-1 / alphs))
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
@@ -1085,7 +1025,7 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
           )
         ) %>%
         dplyr::pull(.data$rdraw)
-    }
+    })
 
   if (n_draws == 1) {
     return(out[[1]])

@@ -42,13 +42,14 @@ test_that("predict.*boot(pred = 'original') uses the full-sample model, not a st
 })
 
 test_that("compare_models() boot_refit_family() refactor is output-identical (issue 4.1)", {
-  # Baseline captured from the pre-refactor code (twelve foreach blocks) for
-  # evzinb(y ~ x1 + x2 + x3, genevzinb2, n_bootstraps = 5, boot_seed = 123,
-  #        control = evinf_control(c.lim = c(50, 1000), init.C = 200)).
-  base_rmsle_nb   <- c(2.5423001991, 2.6974881320, 2.6921071076, 2.5755132916, 2.6253084900)
-  base_rmsle_zinb <- c(2.4376849746, 2.5878614556, 2.7054591325, 2.6991174880, 2.8190669965)
-  base_rmse_nb    <- c(125.4124041023, 127.1601900074, 115.6458855064, 99.6642756981, 87.0973165485)
-  base_rmse_zinb  <- c(119.8545366841, 108.9729871326, 147.1069088120, 103.2540030443, 133.0767432541)
+  # Baseline captured for evzinb(y ~ x1 + x2 + x3, genevzinb2, n_bootstraps = 5,
+  # boot_seed = 123, control = evinf_control(c.lim = c(50, 1000), init.C = 200)).
+  # Regenerated for round 5 Part A (furrr per-element L'Ecuyer streams replace
+  # %dorng%, so the bootstrap resamples - and hence these pins - changed).
+  base_rmsle_nb   <- c(2.7702147669, 2.4477240167, 2.7208083737, 2.5454411241, 2.5069424574)
+  base_rmsle_zinb <- c(2.6426746324, 2.5363944513, 2.6628125688, 2.6642800734, 2.5294352959)
+  base_rmse_nb    <- c(118.2469492256, 103.4495487558, 100.7679581460, 117.0706907652, 98.4691091791)
+  base_rmse_zinb  <- c(111.5976544278, 98.5212097513, 102.5366179051, 116.3133542114, 110.7324410291)
 
   m <- fit_evzinb_fast(n_bootstraps = 5)
   comp <- suppressWarnings(suppressMessages(compare_models(m)))

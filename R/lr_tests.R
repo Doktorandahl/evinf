@@ -2,20 +2,45 @@
 
 
 
+# Refit one restricted model (audit R0.2): the full model's control settings
+# and warm starts, so the fits are genuinely nested and the LR statistic cannot
+# come out negative because of a different c-grid. Top-level (not a closure) so
+# parallel workers do not receive the calling frame.
+#   reduced  the $formulas list from formula_var_remover()
+#   data     the (possibly resampled) data to fit on
+#   obj      a stand-in carrying only $control and $coef, with the model class
+#   md       the full model data (for resolving reduced design column names)
+lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
+  if (inherits(obj, "evzinb")) {
+    do.call(evinf::evzinb, c(
+      list(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
+           data = data, bootstrap = FALSE, verbose = verbose),
+      restricted_fit_args(obj, reduced, md)
+    ))
+  } else {
+    do.call(evinf::evinb, c(
+      list(reduced$nb, reduced$evinf, reduced$pareto,
+           data = data, bootstrap = FALSE, verbose = verbose),
+      restricted_fit_args(obj, reduced, md)
+    ))
+  }
+}
+
 #' Likelihood ratio test for individual variables of evzinb
 #'
 #' @param object EVZINB or EVINB object to perform likelihood ratio test on
 #' @param vars Either a list of character vectors with variable names which to be restricted in the LR test or a character vector of variable names. If a list, each character vector of the list will be run separately, allowing for multiple variables to be restricted as once. If a character vector, parameter 'single' can be used to determine whether all variables in the vector should be restricted at once (single = FALSE) or if the variables should be restricted one by one (single = TRUE)
 #' @param single Logical. Determining whether variables in 'vars' should be restricted individually (single = TRUE) or all at once (single = FALSE)
 #' @param bootstrap Should LR tests be conducted on each bootstrapped sample or only on the original sample.
-#' @param multicore Logical. Should the function be run in parallel?
-#' @param ncores Number of cores to use if multicore = TRUE
+#' @inheritParams evzinb
 #' @param verbose Logical. Should the function be verbose?
 #'
 #' @details The likelihood ratio statistic is \eqn{2(\ell_{full} - \ell_{restricted})}
 #'   and is compared to a chi-square distribution with degrees of freedom equal to
 #'   the number of design-matrix columns removed across all model components (so a
 #'   restricted four-level factor contributes three degrees of freedom).
+#'
+#' @inheritSection evzinb Parallel processing
 #'
 #' @return A tibble with one row per performed LR test, or, when \code{bootstrap = TRUE},
 #'   a list with the summary tibble (\code{results}) and the per-bootstrap statistics
@@ -28,49 +53,32 @@
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' lr_test(model,'x1')
 #' }
-lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = FALSE, ncores = NULL,verbose = FALSE){
-  i <- 'temp_iter'
-  j <- 'temp_iter'
+lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = NULL, ncores = NULL,verbose = FALSE){
 
   model_data <- object$data$data
 
   if(!is(vars, 'list')){
     if(single){
-      formulas_dfs <- foreach::foreach(i = 1:length(vars)) %do%
-        formula_var_remover(object$formulas,vars[i], data = model_data)
+      formulas_dfs <- purrr::map(seq_along(vars), function(i)
+        formula_var_remover(object$formulas, vars[i], data = model_data))
     }else{
-      formulas_dfs <- foreach::foreach(i = 1:1) %do%
-        formula_var_remover(object$formulas,vars, data = model_data)
+      formulas_dfs <- list(
+        formula_var_remover(object$formulas, vars, data = model_data))
       vars <- paste(vars,collapse ='_')
     }
   }else{
-    formulas_dfs <- foreach::foreach(i = 1:length(vars)) %do%
-      formula_var_remover(object$formulas,vars[[i]], data = model_data)
+    formulas_dfs <- purrr::map(vars, function(v)
+      formula_var_remover(object$formulas, v, data = model_data))
     vars <- vars  %>% purrr::map(~paste(.x,collapse = '_')) %>% purrr::reduce(c)
   }
 
-  # audit R0.2: refit the restricted models with the full model's control
-  # settings (c.lim, tolerances, pdf.pl.type, ...) and warm-started from the
-  # full-model estimates, so the fits are genuinely nested and the statistic
-  # cannot come out negative because of a different c-grid.
-  refit_restricted <- function(reduced, data) {
-    if (inherits(object, 'evzinb')) {
-      do.call(evzinb, c(
-        list(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
-             data = data, bootstrap = FALSE, verbose = verbose),
-        restricted_fit_args(object, reduced, model_data)
-      ))
-    } else {
-      do.call(evinb, c(
-        list(reduced$nb, reduced$evinf, reduced$pareto,
-             data = data, bootstrap = FALSE, verbose = verbose),
-        restricted_fit_args(object, reduced, model_data)
-      ))
-    }
-  }
+  # A lightweight stand-in carrying only what lr_refit_restricted() needs, so
+  # the bootstrap workers never receive the (large) $bootstraps list.
+  lr_obj <- structure(list(control = object$control, coef = object$coef),
+                      class = class(object))
 
-  reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %do%
-    refit_restricted(formulas_dfs[[i]]$formulas, model_data)
+  reruns <- purrr::map(formulas_dfs, function(fd)
+    lr_refit_restricted(fd$formulas, model_data, lr_obj, model_data, verbose))
 
     logliks <- reruns %>% purrr::map('log.lik') %>% purrr::reduce(c)
     dfs <- formulas_dfs %>% purrr::map('df') %>% purrr::reduce(c)
@@ -84,55 +92,59 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
 
     if(bootstrap){
 
-    be <- evinf_setup_backend(multicore, ncores)
-    on.exit(be$stop(), add = TRUE)
-    `%op%` <- be$operator
+    n_f <- length(formulas_dfs)
+    n_b <- length(object$bootstraps)
+    grid <- expand.grid(fi = seq_len(n_f), bj = seq_len(n_b))
+    boot_ids <- purrr::map(object$bootstraps, "boot_id")
 
-    n_steps <- length(formulas_dfs) * length(object$bootstraps)
-    reruns <- evinf_progress_run(n_steps, verbose, function(p) {
-      foreach::foreach(i = 1:length(formulas_dfs)) %:%
-        foreach::foreach(j = 1:length(object$bootstraps)) %op% {
-          res <- try(refit_restricted(
-            formulas_dfs[[i]]$formulas,
-            model_data[object$bootstraps[[j]]$boot_id, ]
-          ))
-          p()
-          res
-        }
+    flat <- evinf_with_plan(multicore, ncores, {
+      evinf_pmap(
+        seq_len(nrow(grid)),
+        function(k, grid, formulas_dfs, boot_ids, model_data, lr_obj) {
+          fi <- grid$fi[k]; bj <- grid$bj[k]
+          try(lr_refit_restricted(formulas_dfs[[fi]]$formulas,
+                                  model_data[boot_ids[[bj]], ],
+                                  lr_obj, model_data, FALSE))
+        },
+        grid = grid, formulas_dfs = formulas_dfs, boot_ids = boot_ids,
+        model_data = model_data, lr_obj = lr_obj,
+        seed = object$boot_seeds[[1]], label = "LR refit", verbose = verbose
+      )
     })
+    # split the flat results back into reruns[[fi]][[bj]]
+    reruns <- lapply(seq_len(n_f), function(fi)
+      flat[grid$fi == fi])
 
-
-   logliks_boot_reduced <-  foreach::foreach(i = 1:length(formulas_dfs)) %:%
-        foreach::foreach(j = 1:length(object$bootstraps),.final = unlist) %do%{
-          if('try-error' %in% class(reruns[[i]][[j]])){
-            NA
-          }else{
-            reruns[[i]][[j]]$log.lik
-          }
-        }
+    logliks_boot_reduced <- purrr::map(reruns, function(fr)
+      vapply(fr, function(r)
+        if (inherits(r, "try-error")) NA_real_ else r$log.lik, numeric(1)))
 
    logliks_boot <- object$bootstraps %>% purrr::map('log.lik') %>% purrr::reduce(c)
 
-   statistics_boot <- foreach::foreach(i = 1:length(formulas_dfs)) %do%
-     (2 * (logliks_boot - logliks_boot_reduced[[i]]))
+   statistics_boot <- purrr::map(logliks_boot_reduced, function(llr)
+     2 * (logliks_boot - llr))
 
+   p_vals <- tibble::tibble(
+     vars = vars,
+     ks_p = vapply(seq_along(statistics_boot), function(i)
+       stats::ks.test(stats::na.omit(statistics_boot[[i]]), pchisq, dfs[i])$p.value,
+       numeric(1)),
+     chisq_mean = vapply(seq_along(statistics_boot), function(i)
+       pchisq(mean(stats::na.omit(statistics_boot[[i]])), dfs[i], lower.tail = FALSE),
+       numeric(1)),
+     chisq_median = vapply(seq_along(statistics_boot), function(i)
+       pchisq(median(stats::na.omit(statistics_boot[[i]])), dfs[i], lower.tail = FALSE),
+       numeric(1)),
+     prop_sig = vapply(seq_along(statistics_boot), function(i)
+       mean(stats::na.omit(statistics_boot[[i]]) > qchisq(0.95, dfs[i])),
+       numeric(1)),
+     n_failed_bootstraps = vapply(statistics_boot, function(s)
+       sum(is.na(s)), integer(1)))
 
-   p_vals <- tibble::tibble(vars = vars,
-                    ks_p = foreach::foreach(i = 1:length(statistics_boot),.final = unlist) %do%
-                      stats::ks.test(stats::na.omit(statistics_boot[[i]]),pchisq, dfs[i])$p.value,
-                    chisq_mean = foreach::foreach(i = 1:length(statistics_boot),.final = unlist) %do%
-                      pchisq(mean(stats::na.omit(statistics_boot[[i]])),dfs[i], lower.tail = FALSE),
-                    chisq_median = foreach::foreach(i = 1:length(statistics_boot),.final = unlist) %do%
-                      pchisq(median(stats::na.omit(statistics_boot[[i]])),dfs[i], lower.tail = FALSE),
-                    prop_sig = foreach::foreach(i = 1:length(statistics_boot),.final = unlist) %do%
-                      mean(stats::na.omit(statistics_boot[[i]]) > qchisq(0.95,dfs[i])),
-                    n_failed_bootstraps = foreach::foreach(i = 1:length(statistics_boot),.final = unlist) %do%
-                      sum(is.na(statistics_boot[[i]])))
-
-   res_boot <- foreach::foreach(i = 1:length(statistics_boot)) %do%
+   res_boot <- purrr::map(seq_along(statistics_boot), function(i)
      tibble::tibble(ll_reduced = logliks_boot_reduced[[i]],
             ll_full = logliks_boot,
-            statistic = statistics_boot[[i]])
+            statistic = statistics_boot[[i]]))
    names(res_boot) <- vars
 
    res_full <- res_full %>% dplyr::left_join(p_vals,by = 'vars')

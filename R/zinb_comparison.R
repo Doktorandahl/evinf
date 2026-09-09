@@ -14,8 +14,9 @@ inv <- function(x){
 #'   available for \code{evinb} objects (there is no zero-inflation component); it
 #'   defaults to \code{FALSE} for those, with a message, and errors if set to
 #'   \code{TRUE} explicitly.
-#' @param multicore Logical: should multiple cores be used
-#' @param ncores Number of cores if multicore is used
+#' @inheritParams evzinb
+#'
+#' @inheritSection evzinb Parallel processing
 #'
 #' @return An object of class \code{evzinbcomp}: a list whose first element
 #'   \code{model} is the original evzinb/evinb model (also available as
@@ -39,7 +40,7 @@ inv <- function(x){
 #' cmp <- compare_models(hks_mod)
 #' compare_fit(cmp)
 #' }
-compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE, winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = FALSE, ncores=NULL){
+compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE, winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = NULL, ncores=NULL){
 
   if(!inherits(object, c('evzinb','evinb'))){
     stop('compare_models() requires a fitted evzinb or evinb object.')
@@ -64,7 +65,6 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
   rhs_nb <- deparse_rhs(object$formulas$formula_nb)
   rhs_zi <- deparse_rhs(object$formulas$formula_zi)
 
-  i <- 'temp_iter'
 if(zinb_comparison){
   f_zinb <- as.formula(paste(dv_f, '~', rhs_nb, '|', rhs_zi))
 }
@@ -109,49 +109,25 @@ if(zinb_comparison){
   full_zinb_razor <- try(pscl::zeroinfl(f_zinb,data = data_razor,dist = 'negbin'))
   }
   }
-  be <- evinf_setup_backend(multicore, ncores)
-  on.exit(be$stop(), add = TRUE)
-
   # One spec per family member: its (winsorised / razorised) data set, the
-  # full-data fit computed above, and a fitter closure. inner_nb() must be
-  # called WITHOUT init_theta when it is NULL - glm.nb()'s missing() check is
-  # transitive, and passing init.theta = NULL errors.
-  nb_fitter <- if (is.null(init_theta)) {
-    function(b, d) inner_nb(b, d, object$formulas)
-  } else {
-    function(b, d) inner_nb(b, d, object$formulas, init_theta)
+  # full-data fit computed above, and just enough to refit it on a resample
+  # (no closures over `object`, so parallel workers get a small spec).
+  fmls <- object$formulas
+  mk <- function(type, cls, data, full) {
+    list(class = cls, type = type, data = data, full = full,
+         formulas = fmls, f_zinb = if (type == "zinb") f_zinb else NULL,
+         has_init_theta = !is.null(init_theta), init_theta = init_theta)
   }
-  zinb_fitter <- function(b, d) inner_zinb(b, d, object$formulas, f_zinb)
-
   specs <- list()
-  if (nb_comparison) {
-    specs$nb <- list(class = "nbboot", data = object$data$data,
-                     full = full_nb, fitter = nb_fitter)
-  }
-  if (zinb_comparison) {
-    specs$zinb <- list(class = "zinbboot", data = object$data$data,
-                       full = full_zinb, fitter = zinb_fitter)
-  }
-  if (winsorize && nb_comparison) {
-    specs$nb_winsor <- list(class = "nbboot", data = data_winsor,
-                            full = full_nb_winsor, fitter = nb_fitter)
-  }
-  if (winsorize && zinb_comparison) {
-    specs$zinb_winsor <- list(class = "zinbboot", data = data_winsor,
-                              full = full_zinb_winsor, fitter = zinb_fitter)
-  }
-  if (razorize && nb_comparison) {
-    specs$nb_razor <- list(class = "nbboot", data = data_razor,
-                           full = full_nb_razor, fitter = nb_fitter)
-  }
-  if (razorize && zinb_comparison) {
-    specs$zinb_razor <- list(class = "zinbboot", data = data_razor,
-                             full = full_zinb_razor, fitter = zinb_fitter)
-  }
+  if (nb_comparison)   specs$nb   <- mk("nb",   "nbboot",  object$data$data, full_nb)
+  if (zinb_comparison) specs$zinb <- mk("zinb", "zinbboot", object$data$data, full_zinb)
+  if (winsorize && nb_comparison)   specs$nb_winsor   <- mk("nb",   "nbboot",  data_winsor, full_nb_winsor)
+  if (winsorize && zinb_comparison) specs$zinb_winsor <- mk("zinb", "zinbboot", data_winsor, full_zinb_winsor)
+  if (razorize && nb_comparison)    specs$nb_razor    <- mk("nb",   "nbboot",  data_razor,  full_nb_razor)
+  if (razorize && zinb_comparison)  specs$zinb_razor  <- mk("zinb", "zinbboot", data_razor,  full_zinb_razor)
 
-  total <- max(length(specs) * length(object$bootstraps), 1L)
-  fam <- evinf_progress_run(total, FALSE, function(p) {
-    boot_refit_family(specs, object$bootstraps, be, p)
+  fam <- evinf_with_plan(multicore, ncores, {
+    boot_refit_family(specs, object$bootstraps, object$boot_seeds[[1]])
   })
 
   out <- c(list(model = object), fam)
@@ -161,32 +137,51 @@ if(zinb_comparison){
   return(out)
 }
 
-# Refit one bootstrap "family" - the nb / zinb models and their winsorised /
-# razorised variants - reusing the same loop for all of them (audit 4.1).
+# Refit one bootstrap resample under one family spec (top-level so parallel
+# workers do not receive the calling frame).
+boot_refit_one <- function(sp, boot_id) {
+  b_stub <- list(boot_id = boot_id)
+  if (sp$type == "nb") {
+    if (sp$has_init_theta) {
+      try(inner_nb(b_stub, sp$data, sp$formulas, sp$init_theta))
+    } else {
+      try(inner_nb(b_stub, sp$data, sp$formulas))
+    }
+  } else {
+    try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb))
+  }
+}
+
+# Refit every family member (nb / zinb + winsorised / razorised variants) on
+# every bootstrap resample, in one parallel pass over the (spec x bootstrap)
+# grid (audit 4.1, round 5).
 #
-# @param specs Named list; each element is
-#   \code{list(class, data, full, fitter)} where \code{fitter(bootstrap, data)}
-#   returns the refitted model for one bootstrap resample.
-# @param boots The \code{object$bootstraps} list.
-# @param be Backend from \code{evinf_setup_backend()}.
-# @param progress A progressor function (called once per refit).
+# @param specs Named list of family specs (see mk() in compare_models()).
+# @param boots The \code{object$bootstraps} list (only \code{$boot_id} is used).
+# @param seed Integer seed for evinf_pmap().
 # @return A named list mirroring \code{specs}; each element is
 #   \code{list(full_run, bootstraps)} with class \code{"nbboot"} / \code{"zinbboot"}.
 # @noRd
-boot_refit_family <- function(specs, boots, be, progress) {
-  `%op%` <- be$operator
-  n <- length(boots)
-  i <- 'temp_iter'
-  lapply(specs, function(sp) {
-    fitted <- foreach::foreach(i = seq_len(n), .packages = "evinf") %op% {
-      res <- try(sp$fitter(boots[[i]], sp$data))
-      progress()
-      res
-    }
+boot_refit_family <- function(specs, boots, seed) {
+  boot_ids <- purrr::map(boots, "boot_id")
+  nb <- length(boot_ids)
+  grid <- expand.grid(si = seq_along(specs), bi = seq_len(nb))
+
+  flat <- evinf_pmap(
+    seq_len(nrow(grid)),
+    function(k, grid, specs, boot_ids)
+      boot_refit_one(specs[[grid$si[k]]], boot_ids[[grid$bi[k]]]),
+    grid = grid, specs = specs, boot_ids = boot_ids,
+    seed = seed, label = "compare_models refit"
+  )
+
+  stats::setNames(lapply(seq_along(specs), function(si) {
+    sp <- specs[[si]]
+    fitted <- flat[grid$si == si]
     names(fitted) <- names(boots)
     fitted <- purrr::map(fitted, mr_inner)
     structure(list(full_run = sp$full, bootstraps = fitted), class = sp$class)
-  })
+  }), names(specs))
 }
 
 inner_nb <- function(bootstrap,data,formulas,init_theta){
@@ -383,7 +378,6 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
   pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
   
   type <- match.arg(type,c('predicted','counts','zi','count_state','states','all', 'quantile'))
-  i <- 'temp_iter'
   
   if(type %in% c('states','all') & confint){
     stop('Confidence interval prediction only available for vector outputs')
@@ -395,30 +389,31 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
     if(is.null(newdata)){
       newdata <- object$full_run$model
     }
-    prbs_boot <- foreach::foreach(i = 1:nboots) %do%
-      dplyr::bind_cols(prob_from_znb(object$bootstraps[[i]],
-                                        newdata = newdata),tibble::tibble(id=1:nrow(newdata)))
-    cnts_boot <- foreach::foreach(i = 1:nboots) %do%
-      dplyr::bind_cols(tibble::tibble(count = count_from_znb(object$bootstraps[[i]],
-                                          newdata = newdata)),tibble::tibble(id=1:nrow(newdata)))
-    
+    prbs_boot <- purrr::map(object$bootstraps, function(b)
+      dplyr::bind_cols(prob_from_znb(b, newdata = newdata),
+                       tibble::tibble(id = 1:nrow(newdata))))
+    cnts_boot <- purrr::map(object$bootstraps, function(b)
+      dplyr::bind_cols(tibble::tibble(count = count_from_znb(b, newdata = newdata)),
+                       tibble::tibble(id = 1:nrow(newdata))))
+
     if(type %in% c('quantile','all')){
       if(type == 'quantile' & is.null(quantile)){
         stop('quantile must be provided for quantile prediction')
       }else if(!is.null(quantile)){
-        q_boot <- foreach::foreach(i=1:nboots) %do%
-          tibble::tibble(q=quantiles_from_zinb(quantile,object$bootstraps[[i]],newdata = newdata), id=1:nrow(newdata))
+        q_boot <- purrr::map(object$bootstraps, function(b)
+          tibble::tibble(q = quantiles_from_zinb(quantile, b, newdata = newdata),
+                         id = 1:nrow(newdata)))
       }else{
         q_boot <- NULL
       }
     }else{
       q_boot <- NULL
     }
-    
-    prediction_boot <-  foreach::foreach(i = 1:nboots) %do%
-      tibble::tibble(pred = predict(object$bootstraps[[i]],type = 'r', newdata=newdata),
-                                    id = 1:nrow(newdata))
-    
+
+    prediction_boot <- purrr::map(object$bootstraps, function(b)
+      tibble::tibble(pred = predict(b, type = 'r', newdata = newdata),
+                     id = 1:nrow(newdata)))
+
   }
   
   
@@ -570,7 +565,6 @@ predict.nbboot <- function(object,newdata=NULL, type = c('predicted','all', 'qua
   pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
   
   type <- match.arg(type,c('predicted','all', 'quantile'))
-  i <- 'temp_iter'
   
   if(type %in% c('states','all') & confint){
     stop('Confidence interval prediction only available for vector outputs')
@@ -588,18 +582,19 @@ predict.nbboot <- function(object,newdata=NULL, type = c('predicted','all', 'qua
       if(type == 'quantile' & is.null(quantile)){
         stop('quantile must be provided for quantile prediction')
       }else if(!is.null(quantile)){
-        q_boot <- foreach::foreach(i=1:nboots) %do%
-          tibble::tibble(q=quantiles_from_nb(quantile,object$bootstraps[[i]],newdata = newdata), id=1:nrow(newdata))
+        q_boot <- purrr::map(object$bootstraps, function(b)
+          tibble::tibble(q = quantiles_from_nb(quantile, b, newdata = newdata),
+                         id = 1:nrow(newdata)))
       }else{
         q_boot <- NULL
       }
     }else{
       q_boot <- NULL
     }
-    
-    prediction_boot <-  foreach::foreach(i = 1:nboots) %do%
-      tibble::tibble(pred = predict(object$bootstraps[[i]],type = 'r', newdata=newdata),
-                     id = 1:nrow(newdata))
+
+    prediction_boot <- purrr::map(object$bootstraps, function(b)
+      tibble::tibble(pred = predict(b, type = 'r', newdata = newdata),
+                     id = 1:nrow(newdata)))
     
   }
   

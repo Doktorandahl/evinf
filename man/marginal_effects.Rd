@@ -15,7 +15,9 @@ marginal_effects(
   delta = 1,
   conf_level = 0.9,
   newdata = NULL,
-  n_max = 500
+  n_max = 500,
+  multicore = NULL,
+  ncores = NULL
 )
 }
 \arguments{
@@ -53,6 +55,17 @@ effect is averaged over (the per-observation quantile machinery is slow).
 The cap is applied automatically when \code{nrow(newdata) * n_bootstraps >
 2e5}, or whenever \code{n_max} is passed explicitly; \code{n_max = Inf}
 disables it. The subsample is reproducible from the model's bootstrap seed.}
+
+\item{multicore}{Bootstrap parallelisation shortcut. The default
+(\code{NULL}) respects whatever \code{future} plan is currently set (see
+the \strong{Parallel processing} section). \code{TRUE} sets a temporary
+\code{\link[future]{multisession}} plan for the duration of the call;
+\code{FALSE} forces sequential execution. The previous plan is always
+restored on exit.}
+
+\item{ncores}{Number of workers when \code{multicore = TRUE}. Default
+(\code{NULL}) is one less than the number of available cores. Ignored when
+\code{multicore} is \code{NULL} or \code{FALSE}.}
 }
 \value{
 A tibble with columns \code{variable}, \code{contrast}, \code{type},
@@ -88,6 +101,28 @@ bootstrap distribution can be very heavy-tailed. The quantile effect is
 evaluated per observation through \code{mistr}, which is slow, so it is
 averaged over at most \code{n_max} rows (see that argument).
 }
+\section{Parallel processing}{
+
+Bootstrap fits (and the per-bootstrap work in \code{\link{add_bootstraps}},
+\code{\link{lr_test}}, \code{\link{compare_models}},
+\code{\link{predict.evzinb}} and \code{\link{marginal_effects}}) are
+dispatched with \pkg{furrr} on top of a \pkg{future} plan. Set the plan
+once for your session and leave \code{multicore} at its default:
+\preformatted{
+future::plan(future::multisession, workers = 8)
+progressr::handlers(global = TRUE)   # opt in to progress bars
+model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 1000)
+}
+Any \code{future} backend works (\code{multisession}, \code{cluster},
+\code{callr}, a HPC batchtools plan, ...). As a convenience
+\code{multicore = TRUE} sets a temporary \code{multisession} plan for the
+single call and restores the previous plan on exit. Bootstrap draws are
+reproducible from \code{boot_seed} and do not depend on the number of
+workers. Large models may need
+\code{options(future.globals.maxSize = <bytes>)} to raise the default limit
+on the data shipped to each worker.
+}
+
 \examples{
 \donttest{
 data(genevzinb2)

@@ -23,7 +23,6 @@ quantiles_from_evzinb <- function(
   ncores = NULL,
   round = TRUE
 ) {
-  i <- 'temp_iter'
 
   ## Estimate component probabilities for all individuals
   prbs <- prob_from_evzinb(object, newdata = newdata)
@@ -57,20 +56,8 @@ quantiles_from_evzinb <- function(
         weights = c(.x$pr_zc, .x$pr_count, .x$pr_pareto)
       )
     )
-  if (!multicore) {
-    q <- individual_dists %>%
-      purrr::map(~ mistr::mistr_q(.x, quantile)) %>%
-      purrr::reduce(c)
-  } else {
-    be <- evinf_setup_backend(multicore = TRUE, ncores = ncores)
-    on.exit(be$stop(), add = TRUE)
-    `%dopar%` <- be$operator
-    q <- foreach::foreach(
-      i = 1:length(individual_dists),
-      .final = unlist
-    ) %dopar%
-      mistr::mistr_q(individual_dists[[i]], quantile)
-  }
+  q <- individual_dists %>%
+    purrr::map_dbl(~ mistr::mistr_q(.x, quantile))
   if (round) {
     q <- round(q)
   }
@@ -105,7 +92,6 @@ quantiles_from_evinb <- function(
   ncores = NULL,
   round = TRUE
 ) {
-  i <- 'temp_iter'
 
   ## Estimate component probabilities for all individuals
   prbs <- prob_from_evinb(object, newdata = newdata)
@@ -131,20 +117,8 @@ quantiles_from_evinb <- function(
         weights = c(.x$pr_count, .x$pr_pareto)
       )
     )
-  if (!multicore) {
-    q <- individual_dists %>%
-      purrr::map(~ mistr::mistr_q(.x, quantile)) %>%
-      purrr::reduce(c)
-  } else {
-    be <- evinf_setup_backend(multicore = TRUE, ncores = ncores)
-    on.exit(be$stop(), add = TRUE)
-    `%dopar%` <- be$operator
-    q <- foreach::foreach(
-      i = 1:length(individual_dists),
-      .final = unlist
-    ) %dopar%
-      mistr::mistr_q(individual_dists[[i]], quantile)
-  }
+  q <- individual_dists %>%
+    purrr::map_dbl(~ mistr::mistr_q(.x, quantile))
   if (round) {
     q <- round(q)
   }

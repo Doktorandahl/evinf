@@ -224,8 +224,15 @@ run_evzinb <- function(
 #' @param data data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
-#' @param multicore Should multiple cores be used?
-#' @param ncores Number of cores if multicore is used. Default (NULL) is one less than the available number of cores
+#' @param multicore Bootstrap parallelisation shortcut. The default
+#'   (\code{NULL}) respects whatever \code{future} plan is currently set (see
+#'   the \strong{Parallel processing} section). \code{TRUE} sets a temporary
+#'   \code{\link[future]{multisession}} plan for the duration of the call;
+#'   \code{FALSE} forces sequential execution. The previous plan is always
+#'   restored on exit.
+#' @param ncores Number of workers when \code{multicore = TRUE}. Default
+#'   (\code{NULL}) is one less than the number of available cores. Ignored when
+#'   \code{multicore} is \code{NULL} or \code{FALSE}.
 #' @param block Optional case-identifier column for block bootstrapping, given
 #'   either as a bare column name (\code{block = id}) or a string
 #'   (\code{block = "id"}). Note that the bundled \code{\link{hks}} data contain
@@ -246,8 +253,25 @@ run_evzinb <- function(
 #'   \code{\link{evinf_control}} for their meaning.
 #' @param verbose Logical: should progress of the full run of the model be tracked?
 #'
-#' @importFrom foreach %do%
-#' @importFrom foreach %dopar%
+#' @section Parallel processing:
+#' Bootstrap fits (and the per-bootstrap work in \code{\link{add_bootstraps}},
+#' \code{\link{lr_test}}, \code{\link{compare_models}},
+#' \code{\link{predict.evzinb}} and \code{\link{marginal_effects}}) are
+#' dispatched with \pkg{furrr} on top of a \pkg{future} plan. Set the plan
+#' once for your session and leave \code{multicore} at its default:
+#' \preformatted{
+#' future::plan(future::multisession, workers = 8)
+#' progressr::handlers(global = TRUE)   # opt in to progress bars
+#' model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 1000)
+#' }
+#' Any \code{future} backend works (\code{multisession}, \code{cluster},
+#' \code{callr}, a HPC batchtools plan, ...). As a convenience
+#' \code{multicore = TRUE} sets a temporary \code{multisession} plan for the
+#' single call and restores the previous plan on exit. Bootstrap draws are
+#' reproducible from \code{boot_seed} and do not depend on the number of
+#' workers. Large models may need
+#' \code{options(future.globals.maxSize = <bytes>)} to raise the default limit
+#' on the data shipped to each worker.
 #'
 #' @return An object of class 'evzinb'
 #' @export
@@ -280,7 +304,7 @@ evzinb <- function(
   data,
   bootstrap = TRUE,
   n_bootstraps = 100,
-  multicore = FALSE,
+  multicore = NULL,
   ncores = NULL,
   block = NULL,
   boot_seed = NULL,
@@ -292,7 +316,6 @@ evzinb <- function(
   init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C,
   verbose = FALSE
 ) {
-  i <- 'temp_iter'
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evzinb")
@@ -334,39 +357,27 @@ evzinb <- function(
     }
     full_run$boot_seeds <- list(boot_seed)
 
-    be <- evinf_setup_backend(multicore, ncores)
-    on.exit(be$stop(), add = TRUE)
-    # The %dorng% loop auto-exports the referenced globals and .packages =
-    # "evinf" loads the package namespace on every worker, so no explicit
-    # clusterExport() is needed (evinb() has never had one).
-    if (multicore) {
-      ex_time <- runtime * n_bootstraps / be$ncores
-    } else {
-      ex_time <- runtime * n_bootstraps
-    }
     if (verbose) {
       cat(
         "\n ======",
         "Approximate runtime for bootstraps is",
-        ex_time,
+        runtime * n_bootstraps,
         attributes(runtime)$units,
-        ". Note: This is a very rough estimate of the runtime."
+        ". Note: This is a very rough estimate of the runtime (sequential)."
       )
     }
 
-    boots <- evinf_progress_run(n_bootstraps, verbose, function(p) {
-      foreach::foreach(
-        i = 1:n_bootstraps,
-        .options.RNG = boot_seed,
-        .packages = 'evinf',
-        .export = c('full_run', 'block2', 'n_bootstraps')
-      ) %dorng% {
-        res <- try(bootrun_evzinb(full_run, block2))
-        p()
-        res
-      }
+    # Ship only a compact spec to the workers, not the whole fitted object.
+    boot_spec <- evinf_boot_spec(full_run)
+    boots <- evinf_with_plan(multicore, ncores, {
+      evinf_pmap(
+        seq_len(n_bootstraps),
+        function(i, spec, blk) try(bootrun_evzinb(spec, blk)),
+        spec = boot_spec, blk = block2,
+        seed = boot_seed, label = "bootstrap", verbose = verbose
+      )
     })
-    names(boots) <- paste('bootstrap_', 1:length(boots), sep = "")
+    names(boots) <- paste0("bootstrap_", seq_along(boots))
     out <- c(full_run, list(bootstraps = boots))
   } else {
     out <- full_run

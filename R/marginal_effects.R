@@ -100,11 +100,14 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #'   \code{1} unit; pass e.g. \code{sd(x)} for a one-SD change).
 #' @param conf_level Confidence level for the bootstrap intervals.
 #' @param newdata Data to average over (default: the estimation data).
+#' @inheritParams evzinb
 #' @param n_max For \code{type = "quantile"} only: cap the number of rows the
 #'   effect is averaged over (the per-observation quantile machinery is slow).
 #'   The cap is applied automatically when \code{nrow(newdata) * n_bootstraps >
 #'   2e5}, or whenever \code{n_max} is passed explicitly; \code{n_max = Inf}
 #'   disables it. The subsample is reproducible from the model's bootstrap seed.
+#'
+#' @inheritSection evzinb Parallel processing
 #'
 #' @details
 #' The confidence interval is a percentile interval: \code{conf.low} /
@@ -146,7 +149,8 @@ marginal_effects <- function(object, variables = NULL,
                              quantile = NULL, at = list(),
                              method = c("derivative", "difference"),
                              eps = 1e-4, delta = 1, conf_level = 0.9,
-                             newdata = NULL, n_max = 500) {
+                             newdata = NULL, n_max = 500,
+                             multicore = NULL, ncores = NULL) {
   type <- match.arg(type)
   # type = "quantile" defaults to a one-unit difference (the derivative of a
   # quantile is numerically unstable on bootstrap fits with tiny Pareto alpha).
@@ -178,11 +182,10 @@ marginal_effects <- function(object, variables = NULL,
                                      "try-error")]
   qs <- c((1 - conf_level) / 2, 1 - (1 - conf_level) / 2)
 
-  # audit N8: the per-observation mistr quantile machinery is slow; cap the
-  # rows the quantile AME averages over. Reproducible from the model's seed.
-  # audit N8: subsample the rows the quantile AME averages over -- either
-  # automatically when the work is large, or whenever `n_max` was set
-  # explicitly. `n_max = Inf` disables it.
+  # audit N8: the per-observation mixture-quantile machinery is slow; subsample
+  # the rows the quantile AME averages over -- automatically when the work is
+  # large, or whenever `n_max` was set explicitly. `n_max = Inf` disables it.
+  # The subsample is reproducible from the model's bootstrap seed.
   n_max_set <- !missing(n_max)
   if (type == "quantile" && is.finite(n_max) && nrow(nd) > n_max &&
       (n_max_set || nrow(nd) * length(boots) > 2e5)) {
@@ -194,12 +197,43 @@ marginal_effects <- function(object, variables = NULL,
             " bootstraps). Pass n_max = Inf to use all rows.")
   }
 
+  # full-model effect per variable (sequential; one call each)
+  est_by_var <- stats::setNames(
+    lapply(variables, function(v)
+      evinf_ame_one(object, nd, v, type, quantile, method, eps, delta, evzinb)),
+    variables
+  )
+
+  # per-bootstrap effects, over the variable x bootstrap grid, in parallel
+  grid <- expand.grid(vi = seq_along(variables), bi = seq_along(boots))
+  boot_seed <- if (length(object$boot_seeds)) object$boot_seeds[[1]] %||% 1L else 1L
+  flat <- if (nrow(grid)) {
+    evinf_with_plan(multicore, ncores, {
+      evinf_pmap(
+        seq_len(nrow(grid)),
+        function(k, grid, variables, boots, nd, type, quantile, method, eps,
+                 delta, evzinb) {
+          v <- variables[grid$vi[k]]
+          tryCatch(
+            evinf_ame_one(boots[[grid$bi[k]]], nd, v, type, quantile, method,
+                          eps, delta, evzinb),
+            error = function(e) NULL)
+        },
+        grid = grid, variables = variables, boots = boots, nd = nd,
+        type = type, quantile = quantile, method = method, eps = eps,
+        delta = delta, evzinb = evzinb,
+        seed = boot_seed, label = "marginal_effects bootstrap"
+      )
+    })
+  } else {
+    list()
+  }
+
   rows <- list()
-  for (v in variables) {
-    est <- evinf_ame_one(object, nd, v, type, quantile, method, eps, delta, evzinb)
-    boot_vals <- lapply(boots, function(b)
-      tryCatch(evinf_ame_one(b, nd, v, type, quantile, method, eps, delta, evzinb),
-               error = function(e) NULL))
+  for (vi in seq_along(variables)) {
+    v <- variables[vi]
+    est <- est_by_var[[v]]
+    boot_vals <- flat[grid$vi == vi]
     boot_vals <- boot_vals[!vapply(boot_vals, is.null, logical(1))]
 
     contrasts <- if (is.list(est)) names(est) else "dydx"
