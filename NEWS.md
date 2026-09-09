@@ -64,6 +64,10 @@ review follow-ups in `dev/review_round1.md`.
   effects path now differentiates the continuous (unrounded) quantile.
   `quantiles_from_*()` gain a `round` argument (`TRUE` by default;
   `predict(type = "quantile")` is unchanged).
+* `marginal_effects(method = "difference")` is now implemented for numeric
+  covariates (average change from a `delta`-unit increase, default 1 unit); it
+  was previously accepted and ignored. `type = "quantile"` defaults to
+  `method = "difference"`.
 * `evinb()` no longer runs the EVZINB EM step (which updates the zero-inflation
   block) during the warm-up phase -- a copy-paste artefact from the pre-0.10.0
   code. The zero-inflation intercept is now held fixed throughout, as the model

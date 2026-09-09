@@ -12,6 +12,7 @@ marginal_effects(
   at = list(),
   method = c("derivative", "difference"),
   eps = 1e-04,
+  delta = 1,
   conf_level = 0.9,
   newdata = NULL
 )
@@ -29,10 +30,18 @@ covariates).}
 \item{at}{Named list of values at which to hold covariates before
 differencing.}
 
-\item{method}{\code{"derivative"} (central difference, numeric variables) or
-\code{"difference"}; factors always use level-vs-reference differences.}
+\item{method}{For numeric covariates, \code{"derivative"} (central finite
+difference of step \code{eps}) or \code{"difference"} (average change from
+a \code{delta}-unit increase in the covariate). Defaults to
+\code{"derivative"}, except for \code{type = "quantile"} where it defaults
+to \code{"difference"} (a one-unit change is what a quantile effect means
+in practice). Factor covariates always use level-vs-reference differences.}
 
-\item{eps}{Step size for the central difference.}
+\item{eps}{Step size for the central finite difference
+(\code{method = "derivative"}).}
+
+\item{delta}{Covariate increase for \code{method = "difference"} (default
+\code{1} unit; pass e.g. \code{sd(x)} for a one-SD change).}
 
 \item{conf_level}{Confidence level for the bootstrap intervals.}
 
@@ -62,6 +71,13 @@ inference about how a covariate shifts the outcome, prefer
 \code{type = "quantile"} (effect on a predicted quantile) or
 \code{type = "states"} (effect on the state probabilities), whose bootstrap
 distributions are bounded.
+
+\strong{Quantile effects.} The mixture quantile is a step function of a
+count, so its derivative is either 0 or huge; \code{type = "quantile"}
+therefore defaults to \code{method = "difference"} (the average change in the
+predicted quantile from a \code{delta}-unit increase in the covariate). The
+derivative is still available with \code{method = "derivative"} but its
+bootstrap distribution can be very heavy-tailed.
 }
 \examples{
 \donttest{

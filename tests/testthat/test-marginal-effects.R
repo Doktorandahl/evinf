@@ -87,3 +87,28 @@ test_that("quantiles_from_evzinb(round = FALSE) returns non-integer values", {
   expect_equal(q_round, round(q_cont))
   expect_gt(sum(abs(q_cont - round(q_cont))), 0)  # at least some non-integers
 })
+
+test_that("marginal_effects(method =) is implemented for numeric covariates (N2)", {
+  m <- fit_evzinb_fast(n_bootstraps = 6)
+
+  d <- suppressWarnings(marginal_effects(m, variables = "x1", type = "harmonic",
+                                         method = "derivative"))
+  diff1 <- suppressWarnings(marginal_effects(m, variables = "x1", type = "harmonic",
+                                             method = "difference", delta = 1))
+  expect_true(is.finite(d$estimate) && is.finite(diff1$estimate))
+  expect_identical(sign(d$estimate), sign(diff1$estimate))
+
+  # type = "quantile" defaults to method = "difference"
+  q_def <- suppressWarnings(marginal_effects(m, variables = "x1",
+                                             type = "quantile", quantile = 0.9))
+  q_der <- suppressWarnings(marginal_effects(m, variables = "x1",
+                                             type = "quantile", quantile = 0.9,
+                                             method = "derivative"))
+  expect_true(is.finite(q_def$estimate) && abs(q_def$estimate) > 1e-6)
+  expect_identical(sign(q_def$estimate), sign(q_der$estimate))
+
+  # delta scales the difference roughly linearly for a smooth type
+  diff2 <- suppressWarnings(marginal_effects(m, variables = "x1", type = "harmonic",
+                                             method = "difference", delta = 2))
+  expect_gt(abs(diff2$estimate), abs(diff1$estimate))
+})

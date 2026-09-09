@@ -24,13 +24,21 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
 # AME of one variable for one fit; returns a named vector (length 1 for scalar
 # types, length 3 for "states").
 evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
-                          evzinb) {
+                          delta, evzinb) {
   col <- newdata[[variable]]
   if (is.numeric(col)) {
-    ndp <- newdata; ndp[[variable]] <- col + eps
-    ndm <- newdata; ndm[[variable]] <- col - eps
-    d <- (predict_from_boot(mod, ndp, type, quantile, evzinb) -
-            predict_from_boot(mod, ndm, type, quantile, evzinb)) / (2 * eps)
+    if (method == "difference") {
+      # average change from a `delta`-unit increase in the covariate
+      nd1 <- newdata; nd1[[variable]] <- col + delta
+      d <- predict_from_boot(mod, nd1, type, quantile, evzinb) -
+        predict_from_boot(mod, newdata, type, quantile, evzinb)
+    } else {
+      # central finite difference (derivative)
+      ndp <- newdata; ndp[[variable]] <- col + eps
+      ndm <- newdata; ndm[[variable]] <- col - eps
+      d <- (predict_from_boot(mod, ndp, type, quantile, evzinb) -
+              predict_from_boot(mod, ndm, type, quantile, evzinb)) / (2 * eps)
+    }
     out <- .me_colmeans(d)
     return(stats::setNames(out, if (length(out) == 1L) "dydx" else names(out)))
   }
@@ -62,9 +70,16 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #' @param quantile Quantile for \code{type = "quantile"}.
 #' @param at Named list of values at which to hold covariates before
 #'   differencing.
-#' @param method \code{"derivative"} (central difference, numeric variables) or
-#'   \code{"difference"}; factors always use level-vs-reference differences.
-#' @param eps Step size for the central difference.
+#' @param method For numeric covariates, \code{"derivative"} (central finite
+#'   difference of step \code{eps}) or \code{"difference"} (average change from
+#'   a \code{delta}-unit increase in the covariate). Defaults to
+#'   \code{"derivative"}, except for \code{type = "quantile"} where it defaults
+#'   to \code{"difference"} (a one-unit change is what a quantile effect means
+#'   in practice). Factor covariates always use level-vs-reference differences.
+#' @param eps Step size for the central finite difference
+#'   (\code{method = "derivative"}).
+#' @param delta Covariate increase for \code{method = "difference"} (default
+#'   \code{1} unit; pass e.g. \code{sd(x)} for a one-SD change).
 #' @param conf_level Confidence level for the bootstrap intervals.
 #' @param newdata Data to average over (default: the estimation data).
 #'
@@ -84,6 +99,13 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #' \code{type = "states"} (effect on the state probabilities), whose bootstrap
 #' distributions are bounded.
 #'
+#' \strong{Quantile effects.} The mixture quantile is a step function of a
+#' count, so its derivative is either 0 or huge; \code{type = "quantile"}
+#' therefore defaults to \code{method = "difference"} (the average change in the
+#' predicted quantile from a \code{delta}-unit increase in the covariate). The
+#' derivative is still available with \code{method = "derivative"} but its
+#' bootstrap distribution can be very heavy-tailed.
+#'
 #' @return A tibble with columns \code{variable}, \code{contrast}, \code{type},
 #'   \code{estimate}, \code{std.error}, \code{conf.low}, \code{conf.high}.
 #' @export
@@ -98,9 +120,13 @@ marginal_effects <- function(object, variables = NULL,
                              type = c("harmonic", "states", "quantile"),
                              quantile = NULL, at = list(),
                              method = c("derivative", "difference"),
-                             eps = 1e-4, conf_level = 0.9, newdata = NULL) {
+                             eps = 1e-4, delta = 1, conf_level = 0.9,
+                             newdata = NULL) {
   type <- match.arg(type)
-  method <- match.arg(method)
+  # type = "quantile" defaults to a one-unit difference (the derivative of a
+  # quantile is numerically unstable on bootstrap fits with tiny Pareto alpha).
+  method <- if (missing(method) && type == "quantile") "difference"
+            else match.arg(method)
   if (!inherits(object, c("evzinb", "evinb"))) {
     stop("`object` must be a fitted evzinb / evinb model.", call. = FALSE)
   }
@@ -129,9 +155,9 @@ marginal_effects <- function(object, variables = NULL,
 
   rows <- list()
   for (v in variables) {
-    est <- evinf_ame_one(object, nd, v, type, quantile, method, eps, evzinb)
+    est <- evinf_ame_one(object, nd, v, type, quantile, method, eps, delta, evzinb)
     boot_vals <- lapply(boots, function(b)
-      tryCatch(evinf_ame_one(b, nd, v, type, quantile, method, eps, evzinb),
+      tryCatch(evinf_ame_one(b, nd, v, type, quantile, method, eps, delta, evzinb),
                error = function(e) NULL))
     boot_vals <- boot_vals[!vapply(boot_vals, is.null, logical(1))]
 
