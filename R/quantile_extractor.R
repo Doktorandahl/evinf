@@ -6,6 +6,10 @@
 #' @param return_data Logical: Should the data be returned in the object
 #' @param multicore Logical: Should parallel processing be used to obtain results
 #' @param ncores Number of cores if multicore is used
+#' @param round Logical: round the mixture quantile to the nearest integer
+#'   (the sensible default for a count-valued prediction). Pass \code{FALSE} for
+#'   the continuous root of the mixture CDF, e.g. for numerical differentiation
+#'   in \code{marginal_effects()}.
 #'
 #' @return A vector of predicted quantiles, or if return_data=T, a tibble with the predicted quantile attached last
 #'
@@ -16,7 +20,8 @@ quantiles_from_evzinb <- function(
   newdata = NULL,
   return_data = FALSE,
   multicore = FALSE,
-  ncores = NULL
+  ncores = NULL,
+  round = TRUE
 ) {
   i <- 'temp_iter'
 
@@ -55,8 +60,7 @@ quantiles_from_evzinb <- function(
   if (!multicore) {
     q <- individual_dists %>%
       purrr::map(~ mistr::mistr_q(.x, quantile)) %>%
-      purrr::reduce(c) %>%
-      round()
+      purrr::reduce(c)
   } else {
     be <- evinf_setup_backend(multicore = TRUE, ncores = ncores)
     on.exit(be$stop(), add = TRUE)
@@ -66,6 +70,9 @@ quantiles_from_evzinb <- function(
       .final = unlist
     ) %dopar%
       mistr::mistr_q(individual_dists[[i]], quantile)
+  }
+  if (round) {
+    q <- round(q)
   }
 
   if (return_data) {
@@ -83,6 +90,8 @@ quantiles_from_evzinb <- function(
 #' @param return_data Logical: Should the data be returned in the object
 #' @param multicore Logical: Should parallel processing be used to obtain results
 #' @param ncores Number of cores if multicore is used
+#' @param round Logical: round the mixture quantile to the nearest integer.
+#'   Pass \code{FALSE} for the continuous root of the mixture CDF.
 #'
 #' @return A vector of predicted quantiles, or if return_data=T, a tibble with the predicted quantile attached last
 #'
@@ -93,7 +102,8 @@ quantiles_from_evinb <- function(
   newdata = NULL,
   return_data = FALSE,
   multicore = TRUE,
-  ncores = NULL
+  ncores = NULL,
+  round = TRUE
 ) {
   i <- 'temp_iter'
 
@@ -124,8 +134,7 @@ quantiles_from_evinb <- function(
   if (!multicore) {
     q <- individual_dists %>%
       purrr::map(~ mistr::mistr_q(.x, quantile)) %>%
-      purrr::reduce(c) %>%
-      round()
+      purrr::reduce(c)
   } else {
     be <- evinf_setup_backend(multicore = TRUE, ncores = ncores)
     on.exit(be$stop(), add = TRUE)
@@ -135,6 +144,9 @@ quantiles_from_evinb <- function(
       .final = unlist
     ) %dopar%
       mistr::mistr_q(individual_dists[[i]], quantile)
+  }
+  if (round) {
+    q <- round(q)
   }
 
   if (return_data) {

@@ -10,8 +10,11 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
     return(as.matrix(st[, cols, drop = FALSE]))
   }
   if (type == "quantile") {
-    return(as.numeric(pf(mod, newdata = newdata, type = "quantile",
-                         quantile = quantile)))
+    # unrounded mixture quantile: the rounded step function has a zero
+    # derivative almost everywhere (audit N1).
+    qf <- if (evzinb) quantiles_from_evzinb else quantiles_from_evinb
+    return(as.numeric(qf(mod, quantile, newdata = newdata,
+                         return_data = FALSE, multicore = FALSE, round = FALSE)))
   }
   as.numeric(pf(mod, newdata = newdata, type = type))
 }

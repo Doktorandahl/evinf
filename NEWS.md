@@ -58,6 +58,12 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Bug fixes
 
+* `marginal_effects(type = "quantile")` no longer returns zeros. The mixture
+  quantile is rounded to an integer for `predict()`, but a central finite
+  difference of that step function is zero almost everywhere; the marginal-
+  effects path now differentiates the continuous (unrounded) quantile.
+  `quantiles_from_*()` gain a `round` argument (`TRUE` by default;
+  `predict(type = "quantile")` is unchanged).
 * `evinb()` no longer runs the EVZINB EM step (which updates the zero-inflation
   block) during the warm-up phase -- a copy-paste artefact from the pre-0.10.0
   code. The zero-inflation intercept is now held fixed throughout, as the model

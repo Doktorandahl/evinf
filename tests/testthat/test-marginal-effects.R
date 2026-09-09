@@ -69,3 +69,21 @@ test_that("insight::get_data() and avg_slopes() work without newdata (issue 3.3)
   expect_length(w, 0L)
   expect_true(is.finite(s$estimate[1]))
 })
+
+test_that("marginal_effects(type = 'quantile') is non-zero (N1)", {
+  m <- fit_evzinb_fast(n_bootstraps = 6)
+  me <- suppressWarnings(marginal_effects(m, variables = "x1", type = "quantile",
+                                          quantile = 0.9, method = "derivative"))
+  expect_equal(nrow(me), 1L)
+  expect_true(is.finite(me$estimate))
+  expect_true(abs(me$estimate) > 1e-6)
+})
+
+test_that("quantiles_from_evzinb(round = FALSE) returns non-integer values", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  nd <- m$data$data[1:20, ]
+  q_round <- evinf:::quantiles_from_evzinb(m, 0.9, newdata = nd, round = TRUE)
+  q_cont  <- evinf:::quantiles_from_evzinb(m, 0.9, newdata = nd, round = FALSE)
+  expect_equal(q_round, round(q_cont))
+  expect_gt(sum(abs(q_cont - round(q_cont))), 0)  # at least some non-integers
+})
