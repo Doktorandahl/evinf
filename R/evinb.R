@@ -325,7 +325,10 @@ bootrun_evinb <- function(
 #' @param ncores Number of cores if multicore is used. Default (NULL) is one less than the available number of cores
 #' @param block Optional case-identifier column for block bootstrapping, given
 #'   either as a bare column name (\code{block = id}) or a string
-#'   (\code{block = "id"}).
+#'   (\code{block = "id"}). Note that the bundled \code{\link{hks}} data contain
+#'   no conflict identifier, so the conflict-level cluster bootstrap in Randahl
+#'   and Vegelius (2024) cannot be reproduced from them directly (see
+#'   \code{?hks}).
 #' @param boot_seed Optional bootstrap seed to ensure reproducible results.
 #' @param control An \code{\link{evinf_control}()} object holding the EM tuning
 #'   settings.
@@ -351,7 +354,7 @@ bootrun_evinb <- function(
 #' data(hks)
 #' hks_mod <- evinb(
 #'   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
-#'     lntpop + brv_AllLag + osvAllLagDum + incomp,
+#'     lntpop + brv_AllLag_log + osvAllLagDum + incomp,
 #'   formula_pareto = ~ log1p(troopLag),
 #'   data = hks, n_bootstraps = 5, multicore = FALSE
 #' )

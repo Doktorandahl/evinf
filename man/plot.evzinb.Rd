@@ -57,7 +57,7 @@ plot(model, type = "prediction", variable = "x1")
 
 \dontrun{
 data(hks)
-hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag,
+hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log,
                   data = hks, n_bootstraps = 5, multicore = FALSE)
 plot(hks_mod, type = "prediction", variable = "troopLag")
 }

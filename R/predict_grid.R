@@ -46,7 +46,7 @@ evinf_hold_fixed <- function(x, fixed) {
 #'
 #' \dontrun{
 #' data(hks)
-#' hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag,
+#' hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log,
 #'                   data = hks, n_bootstraps = 5, multicore = FALSE)
 #' predict_grid(hks_mod, "troopLag", type = "states")
 #' }

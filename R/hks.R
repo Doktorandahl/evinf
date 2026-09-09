@@ -8,13 +8,22 @@
 #' \insertCite{randahl2024inference;textual}{evinf}.
 #'
 #' The columns ending in `_log` (`troopLag_log`, `policeLag_log`,
-#' `militaryobserversLag_log`, `epdur_log`) are transforms that were
-#' pre-computed for the Pareto component in
-#' \insertCite{randahl2024inference;textual}{evinf}: the three personnel columns
-#' use `log1p()` and `epdur_log` uses `log()`. Since evinf 0.9.4 the component
-#' formulas accept in-formula transformations, so `log1p(troopLag)` etc. can be
-#' used directly in the formula and these pre-computed columns are no longer
-#' needed.
+#' `militaryobserversLag_log`, `epdur_log`, `brv_AllLag_log`) are transforms that
+#' were pre-computed for the Pareto component in
+#' \insertCite{randahl2024inference;textual}{evinf}. The transform follows the
+#' standard rule in the conflict literature: the personnel counts contain
+#' structural zeros and use `log1p()`, while an episode duration is always at
+#' least one month (at least two in these data) and uses `log()`, the
+#' conventional transform for durations. Since evinf 0.9.4 the component formulas
+#' accept in-formula transformations, so `log1p(troopLag)`, `log(epduration)`
+#' etc. can be written directly in the formula and these pre-computed columns are
+#' no longer needed.
+#'
+#' The bundled data carry **no conflict identifier**. The conflict-level cluster
+#' bootstrap reported in \insertCite{randahl2024inference;textual}{evinf}
+#' therefore cannot be reproduced from the bundled data alone; download the
+#' original replication data (link under `source`) and merge on your own
+#' conflict key to use \code{block} in \code{\link{evzinb}()} / \code{\link{evinb}()}.
 #'
 #' @format
 #' A tibble with 3746 rows and 13 columns:
@@ -23,7 +32,7 @@
 #'   \item{troopLag}{The number of UN military troops, in thousands (lagged)}
 #'   \item{policeLag}{The number of UN police, in thousands (lagged)}
 #'   \item{militaryobserversLag}{The number of UN military observers, in thousands (lagged)}
-#'   \item{brv_AllLag}{The natural logarithm of the total number of battle-related deaths in the conflict in the previous month}
+#'   \item{brv_AllLag_log}{The natural logarithm of the total number of battle-related deaths in the conflict in the previous month, log-transformed as in \insertCite{hultman2013united;textual}{evinf}}
 #'   \item{osvAllLagDum}{A dummy variable taking the value 1 if any one-sided violence against civilians took place in the previous conflict month}
 #'   \item{incomp}{UCDP/PRIO incompatibility: 1 = territory, 2 = government}
 #'   \item{epduration}{The number of months the current conflict-episode has been ongoing}

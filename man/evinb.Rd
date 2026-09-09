@@ -56,7 +56,10 @@ evinb(
 
 \item{block}{Optional case-identifier column for block bootstrapping, given
 either as a bare column name (\code{block = id}) or a string
-(\code{block = "id"}).}
+(\code{block = "id"}). Note that the bundled \code{\link{hks}} data contain
+no conflict identifier, so the conflict-level cluster bootstrap in Randahl
+and Vegelius (2024) cannot be reproduced from them directly (see
+\code{?hks}).}
 
 \item{boot_seed}{Optional bootstrap seed to ensure reproducible results.}
 
@@ -85,7 +88,7 @@ model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 data(hks)
 hks_mod <- evinb(
   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
-    lntpop + brv_AllLag + osvAllLagDum + incomp,
+    lntpop + brv_AllLag_log + osvAllLagDum + incomp,
   formula_pareto = ~ log1p(troopLag),
   data = hks, n_bootstraps = 5, multicore = FALSE
 )

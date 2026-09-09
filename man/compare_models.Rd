@@ -57,7 +57,7 @@ compare_models(model)
 
 \dontrun{
 data(hks)
-hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag + osvAllLagDum,
+hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log + osvAllLagDum,
                   formula_pareto = ~ log1p(troopLag),
                   data = hks, n_bootstraps = 5, multicore = FALSE)
 cmp <- compare_models(hks_mod)

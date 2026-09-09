@@ -98,6 +98,13 @@ review follow-ups in `dev/review_round1.md`.
   `evinf_control(c.lim = ..., init.C = ...)` to reproduce an older fit.
 * `gm_evzinb` gains a row (`obs_above_c_ev`) and its `parameter` row is now
   formatted with 0 decimals; regenerate any cached copy with `gof_map_evinf()`.
+* The `hks` column `brv_AllLag` is renamed `brv_AllLag_log` (it is on the log
+  scale, like the other `_log` columns). There is no alias — code referring to
+  the old name will get an immediate "object not found" / "column not found"
+  error.
+* `predict()` on the `nb` / `zinb` slot of a `compare_models()` result no longer
+  accepts `type = "evinf"` (a plain NB / ZINB has no extreme-value state);
+  `match.arg()` now rejects it.
 * The three internal `marginal.effect.*` helpers (never exported, superseded by
   `marginal_effects()`) were removed.
 

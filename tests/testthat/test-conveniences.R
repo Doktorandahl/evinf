@@ -60,7 +60,7 @@ test_that("hks help lists exactly the columns that ship", {
   data(hks, package = "evinf", envir = environment())
   expect_setequal(
     names(hks),
-    c("osvAll", "troopLag", "policeLag", "militaryobserversLag", "brv_AllLag",
+    c("osvAll", "troopLag", "policeLag", "militaryobserversLag", "brv_AllLag_log",
       "osvAllLagDum", "incomp", "epduration", "lntpop", "troopLag_log",
       "epdur_log", "policeLag_log", "militaryobserversLag_log")
   )
