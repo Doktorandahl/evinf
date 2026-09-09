@@ -21,6 +21,24 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
 
 .me_colmeans <- function(x) if (is.matrix(x)) colMeans(x) else mean(x)
 
+# sample.int() with an optional seed, leaving the caller's RNG state untouched.
+evinf_seeded_sample <- function(n, size, seed = NULL) {
+  if (is.null(seed)) {
+    return(sample.int(n, size))
+  }
+  had <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  if (had) saved <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  on.exit({
+    if (had) {
+      assign(".Random.seed", saved, envir = .GlobalEnv)
+    } else {
+      suppressWarnings(rm(".Random.seed", envir = .GlobalEnv))
+    }
+  }, add = TRUE)
+  set.seed(seed)
+  sample.int(n, size)
+}
+
 # AME of one variable for one fit; returns a named vector (length 1 for scalar
 # types, length 3 for "states").
 evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
@@ -82,6 +100,11 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #'   \code{1} unit; pass e.g. \code{sd(x)} for a one-SD change).
 #' @param conf_level Confidence level for the bootstrap intervals.
 #' @param newdata Data to average over (default: the estimation data).
+#' @param n_max For \code{type = "quantile"} only: cap the number of rows the
+#'   effect is averaged over (the per-observation quantile machinery is slow).
+#'   The cap is applied automatically when \code{nrow(newdata) * n_bootstraps >
+#'   2e5}, or whenever \code{n_max} is passed explicitly; \code{n_max = Inf}
+#'   disables it. The subsample is reproducible from the model's bootstrap seed.
 #'
 #' @details
 #' The confidence interval is a percentile interval: \code{conf.low} /
@@ -104,7 +127,9 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #' therefore defaults to \code{method = "difference"} (the average change in the
 #' predicted quantile from a \code{delta}-unit increase in the covariate). The
 #' derivative is still available with \code{method = "derivative"} but its
-#' bootstrap distribution can be very heavy-tailed.
+#' bootstrap distribution can be very heavy-tailed. The quantile effect is
+#' evaluated per observation through \code{mistr}, which is slow, so it is
+#' averaged over at most \code{n_max} rows (see that argument).
 #'
 #' @return A tibble with columns \code{variable}, \code{contrast}, \code{type},
 #'   \code{estimate}, \code{std.error}, \code{conf.low}, \code{conf.high}.
@@ -121,7 +146,7 @@ marginal_effects <- function(object, variables = NULL,
                              quantile = NULL, at = list(),
                              method = c("derivative", "difference"),
                              eps = 1e-4, delta = 1, conf_level = 0.9,
-                             newdata = NULL) {
+                             newdata = NULL, n_max = 500) {
   type <- match.arg(type)
   # type = "quantile" defaults to a one-unit difference (the derivative of a
   # quantile is numerically unstable on bootstrap fits with tiny Pareto alpha).
@@ -152,6 +177,22 @@ marginal_effects <- function(object, variables = NULL,
   boots <- object$bootstraps[!vapply(object$bootstraps, inherits, logical(1),
                                      "try-error")]
   qs <- c((1 - conf_level) / 2, 1 - (1 - conf_level) / 2)
+
+  # audit N8: the per-observation mistr quantile machinery is slow; cap the
+  # rows the quantile AME averages over. Reproducible from the model's seed.
+  # audit N8: subsample the rows the quantile AME averages over -- either
+  # automatically when the work is large, or whenever `n_max` was set
+  # explicitly. `n_max = Inf` disables it.
+  n_max_set <- !missing(n_max)
+  if (type == "quantile" && is.finite(n_max) && nrow(nd) > n_max &&
+      (n_max_set || nrow(nd) * length(boots) > 2e5)) {
+    seed <- if (length(object$boot_seeds)) object$boot_seeds[[1]] else NULL
+    keep <- sort(evinf_seeded_sample(nrow(nd), n_max, seed))
+    nd <- nd[keep, , drop = FALSE]
+    message("marginal_effects(): averaging the quantile effect over a random ",
+            n_max, "-row subsample of `newdata` (", length(boots),
+            " bootstraps). Pass n_max = Inf to use all rows.")
+  }
 
   rows <- list()
   for (v in variables) {

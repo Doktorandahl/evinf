@@ -112,3 +112,24 @@ test_that("marginal_effects(method =) is implemented for numeric covariates (N2)
                                              method = "difference", delta = 2))
   expect_gt(abs(diff2$estimate), abs(diff1$estimate))
 })
+
+test_that("marginal_effects(type = 'quantile', n_max =) subsamples with a message (N8)", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  expect_message(
+    me <- marginal_effects(m, variables = "x1", type = "quantile",
+                           quantile = 0.9, n_max = 10),
+    "10-row subsample"
+  )
+  expect_true(is.finite(me$estimate))
+
+  # reproducible: two runs give the same estimate
+  me2 <- suppressMessages(marginal_effects(m, variables = "x1", type = "quantile",
+                                           quantile = 0.9, n_max = 10))
+  expect_equal(me$estimate, me2$estimate)
+
+  # n_max = Inf uses all rows (no message)
+  expect_no_message(
+    marginal_effects(m, variables = "x1", type = "quantile", quantile = 0.9,
+                     n_max = Inf)
+  )
+})

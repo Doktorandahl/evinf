@@ -68,6 +68,11 @@ review follow-ups in `dev/review_round1.md`.
   covariates (average change from a `delta`-unit increase, default 1 unit); it
   was previously accepted and ignored. `type = "quantile"` defaults to
   `method = "difference"`.
+* `marginal_effects(type = "quantile")` caps the rows it averages over at
+  `n_max` (new argument, default 500; automatic above `nrow * n_bootstraps =
+  2e5`, or whenever set explicitly; `n_max = Inf` disables it), with a message.
+  The per-observation `mistr` quantile machinery made this prohibitively slow
+  on data the size of `hks`.
 * `evinb()` no longer runs the EVZINB EM step (which updates the zero-inflation
   block) during the warm-up phase -- a copy-paste artefact from the pre-0.10.0
   code. The zero-inflation intercept is now held fixed throughout, as the model

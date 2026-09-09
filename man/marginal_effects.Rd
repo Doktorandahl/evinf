@@ -14,7 +14,8 @@ marginal_effects(
   eps = 1e-04,
   delta = 1,
   conf_level = 0.9,
-  newdata = NULL
+  newdata = NULL,
+  n_max = 500
 )
 }
 \arguments{
@@ -46,6 +47,12 @@ in practice). Factor covariates always use level-vs-reference differences.}
 \item{conf_level}{Confidence level for the bootstrap intervals.}
 
 \item{newdata}{Data to average over (default: the estimation data).}
+
+\item{n_max}{For \code{type = "quantile"} only: cap the number of rows the
+effect is averaged over (the per-observation quantile machinery is slow).
+The cap is applied automatically when \code{nrow(newdata) * n_bootstraps >
+2e5}, or whenever \code{n_max} is passed explicitly; \code{n_max = Inf}
+disables it. The subsample is reproducible from the model's bootstrap seed.}
 }
 \value{
 A tibble with columns \code{variable}, \code{contrast}, \code{type},
@@ -77,7 +84,9 @@ count, so its derivative is either 0 or huge; \code{type = "quantile"}
 therefore defaults to \code{method = "difference"} (the average change in the
 predicted quantile from a \code{delta}-unit increase in the covariate). The
 derivative is still available with \code{method = "derivative"} but its
-bootstrap distribution can be very heavy-tailed.
+bootstrap distribution can be very heavy-tailed. The quantile effect is
+evaluated per observation through \code{mistr}, which is slow, so it is
+averaged over at most \code{n_max} rows (see that argument).
 }
 \examples{
 \donttest{
