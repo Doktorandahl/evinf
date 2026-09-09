@@ -2,6 +2,27 @@ harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
   pr_count * count + pr_pareto * C * (1 + pareto_alpha) / pareto_alpha
 }
 
+# audit R0.5 / 2.7: state-probability columns with the canonical names
+# (pr_zero, pr_count, pr_evi) first and the deprecated duplicates
+# (pr_zc, pr_pareto) after, matching what predict(type = "states") returns.
+canonical_prbs <- function(prbs) {
+  if ("pr_zc" %in% names(prbs)) {
+    tibble::tibble(
+      pr_zero = prbs$pr_zc,
+      pr_count = prbs$pr_count,
+      pr_evi = prbs$pr_pareto,
+      pr_zc = prbs$pr_zc,
+      pr_pareto = prbs$pr_pareto
+    )
+  } else {
+    tibble::tibble(
+      pr_count = prbs$pr_count,
+      pr_evi = prbs$pr_pareto,
+      pr_pareto = prbs$pr_pareto
+    )
+  }
+}
+
 explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
   pr_count * count + C * pr_pareto * exp(1 / pareto_alpha)
 }
@@ -381,12 +402,12 @@ predict.evzinb <- function(
         dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
-          ci = dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci),
+          ci = dplyr::bind_cols(tibble::tibble(pr_zero = prbs$pr_zc, pr_zc = prbs$pr_zc), ci),
           bootstraps = prbs_boot %>%
-            purrr::map(~ dplyr::select(.x, .data$pr_zc, .data$id))
+            purrr::map(~ dplyr::select(.x, "pr_zc", "id"))
         ))
       } else {
-        return(dplyr::bind_cols(tibble::tibble(pr_zc = prbs$pr_zc), ci))
+        return(dplyr::bind_cols(tibble::tibble(pr_zero = prbs$pr_zc, pr_zc = prbs$pr_zc), ci))
       }
     }
     if (type == 'evinf') {
@@ -400,12 +421,12 @@ predict.evzinb <- function(
         dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
-          ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
+          ci = dplyr::bind_cols(tibble::tibble(pr_evi = prbs$pr_pareto, pr_pareto = prbs$pr_pareto), ci),
           bootstraps = prbs_boot %>%
-            purrr::map(~ dplyr::select(.x, .data$pr_pareto, .data$id))
+            purrr::map(~ dplyr::select(.x, "pr_pareto", "id"))
         ))
       } else {
-        return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
+        return(dplyr::bind_cols(tibble::tibble(pr_evi = prbs$pr_pareto, pr_pareto = prbs$pr_pareto), ci))
       }
     }
     if (type == 'count_state') {
@@ -421,7 +442,7 @@ predict.evzinb <- function(
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
           bootstraps = prbs_boot %>%
-            purrr::map(~ dplyr::select(.x, .data$pr_count, .data$id))
+            purrr::map(~ dplyr::select(.x, "pr_count", "id"))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
@@ -472,28 +493,23 @@ predict.evzinb <- function(
       return(prbs$pr_count)
     }
     if (type == 'states') {
-      # Canonical names plus the deprecated pre-0.9.4 duplicates (audit 2.7).
-      return(tibble::tibble(
-        pr_zero = prbs$pr_zc,
-        pr_count = prbs$pr_count,
-        pr_evi = prbs$pr_pareto,
-        pr_zc = prbs$pr_zc,
-        pr_pareto = prbs$pr_pareto
-      ))
+      return(canonical_prbs(prbs))
     }
     if (type == 'quantile') {
       return(q)
     }
     if (type == 'all') {
       q_name <- paste0('q', 100 * quantile)
-      return(dplyr::bind_cols(tibble::tibble(
-        harmonic = harmonic,
-        explog = explog,
-        !!q_name := q,
-        prbs,
+      return(dplyr::bind_cols(
+        tibble::tibble(
+          harmonic = harmonic,
+          explog = explog,
+          !!q_name := q
+        ),
+        canonical_prbs(prbs),
         cnts,
         alphs
-      )))
+      ))
     }
   }
 }
@@ -871,12 +887,12 @@ predict.evinb <- function(
         dplyr::select(-"id")
       if (return_bootstraps) {
         return(list(
-          ci = dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci),
+          ci = dplyr::bind_cols(tibble::tibble(pr_evi = prbs$pr_pareto, pr_pareto = prbs$pr_pareto), ci),
           bootstraps = prbs_boot %>%
-            purrr::map(~ dplyr::select(.x, .data$pr_pareto, .data$id))
+            purrr::map(~ dplyr::select(.x, "pr_pareto", "id"))
         ))
       } else {
-        return(dplyr::bind_cols(tibble::tibble(pr_pareto = prbs$pr_pareto), ci))
+        return(dplyr::bind_cols(tibble::tibble(pr_evi = prbs$pr_pareto, pr_pareto = prbs$pr_pareto), ci))
       }
     }
     if (type == 'count_state') {
@@ -892,7 +908,7 @@ predict.evinb <- function(
         return(list(
           ci = dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci),
           bootstraps = prbs_boot %>%
-            purrr::map(~ dplyr::select(.x, .data$pr_count, .data$id))
+            purrr::map(~ dplyr::select(.x, "pr_count", "id"))
         ))
       } else {
         return(dplyr::bind_cols(tibble::tibble(pr_count = prbs$pr_count), ci))
@@ -941,12 +957,7 @@ predict.evinb <- function(
       return(prbs$pr_count)
     }
     if (type == 'states') {
-      # Canonical names plus the deprecated pre-0.9.4 duplicate (audit 2.7).
-      return(tibble::tibble(
-        pr_count = prbs$pr_count,
-        pr_evi = prbs$pr_pareto,
-        pr_pareto = prbs$pr_pareto
-      ))
+      return(canonical_prbs(prbs))
     }
     if (type == 'quantile') {
       return(q)
@@ -955,7 +966,7 @@ predict.evinb <- function(
       q_name <- paste0('q', 100 * quantile)
       return(dplyr::bind_cols(
         tibble::tibble(harmonic = harmonic, explog = explog, !!q_name := q),
-        prbs,
+        canonical_prbs(prbs),
         cnts,
         alphs
       ))
