@@ -73,6 +73,11 @@ review follow-ups in `dev/review_round1.md`.
   2e5`, or whenever set explicitly; `n_max = Inf` disables it), with a message.
   The per-observation `mistr` quantile machinery made this prohibitively slow
   on data the size of `hks`.
+* `mixture_p()` (the mixture CDF behind `residuals(type = "quantile")`) now
+  uses the discretised Pareto CDF that matches the pmf the likelihood uses
+  (`1 - (C/(y+1))^a` for `y >= C`), rather than the continuous `1 - (C/y)^a`.
+  Randomized quantile residuals shift by a small amount in the extreme-value
+  tail (on `genevzinb2`, 12 of 100 residuals move, max change 0.015).
 * `evinb()` no longer runs the EVZINB EM step (which updates the zero-inflation
   block) during the warm-up phase -- a copy-paste artefact from the pre-0.10.0
   code. The zero-inflation intercept is now held fixed throughout, as the model
