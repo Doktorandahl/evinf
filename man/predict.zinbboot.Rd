@@ -7,8 +7,7 @@
 \method{predict}{zinbboot}(
   object,
   newdata = NULL,
-  type = c("predicted", "counts", "zi", "evinf", "count_state", "states", "all",
-    "quantile"),
+  type = c("predicted", "counts", "zi", "count_state", "states", "all", "quantile"),
   pred = c("original", "bootstrap_median", "bootstrap_mean"),
   quantile = NULL,
   confint = FALSE,
@@ -21,7 +20,10 @@
 
 \item{newdata}{Data to make predictions on}
 
-\item{type}{What prediction should be computed?}
+\item{type}{What prediction should be computed? One of \code{"predicted"},
+\code{"counts"}, \code{"zi"}, \code{"count_state"}, \code{"states"},
+\code{"all"} or \code{"quantile"}. (A zero-inflated negative binomial has no
+extreme-value state, so \code{"evinf"} is not accepted.)}
 
 \item{pred}{Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'}
 

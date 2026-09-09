@@ -53,6 +53,10 @@ test_that("predict.zinbboot() / predict.nbboot() cover pred, confint, quantile",
   qz <- suppressWarnings(predict(comp$zinb, type = "quantile", quantile = 0.9))
   expect_length(as.numeric(unlist(qz)), n)
 
+  # issue 4.2: a plain ZINB has no extreme-value state
+  expect_error(predict(comp$zinb, type = "evinf"), "should be one of")
+  expect_error(predict(comp$nb, type = "states"), "should be one of")
+
   cz <- suppressWarnings(predict(comp$zinb, type = "predicted", confint = TRUE))
   expect_true(all(c("ci_lb", "ci_ub") %in% names(cz)))
 

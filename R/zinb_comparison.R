@@ -364,7 +364,10 @@ quantiles_from_nb <- function(quantile,nb,
 #'
 #' @param object a fitted zinbboot object
 #' @param newdata Data to make predictions on
-#' @param type What prediction should be computed?
+#' @param type What prediction should be computed? One of \code{"predicted"},
+#'   \code{"counts"}, \code{"zi"}, \code{"count_state"}, \code{"states"},
+#'   \code{"all"} or \code{"quantile"}. (A zero-inflated negative binomial has no
+#'   extreme-value state, so \code{"evinf"} is not accepted.)
 #' @param pred Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'
 #' @param quantile Quantile for quantile prediction
 #' @param confint Should confidence intervals be created?
@@ -375,11 +378,11 @@ quantiles_from_nb <- function(quantile,nb,
 #'
 #' @return Predictions from zinbboot
 #' @export
-predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts','zi','evinf','count_state','states','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
+predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts','zi','count_state','states','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
   
   pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
   
-  type <- match.arg(type,c('predicted','counts','zi','evinf','count_state','states','all', 'quantile'))
+  type <- match.arg(type,c('predicted','counts','zi','count_state','states','all', 'quantile'))
   i <- 'temp_iter'
   
   if(type %in% c('states','all') & confint){
