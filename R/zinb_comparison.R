@@ -111,174 +111,82 @@ if(zinb_comparison){
   }
   be <- evinf_setup_backend(multicore, ncores)
   on.exit(be$stop(), add = TRUE)
-  `%dopar%` <- be$operator
-if(nb_comparison){
-  if(!is.null(init_theta)){
-    if(.Platform$OS.type == 'windows'){
-  bootstraps_nb <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-    try(inner_nb(object$bootstraps[[i]],data = object$data$data,formulas=object$formulas,init_theta=init_theta))
-    }else{
-      bootstraps_nb <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-        try(inner_nb(object$bootstraps[[i]],data = object$data$data,formulas=object$formulas,init_theta=init_theta))
-    }
-  }else{
-    if(.Platform$OS.type == 'windows'){
-    bootstraps_nb <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-      try(inner_nb(object$bootstraps[[i]],data = object$data$data,formulas=object$formulas))
-    }else{
-      bootstraps_nb <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-        try(inner_nb(object$bootstraps[[i]],data = object$data$data,formulas=object$formulas))
-    }
-  }
-  names(bootstraps_nb) <- names(object$bootstraps)
-  bootstraps_nb <- bootstraps_nb %>% purrr::map(mr_inner)
-}
-  if(zinb_comparison){
-    if(.Platform$OS.type == 'windows'){
-  bootstraps_zinb <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-    try(inner_zinb(object$bootstraps[[i]],data = object$data$data,formulas = object$formulas, f_zinb = f_zinb))
-    }else{
-      bootstraps_zinb <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-        try(inner_zinb(object$bootstraps[[i]],data = object$data$data,formulas = object$formulas, f_zinb = f_zinb))
-    }
-  names(bootstraps_zinb) <- names(object$bootstraps)
-  bootstraps_zinb <- bootstraps_zinb %>% purrr::map(mr_inner)
-  }
-  if(winsorize){
-  if(nb_comparison){
-    if(!is.null(init_theta)){
-      if(.Platform$OS.type == 'windows'){
-    bootstraps_nb_winsor <- foreach::foreach(i = 1:length(object$bootstraps),.packages ="evinf") %dopar%
-    try(inner_nb(object$bootstraps[[i]],data = data_winsor,formulas=object$formulas,init_theta=init_theta))
-      }else{
-        bootstraps_nb_winsor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-          try(inner_nb(object$bootstraps[[i]],data = data_winsor,formulas=object$formulas,init_theta=init_theta))
-      }
-    }else{
-      if(.Platform$OS.type == 'windows'){
-      bootstraps_nb_winsor <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-        try(inner_nb(object$bootstraps[[i]],data = data_winsor,formulas=object$formulas))
-      }else{
-        bootstraps_nb_winsor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-          try(inner_nb(object$bootstraps[[i]],data = data_winsor,formulas=object$formulas))
-      }
-    }
-  names(bootstraps_nb_winsor) <- names(object$bootstraps)
-  bootstraps_nb_winsor<-bootstraps_nb_winsor %>% purrr::map(mr_inner)
-  }
-    if(zinb_comparison){
-      if(.Platform$OS.type == 'windows'){
-  bootstraps_zinb_winsor <- foreach::foreach(i = 1:length(object$bootstraps),.packages = "evinf") %dopar%
-    try(inner_zinb(object$bootstraps[[i]],data = data_winsor,formulas = object$formulas, f_zinb = f_zinb))
-      }else{
-        bootstraps_zinb_winsor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-          try(inner_zinb(object$bootstraps[[i]],data = data_winsor,formulas = object$formulas, f_zinb = f_zinb))
-      }
-  names(bootstraps_zinb_winsor) <- names(object$bootstraps)
-  bootstraps_zinb_winsor <- bootstraps_zinb_winsor %>% purrr::map(mr_inner)
-    }
-  }
-if(razorize){
-  if(nb_comparison){
-    if(!is.null(init_theta)){
-      if(.Platform$OS.type == 'windows'){
-  bootstraps_nb_razor <- foreach::foreach(i = 1:length(object$bootstraps),.package = "evinf") %dopar%
-    try(inner_nb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas,init_theta=init_theta))
-      }else{
-        bootstraps_nb_razor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-          try(inner_nb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas,init_theta=init_theta))
-      }
-    }else{
-      if(.Platform$OS.type == 'windows'){
-      bootstraps_nb_razor <- foreach::foreach(i = 1:length(object$bootstraps),.package = "evinf") %dopar%
-        try(inner_nb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas))
-      }else{
-        bootstraps_nb_razor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-          try(inner_nb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas))
-      }
-    }
-  names(bootstraps_nb_razor) <- names(object$bootstraps)
-  bootstraps_nb_razor<- bootstraps_nb_razor %>% purrr::map(mr_inner)
-  }
-  if(zinb_comparison){
-    if(.Platform$OS.type == 'windows'){
-  bootstraps_zinb_razor <- foreach::foreach(i = 1:length(object$bootstraps),.package = "evinf") %dopar%
-    try(inner_zinb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas, f_zinb = f_zinb))
-    }else{
-      bootstraps_zinb_razor <- foreach::foreach(i = 1:length(object$bootstraps)) %dopar%
-        try(inner_zinb(object$bootstraps[[i]],data = data_razor,formulas = object$formulas, f_zinb = f_zinb))
-    }
-  names(bootstraps_zinb_razor) <- names(object$bootstraps)
 
-  bootstraps_zinb_razor<- bootstraps_zinb_razor %>% purrr::map(mr_inner)
+  # One spec per family member: its (winsorised / razorised) data set, the
+  # full-data fit computed above, and a fitter closure. inner_nb() must be
+  # called WITHOUT init_theta when it is NULL - glm.nb()'s missing() check is
+  # transitive, and passing init.theta = NULL errors.
+  nb_fitter <- if (is.null(init_theta)) {
+    function(b, d) inner_nb(b, d, object$formulas)
+  } else {
+    function(b, d) inner_nb(b, d, object$formulas, init_theta)
   }
-}
-if(nb_comparison){
-  nb <- list(full_run = full_nb,
-             bootstraps = bootstraps_nb)
-  class(nb) <- 'nbboot'
-}
-  if(zinb_comparison){
-  zinb <- list(full_run = full_zinb,
-               bootstraps = bootstraps_zinb)
-  class(zinb) <- 'zinbboot'
-  }
-if(winsorize){
-  if(nb_comparison){
-  nb_winsor <- list(full_run = full_nb_winsor,
-             bootstraps = bootstraps_nb_winsor)
-  class(nb_winsor) <- 'nbboot'
-  }
-  if(zinb_comparison){
-  zinb_winsor <- list(full_run = full_zinb_winsor,
-                      bootstraps = bootstraps_zinb_winsor)
-  class(zinb_winsor) <- 'zinbboot'
-  }
-}
-  
-  if(razorize){
-    if(nb_comparison){
-  nb_razor <- list(full_run = full_nb_razor,
-             bootstraps = bootstraps_nb_razor)
+  zinb_fitter <- function(b, d) inner_zinb(b, d, object$formulas, f_zinb)
 
+  specs <- list()
+  if (nb_comparison) {
+    specs$nb <- list(class = "nbboot", data = object$data$data,
+                     full = full_nb, fitter = nb_fitter)
+  }
+  if (zinb_comparison) {
+    specs$zinb <- list(class = "zinbboot", data = object$data$data,
+                       full = full_zinb, fitter = zinb_fitter)
+  }
+  if (winsorize && nb_comparison) {
+    specs$nb_winsor <- list(class = "nbboot", data = data_winsor,
+                            full = full_nb_winsor, fitter = nb_fitter)
+  }
+  if (winsorize && zinb_comparison) {
+    specs$zinb_winsor <- list(class = "zinbboot", data = data_winsor,
+                              full = full_zinb_winsor, fitter = zinb_fitter)
+  }
+  if (razorize && nb_comparison) {
+    specs$nb_razor <- list(class = "nbboot", data = data_razor,
+                           full = full_nb_razor, fitter = nb_fitter)
+  }
+  if (razorize && zinb_comparison) {
+    specs$zinb_razor <- list(class = "zinbboot", data = data_razor,
+                             full = full_zinb_razor, fitter = zinb_fitter)
+  }
 
-   class(nb_razor) <-'nbboot'
-    }
-    if(zinb_comparison){
-  zinb_razor <- list(full_run = full_zinb_razor,
-                   bootstraps = bootstraps_zinb_razor)
-class(zinb_razor) <- 'zinbboot'
-}
-}
-  
-  out <- list()
-  out$model <- object
-  if(nb_comparison){
-  out$nb <- nb
-  }
-  if(zinb_comparison){
-  out$zinb <- zinb
-  }
-  if(winsorize){
-    if(nb_comparison){
-  out$nb_winsor <- nb_winsor
-    }
-    if(zinb_comparison){
-  out$zinb_winsor <- zinb_winsor
-    }
-  }
-  if(razorize){
-    if(nb_comparison){
-  out$nb_razor <- nb_razor
-    }
-    if(zinb_comparison){
-  out$zinb_razor <- zinb_razor
-    }
-  }
+  total <- max(length(specs) * length(object$bootstraps), 1L)
+  fam <- evinf_progress_run(total, FALSE, function(p) {
+    boot_refit_family(specs, object$bootstraps, be, p)
+  })
+
+  out <- c(list(model = object), fam)
   # Backwards-compatible alias for the pre-0.9.4 name of the first slot.
   out$evzinb <- object
   class(out) <- 'evzinbcomp'
   return(out)
+}
+
+# Refit one bootstrap "family" - the nb / zinb models and their winsorised /
+# razorised variants - reusing the same loop for all of them (audit 4.1).
+#
+# @param specs Named list; each element is
+#   \code{list(class, data, full, fitter)} where \code{fitter(bootstrap, data)}
+#   returns the refitted model for one bootstrap resample.
+# @param boots The \code{object$bootstraps} list.
+# @param be Backend from \code{evinf_setup_backend()}.
+# @param progress A progressor function (called once per refit).
+# @return A named list mirroring \code{specs}; each element is
+#   \code{list(full_run, bootstraps)} with class \code{"nbboot"} / \code{"zinbboot"}.
+# @noRd
+boot_refit_family <- function(specs, boots, be, progress) {
+  `%op%` <- be$operator
+  n <- length(boots)
+  i <- 'temp_iter'
+  lapply(specs, function(sp) {
+    fitted <- foreach::foreach(i = seq_len(n), .packages = "evinf") %op% {
+      res <- try(sp$fitter(boots[[i]], sp$data))
+      progress()
+      res
+    }
+    names(fitted) <- names(boots)
+    fitted <- purrr::map(fitted, mr_inner)
+    structure(list(full_run = sp$full, bootstraps = fitted), class = sp$class)
+  })
 }
 
 inner_nb <- function(bootstrap,data,formulas,init_theta){

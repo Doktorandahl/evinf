@@ -24,8 +24,8 @@ review follow-ups in `dev/review_round1.md`.
   `failed_bootstraps()` returns the error messages of the replicates that
   failed. Bootstrap seeds are recorded in `$boot_seeds`.
 * Progress reporting for the bootstrap loops (and for `lr_test(bootstrap =
-  TRUE)`) through `progressr` (shown when `verbose = TRUE` or a global handler
-  is set), replacing the old `cat()` messages.
+  TRUE)` and `compare_models()`) through `progressr` (shown when `verbose =
+  TRUE` or a `progressr` handler is set), replacing the old `cat()` messages.
 * `classify_states()` returns the prior and posterior state classification per
   observation; `state_table()` cross-tabulates them.
 * `predict_grid()` builds a one-variable prediction grid (other covariates held
@@ -122,6 +122,14 @@ review follow-ups in `dev/review_round1.md`.
   site; coverage and check badges in the README.
 * The per-observation fitted-value loop in the estimation routines is
   vectorised (no change to results).
+* Internal: the twelve near-identical bootstrap-refit loops in
+  `compare_models()` are replaced by a single `boot_refit_family()` helper
+  (output unchanged).
+* `?hks`: the `_log` columns are documented as a rule (`log1p()` for the
+  personnel counts, `log()` for the episode duration), and the help notes that
+  the bundled data carry no conflict identifier.
+* `?marginal_effects` / `?tidy.evzinb` / `?gof_map_evinf` gain guidance on
+  harmonic-mean effect intervals and on the `modelsummary` `shape` argument.
 
 
 # evinf 0.9.4
