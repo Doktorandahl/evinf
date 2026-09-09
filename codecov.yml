@@ -11,6 +11,3 @@ coverage:
         target: auto
         threshold: 1%
         informational: true
-
-ignore:
-  - "R/a019.R"

@@ -69,6 +69,19 @@ reference:
   - genevzinb
   - genevzinb2
 
+- title: Estimation internals
+  desc: >
+    The EM / ECME driver behind evzinb() and evinb(). Not exported; documented
+    for readers of the algorithm.
+  contents:
+  - em_fit
+  - em_fit_fixed_c
+  - em_step
+  - em_profile_c
+  - em_c_candidates
+  - em_extend_design
+  - em_fitted_values
+
 - title: internal
   contents:
   - evinf-package

@@ -52,3 +52,20 @@ test_that("bootstrap objects keep only c_trace, not the full profile", {
   expect_null(ok$c_profile)
   expect_false(is.null(ok$c_trace))
 })
+
+test_that("prune.c.range now thins the candidate set for evinb too (round 3, Part B)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  ctl_full  <- evinf_control(c.lim = c(2, 1000), init.C = 50)
+  ctl_prune <- evinf_control(c.lim = c(2, 1000), init.C = 50, prune.c.range = 0.5)
+
+  set.seed(1)
+  m_full  <- suppressWarnings(suppressMessages(
+    evinb(y ~ x1 + x2 + x3, data = genevzinb2, bootstrap = FALSE,
+          verbose = FALSE, control = ctl_full)))
+  set.seed(1)
+  m_prune <- suppressWarnings(suppressMessages(
+    evinb(y ~ x1 + x2 + x3, data = genevzinb2, bootstrap = FALSE,
+          verbose = FALSE, control = ctl_prune)))
+
+  expect_lt(nrow(m_prune$c_profile), nrow(m_full$c_profile))
+})

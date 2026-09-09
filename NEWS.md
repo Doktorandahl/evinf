@@ -125,6 +125,16 @@ review follow-ups in `dev/review_round1.md`.
 * Internal: the twelve near-identical bootstrap-refit loops in
   `compare_models()` are replaced by a single `boot_refit_family()` helper
   (output unchanged).
+* Internal: the 1,800-line `R/a019.R` is split into six documented,
+  de-duplicated files (`R/em_candidates.R`, `R/em_profile_c.R`, `R/em_step.R`,
+  `R/em_fixed_c.R`, `R/em_fitted.R`, `R/em_fit.R`), one EM/ECME driver
+  `em_fit()` for both models instead of the two ~90%-duplicated
+  `*.regression.fun()` pairs. Estimates are unchanged (a numerical-identity
+  test suite pins the pre-split output). The three unused
+  `prediction.*.fun()` legacy helpers were removed.
+* `evinf_control(prune.c.range = ...)` now also thins the \eqn{C_{EV}}
+  candidate set for `evinb()` (it was silently ignored there before), and the
+  "more than 100 candidates" warning now fires for `evinb()` too.
 * `?hks`: the `_log` columns are documented as a rule (`log1p()` for the
   personnel counts, `log()` for the episode duration), and the help notes that
   the bundled data carry no conflict identifier.

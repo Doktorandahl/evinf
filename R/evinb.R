@@ -97,10 +97,10 @@ run_evinb <- function(
   Ini.Val$C <- control$init.C
 
   if (verbose) {
-    object <- plinfl.nb.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
+    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
   } else {
     capture.output(
-      object <- plinfl.nb.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
+      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
     )
   }
   if (verbose && isTRUE(object$loglik_recomputed)) {
@@ -257,7 +257,7 @@ bootrun_evinb <- function(
   Ini.Val$Alpha.NB <- object$coef$Alpha.NB
   Ini.Val$C <- object$coef$C
   capture.output(
-    evinb_boot <- plinfl.nb.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
+    evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
   )
 
   evinb_boot$par.mat$Beta.multinom.PL <- as.numeric(

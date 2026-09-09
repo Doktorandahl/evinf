@@ -104,10 +104,10 @@ run_evzinb <- function(
   Ini.Val$C <- control$init.C
 
   if (verbose) {
-    object <- zerinfl.nb.pl.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
+    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
   } else {
     capture.output(
-      object <- zerinfl.nb.pl.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
+      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
     )
   }
   if (verbose && isTRUE(object$loglik_recomputed)) {
@@ -324,24 +324,9 @@ evzinb <- function(
   if (bootstrap) {
     be <- evinf_setup_backend(multicore, ncores)
     on.exit(be$stop(), add = TRUE)
-    if (multicore && !is.null(be$cl)) {
-      parallel::clusterExport(
-        be$cl,
-        c(
-          'bootrun_evzinb',
-          "zerinfl.nb.pl.regression.fun",
-          "zerinfl.nb.pl.reg.cond.c.fun",
-          "log_lik_fun",
-          "_evinf_log_lik_fun"
-        ),
-        envir = environment(bootrun_evzinb)
-      )
-      parallel::clusterExport(
-        be$cl,
-        c('full_run', 'n_bootstraps'),
-        envir = environment()
-      )
-    }
+    # The %dorng% loop auto-exports the referenced globals and .packages =
+    # "evinf" loads the package namespace on every worker, so no explicit
+    # clusterExport() is needed (evinb() has never had one).
     if (multicore) {
       ex_time <- runtime * n_bootstraps / be$ncores
     } else {
@@ -424,12 +409,7 @@ bootrun_evzinb <- function(
   Ini.Val$Alpha.NB <- object$coef$Alpha.NB
   Ini.Val$C <- object$coef$C
   capture.output(
-    evzinb_boot <- zerinfl.nb.pl.regression.fun(
-      OBS.Y,
-      OBS.X.obj,
-      Ini.Val,
-      Control
-    )
+    evzinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
   )
   evzinb_boot$par.mat$Beta.multinom.ZC <- as.numeric(
     evzinb_boot$par.mat$Beta.multinom.ZC
