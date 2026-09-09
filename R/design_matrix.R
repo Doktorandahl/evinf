@@ -38,16 +38,95 @@ evinf_design <- function(formula, data) {
     X <- X[, -int, drop = FALSE]
   }
   evinf_check_finite(X)
+  off <- stats::model.offset(mf)
   list(
     X = X,
     terms = mt,
-    xlevels = stats::.getXlevels(mt, mf)
+    xlevels = stats::.getXlevels(mt, mf),
+    has_offset = !is.null(attr(mt, "offset")),
+    offset = if (is.null(off)) rep(0, nrow(X)) else as.numeric(off)
   )
+}
+
+# Resolve a non-NB component formula (audit 4.4):
+#  * NULL           -> the NB formula, with any offset() term stripped;
+#  * has offset()    -> error (offsets are count-component only);
+#  * one-sided       -> made two-sided with the NB response.
+evinf_component_formula <- function(f, nb_formula, arg_name) {
+  has_offset <- function(x) !is.null(attr(stats::terms(x), "offset"))
+  strip_offset <- function(x) {
+    tt <- stats::terms(x)
+    tl <- attr(tt, "term.labels")
+    rhs <- if (length(tl)) paste(tl, collapse = " + ") else "1"
+    if (attr(tt, "intercept") == 0L) {
+      rhs <- paste(rhs, "- 1")
+    }
+    lhs <- if (length(x) == 3L) paste(deparse(x[[2]]), collapse = " ") else ""
+    stats::as.formula(paste(lhs, "~", rhs), env = environment(x))
+  }
+
+  if (is.null(f)) {
+    f <- nb_formula
+    if (has_offset(f)) {
+      f <- strip_offset(f)
+    }
+    return(f)
+  }
+
+  if (has_offset(f)) {
+    stop("offset() terms are only supported in the count component (not ",
+         arg_name, ").", call. = FALSE)
+  }
+
+  if (length(f) == 2L) {
+    rhs <- paste(deparse(f[[2]]), collapse = " ")
+    f <- stats::as.formula(
+      paste(paste(deparse(nb_formula[[2]]), collapse = " "), "~", rhs),
+      env = environment(f)
+    )
+  }
+  f
+}
+
+# Offset vector for newdata from a stored component terms object (audit 4.4).
+# NULL when the component formula has no offset() term; informative error when it
+# does but the offset variable is absent from newdata.
+evinf_offset_newdata <- function(terms, newdata) {
+  if (is.null(attr(terms, "offset"))) {
+    return(NULL)
+  }
+  terms <- stats::delete.response(terms)
+  mf <- tryCatch(
+    stats::model.frame(terms, newdata, na.action = stats::na.pass),
+    error = function(e) {
+      stop("The offset variable is missing from `newdata`.", call. = FALSE)
+    }
+  )
+  off <- stats::model.offset(mf)
+  if (is.null(off)) {
+    return(NULL)
+  }
+  as.numeric(off)
+}
+
+# A component's design matrix never includes the offset, so drop the offset()
+# term before building it from newdata (otherwise model.frame() would demand the
+# offset variable be present even for design-only calls).
+evinf_drop_offset_terms <- function(tt) {
+  if (is.null(attr(tt, "offset"))) {
+    return(tt)
+  }
+  tl <- attr(tt, "term.labels")
+  rhs <- if (length(tl)) paste(tl, collapse = " + ") else "1"
+  if (attr(tt, "intercept") == 0L) {
+    rhs <- paste(rhs, "- 1")
+  }
+  stats::terms(stats::as.formula(paste("~", rhs)))
 }
 
 #' @noRd
 evinf_design_newdata <- function(terms, xlevels, newdata) {
-  terms <- stats::delete.response(terms)
+  terms <- evinf_drop_offset_terms(stats::delete.response(terms))
   mf <- stats::model.frame(
     terms,
     newdata,

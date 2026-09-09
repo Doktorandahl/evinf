@@ -9,6 +9,9 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
 
   n <- max(nrow(x.nb), nrow(x.pl), nrow(x.multinom.zc), nrow(x.multinom.pl))
 
+  offset.nb <- x.obj$offset.nb
+  if (is.null(offset.nb)) offset.nb <- rep(0, n)  # audit 4.4
+
   if (is.null(dim(x.multinom.zc))) {
     x.multinom.zc.extended <- matrix(1, nrow = n, ncol = 1)
   } else {
@@ -58,7 +61,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
     x.multinom.pl.extended,
     x.nb.extended,
     x.pl.extended,
-    y
+    y,
+    offset.nb
   )
 
   # The maximum change after one EM step needs to be small in order for the algorithm to stop
@@ -113,7 +117,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
       x.pl.extended,
       y,
       max.upd.par,
-      control$no.m.bfgs.steps.nb
+      control$no.m.bfgs.steps.nb,
+      offset.nb
     )
 
     if (sum(is.na(upd.obj$beta_nb_old)) == 0) {
@@ -188,7 +193,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -219,7 +225,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
 
           theta.nb.old <- theta.nb.after.optim
@@ -249,7 +256,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -277,7 +285,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
           x.multinom.pl.extended,
           x.nb.extended,
           x.pl.extended,
-          y
+          y,
+          offset.nb
         )
 
         beta.pl.new <- beta.pl.after.optim
@@ -303,7 +312,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -331,7 +341,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
           x.multinom.pl.extended,
           x.nb.extended,
           x.pl.extended,
-          y
+          y,
+          offset.nb
         )
 
         beta.zc.multinomial.new <- beta.zc.multinomial.after.optim
@@ -360,7 +371,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -388,7 +400,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
           x.multinom.pl.extended,
           x.nb.extended,
           x.pl.extended,
-          y
+          y,
+          offset.nb
         )
 
         beta.pl.multinomial.new <- beta.pl.multinomial.after.optim
@@ -422,7 +435,8 @@ zerinfl.nb.pl.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
       x.multinom.pl.extended,
       x.nb.extended,
       x.pl.extended,
-      y
+      y,
+      offset.nb
     )
 
     par.all.tmp <- c(
@@ -524,6 +538,9 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
 
   n <- max(nrow(x.nb), nrow(x.pl), nrow(x.multinom.zc), nrow(x.multinom.pl))
 
+  offset.nb <- x.obj$offset.nb
+  if (is.null(offset.nb)) offset.nb <- rep(0, n)  # audit 4.4
+
   if (is.null(dim(x.multinom.zc))) {
     x.multinom.zc.extended <- matrix(1, nrow = n, ncol = 1)
   } else {
@@ -554,6 +571,9 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
   prel.val <- ini.val
 
   n <- max(nrow(x.nb), nrow(x.pl), nrow(x.multinom.zc), nrow(x.multinom.pl))
+
+  offset.nb <- x.obj$offset.nb
+  if (is.null(offset.nb)) offset.nb <- rep(0, n)  # audit 4.4
 
   #Determine which values of c to be investigated
   c.range <- unique(sort(y))[
@@ -596,6 +616,7 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
   #If the update of c is less than 1, stop the warmup
   c.abs.diff <- 100
   log.lik.vec.all <- NULL
+  c_trace <- numeric(0)  # audit 4.5: sequence of chosen c values across iterations
   cat('Begin warm-up', '\n', sep = '')
   while (c.abs.diff > 0) {
     log.lik.vec <- c()
@@ -622,11 +643,13 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
         x.multinom.pl.extended,
         x.nb.extended,
         x.pl.extended,
-        y
+        y,
+        offset.nb
       )
     }
 
     c.pl.new <- c.range[which(log.lik.vec == max(log.lik.vec))]
+    c_trace <- c(c_trace, c.pl.new)
 
     if (is.infinite(max(log.lik.vec))) {
       stop(
@@ -681,11 +704,13 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
         x.multinom.pl.extended,
         x.nb.extended,
         x.pl.extended,
-        y
+        y,
+        offset.nb
       )
     }
 
     c.pl.new <- c.range[which(log.lik.vec == max(log.lik.vec))]
+    c_trace <- c(c_trace, c.pl.new)
 
     if (is.infinite(max(log.lik.vec))) {
       stop(
@@ -715,7 +740,7 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
   #Mean conditional on negative binomial component
   #Pareto shape parameter
   # audit 4.13: vectorised equivalent of the former per-observation loop.
-  mu.nb.vec <- as.numeric(exp(x.nb.extended %*% prel.val$Beta.NB))
+  mu.nb.vec <- as.numeric(exp(x.nb.extended %*% prel.val$Beta.NB + offset.nb))
   alpha.pl.vec <- as.numeric(exp(x.pl.extended %*% prel.val$Beta.PL))
   exp.E.log.y <- c.pl.new * exp(1 / alpha.pl.vec)
   E.inv.y <- alpha.pl.vec / (c.pl.new * (alpha.pl.vec + 1))
@@ -754,7 +779,8 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
     x.multinom.pl.extended,
     x.nb.extended,
     x.pl.extended,
-    y
+    y,
+    offset.nb
   )
   # audit R0.3: recompute silently and record whether the correction happened;
   # run_*() decides whether to tell the user (never inside a bootstrap).
@@ -773,6 +799,10 @@ zerinfl.nb.pl.regression.fun <- function(y, x.obj, ini.val, control) {
   out$control <- control
   out$par.mat <- final.val
   out$log.lik.vec.all <- log.lik.vec.all
+  # audit 4.5: log-likelihood profile over the final candidate set, and the
+  # sequence of chosen c values across EM iterations.
+  out$c_profile <- data.frame(c = c.range, loglik = log.lik.vec)
+  out$c_trace <- c_trace
   out$log.lik <- func.val
   out$resp <- est.obj$resp
   out$converge <- est.obj$converge
@@ -1253,6 +1283,9 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
 
   n <- max(nrow(x.nb), nrow(x.pl), nrow(x.multinom.zc), nrow(x.multinom.pl))
 
+  offset.nb <- x.obj$offset.nb
+  if (is.null(offset.nb)) offset.nb <- rep(0, n)  # audit 4.4
+
   if (is.null(dim(x.multinom.zc))) {
     x.multinom.zc.extended <- matrix(1, nrow = n, ncol = 1)
   } else {
@@ -1284,6 +1317,9 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
 
   n <- max(nrow(x.nb), nrow(x.pl), nrow(x.multinom.zc), nrow(x.multinom.pl))
 
+  offset.nb <- x.obj$offset.nb
+  if (is.null(offset.nb)) offset.nb <- rep(0, n)  # audit 4.4
+
   #Determine which values of c to be investigated
   c.range <- unique(sort(y))[
     unique(sort(y)) >= control$c.lim[1] & unique(sort(y)) <= control$c.lim[2]
@@ -1297,6 +1333,7 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
   #If the update of c is less than 1, stop the warmup
   c.abs.diff <- 100
   log.lik.vec.all <- NULL
+  c_trace <- numeric(0)  # audit 4.5: sequence of chosen c values across iterations
   cat('Begin warm-up', '\n', sep = '')
   while (c.abs.diff > 0) {
     log.lik.vec <- c()
@@ -1323,11 +1360,13 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
         x.multinom.pl.extended,
         x.nb.extended,
         x.pl.extended,
-        y
+        y,
+        offset.nb
       )
     }
 
     c.pl.new <- c.range[which(log.lik.vec == max(log.lik.vec))]
+    c_trace <- c(c_trace, c.pl.new)
 
     if (is.infinite(max(log.lik.vec))) {
       stop(
@@ -1383,11 +1422,13 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
         x.multinom.pl.extended,
         x.nb.extended,
         x.pl.extended,
-        y
+        y,
+        offset.nb
       )
     }
 
     c.pl.new <- c.range[which(log.lik.vec == max(log.lik.vec))]
+    c_trace <- c(c_trace, c.pl.new)
 
     if (is.infinite(max(log.lik.vec))) {
       stop(
@@ -1417,7 +1458,7 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
   #Mean conditional on negative binomial component
   #Pareto shape parameter
   # audit 4.13: vectorised equivalent of the former per-observation loop.
-  mu.nb.vec <- as.numeric(exp(x.nb.extended %*% prel.val$Beta.NB))
+  mu.nb.vec <- as.numeric(exp(x.nb.extended %*% prel.val$Beta.NB + offset.nb))
   alpha.pl.vec <- as.numeric(exp(x.pl.extended %*% prel.val$Beta.PL))
   exp.E.log.y <- c.pl.new * exp(1 / alpha.pl.vec)
   E.inv.y <- alpha.pl.vec / (c.pl.new * (alpha.pl.vec + 1))
@@ -1456,7 +1497,8 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
     x.multinom.pl.extended,
     x.nb.extended,
     x.pl.extended,
-    y
+    y,
+    offset.nb
   )
   # audit R0.3: recompute silently and record whether the correction happened;
   # run_*() decides whether to tell the user (never inside a bootstrap).
@@ -1475,6 +1517,10 @@ plinfl.nb.regression.fun <- function(y, x.obj, ini.val, control) {
   out$control <- control
   out$par.mat <- final.val
   out$log.lik.vec.all <- log.lik.vec.all
+  # audit 4.5: log-likelihood profile over the final candidate set, and the
+  # sequence of chosen c values across EM iterations.
+  out$c_profile <- data.frame(c = c.range, loglik = log.lik.vec)
+  out$c_trace <- c_trace
   out$log.lik <- func.val
   out$resp <- est.obj$resp
   out$converge <- est.obj$converge
@@ -1514,6 +1560,9 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
   x.pl <- x.obj$X.PL
 
   n <- max(nrow(x.nb), nrow(x.pl), nrow(x.multinom.zc), nrow(x.multinom.pl))
+
+  offset.nb <- x.obj$offset.nb
+  if (is.null(offset.nb)) offset.nb <- rep(0, n)  # audit 4.4
 
   if (is.null(dim(x.multinom.zc))) {
     x.multinom.zc.extended <- matrix(1, nrow = n, ncol = 1)
@@ -1564,7 +1613,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
     x.multinom.pl.extended,
     x.nb.extended,
     x.pl.extended,
-    y
+    y,
+    offset.nb
   )
 
   # The maximum change after one EM step needs to be small in order for the algorithm to stop
@@ -1619,7 +1669,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
       x.pl.extended,
       y,
       max.upd.par,
-      control$no.m.bfgs.steps.nb
+      control$no.m.bfgs.steps.nb,
+      offset.nb
     )
 
     if (sum(is.na(upd.obj$beta_nb_old)) == 0) {
@@ -1694,7 +1745,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -1725,7 +1777,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
 
           theta.nb.old <- theta.nb.after.optim
@@ -1755,7 +1808,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -1783,7 +1837,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
           x.multinom.pl.extended,
           x.nb.extended,
           x.pl.extended,
-          y
+          y,
+          offset.nb
         )
 
         beta.pl.new <- beta.pl.after.optim
@@ -1835,7 +1890,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
             x.multinom.pl.extended,
             x.nb.extended,
             x.pl.extended,
-            y
+            y,
+            offset.nb
           )
       )
     }
@@ -1863,7 +1919,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
           x.multinom.pl.extended,
           x.nb.extended,
           x.pl.extended,
-          y
+          y,
+          offset.nb
         )
 
         beta.pl.multinomial.new <- beta.pl.multinomial.after.optim
@@ -1897,7 +1954,8 @@ plinfl.nb.reg.cond.c.fun <- function(y, x.obj, ini.val, control) {
       x.multinom.pl.extended,
       x.nb.extended,
       x.pl.extended,
-      y
+      y,
+      offset.nb
     )
 
     par.all.tmp <- c(

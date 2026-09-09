@@ -15,7 +15,7 @@ double my_abs ( double x ) {
 }
 
 //[[Rcpp::export]]
-double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i){
+double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
   // int n_beta_nb = beta_nb.size();
 
   double ell_nb_i = 0;
@@ -23,7 +23,7 @@ double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, in
   arma::mat xtb_nb_i = trans(x_nb_ext_i)*beta_nb;
 
   double a = xtb_nb_i.eval()(0,0);
-  double mu_i = exp(a);
+  double mu_i = exp(a + offset_nb_i);
 
   if(y_i>0){
     for(int j=0; j<y_i; j++){
@@ -43,13 +43,13 @@ double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, in
 }
 
 //[[Rcpp::export]]
-arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i){
+arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
   int n_beta_nb = beta_nb.size();
 
   arma::mat xtb_nb_i = trans(x_nb_ext_i)*beta_nb;
 
   double a = xtb_nb_i.eval()(0,0);
-  double mu_i = exp(a);
+  double mu_i = exp(a + offset_nb_i);
 
   double delldalpha_nb_i = 0;
 
@@ -78,13 +78,13 @@ arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb
 }
 
 //[[Rcpp::export]]
-arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i){
+arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
   int n_beta_nb = beta_nb.size();
 
   arma::mat xtb_nb_i = trans(x_nb_ext_i)*beta_nb;
 
   double a = xtb_nb_i.eval()(0,0);
-  double mu_i = exp(a);
+  double mu_i = exp(a + offset_nb_i);
 
   mat hessian_nb_i = zeros<mat>(n_beta_nb+1,n_beta_nb+1);
   double d2elldalpha2_nb_i = 0;
@@ -145,7 +145,7 @@ arma::mat d2elldbeta2_pl_i_fun_approx(arma::vec beta_pl,double c_pl, arma::vec x
 }
 
 //[[Rcpp::export]]
-double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y){
+double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -171,7 +171,7 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
   for(int i=0; i<n; i++){
     arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
     double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
-    double mu_i = exp(xtb_nb_i);
+    double mu_i = exp(xtb_nb_i + offset_nb(i));
     double ell_nb_i = 0;
     if(y(i)>0){
       for(int j=0; j<y(i); j++){
@@ -208,7 +208,7 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
 }
 
 //[[Rcpp::export]]
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps){
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -246,7 +246,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   for (int i=0; i<n; i++){
   // Marginal probability mass function of y and x (sum over components) - marginal._x_i
     if(y(i)==0){
-      double d_nb = exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i)));
+      double d_nb = exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
       marginal_yx_i = props(i,0) + props(i,1)*d_nb;
       resp(i,0) = props(i,0)/marginal_yx_i;
       resp(i,1) = props(i,1)*d_nb/marginal_yx_i;
@@ -256,7 +256,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       resp(i,1) = 1;
       resp(i,2) = 0;
     }else if(y(i)>=c_pl){
-      double d_nb = exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i)));
+      double d_nb = exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
       double d_pl = exp(ell_pl_i_fun(beta_pl_old,c_pl,trans(x_pl_ext.submat(i,0,i,n_pl-1)),y(i)));
       marginal_yx_i = props(i,1)*d_nb  + props(i,2)*d_pl;
       resp(i,0) = 0;
@@ -266,7 +266,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   }
 
   //Calculate function value before the algorithm starts
-  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y);
+  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   arma::mat d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
   arma::mat dQdtheta_nb = zeros<mat>(n_nb+1,1);
@@ -291,8 +291,8 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
     for(int i=0; i<n; i++){
 
-      dQdtheta_nb = dQdtheta_nb + delldtheta_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i))*resp(i,1);
-      d2Qdtheta2_nb = d2Qdtheta2_nb + d2elldtheta2_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i))*resp(i,1);
+      dQdtheta_nb = dQdtheta_nb + delldtheta_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i))*resp(i,1);
+      d2Qdtheta2_nb = d2Qdtheta2_nb + d2elldtheta2_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i))*resp(i,1);
     }
 
     change_nb_bfgs = -inv(d2Qdtheta2_nb)*dQdtheta_nb;
@@ -307,7 +307,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y);
+  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   //Update beta_pl with BFGS
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
@@ -331,7 +331,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y);
+  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   //Update gamma_z with BFGS
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
@@ -361,7 +361,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y);
+  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   //Update gamma_pl with BFGS
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
@@ -390,7 +390,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y);
+  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   return Rcpp::List::create(
     Rcpp::Named("props") = props,

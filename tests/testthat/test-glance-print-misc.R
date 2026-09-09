@@ -42,9 +42,11 @@ test_that("evinb par.all / AIC / BIC exclude the disabled zero-inflation paramet
 })
 
 test_that("pdf.pl.type is validated (audit 2.12)", {
+  expect_error(evinf_control(pdf.pl.type = "bogus"))
   d <- { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2 }
-  expect_error(evinb(y ~ x1, data = d, bootstrap = FALSE, pdf.pl.type = "bogus"))
-  expect_error(evzinb(y ~ x1, data = d, bootstrap = FALSE, pdf.pl.type = "bogus"))
+  expect_error(
+    suppressWarnings(evinb(y ~ x1, data = d, bootstrap = FALSE, pdf.pl.type = "bogus"))
+  )
 })
 
 test_that("revzinb_fit() returns one draw per row (audit 2.15)", {

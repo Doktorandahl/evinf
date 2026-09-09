@@ -12,23 +12,43 @@
 #' print(model)
 #' }
 print.evzinb <- function(x, ...) {
+  evinf_print_fit(x, "EVZINB", zi = TRUE)
+}
+
+# Shared body for print.evzinb() / print.evinb().
+evinf_print_fit <- function(x, kind, zi) {
   fmt_formula <- function(f) paste(deparse(f), collapse = " ")
   n_boot <- evinf_boot_counts(x)
+  c.lim <- x$control$c.lim
+  on_boundary <- !is.null(x$c_profile) &&
+    (x$coef$C <= min(x$c_profile$c) || x$coef$C >= max(x$c_profile$c))
 
-  cat('\n', 'Fitted EVZINB model with formulas:',
-      '\n NB:    ', fmt_formula(x$formulas$formula_nb),
-      '\n ZI:    ', fmt_formula(x$formulas$formula_zi),
-      '\n EVI:   ', fmt_formula(x$formulas$formula_evi),
+  cat('\n', paste0('Fitted ', kind, ' model with formulas:'),
+      '\n NB:    ', fmt_formula(x$formulas$formula_nb), sep = ' ')
+  if (zi) {
+    cat('\n ZI:    ', fmt_formula(x$formulas$formula_zi), sep = ' ')
+  }
+  cat('\n EVI:   ', fmt_formula(x$formulas$formula_evi),
       '\n Pareto:', fmt_formula(x$formulas$formula_pareto),
       '\n ______',
       '\n Converged:                     ', isTRUE(x$converge),
       '\n C_EV:                          ', x$coef$C,
+      '\n Candidate range for C_EV:      ',
+      if (is.null(c.lim)) 'default' else paste0('[', c.lim[1], ', ', c.lim[2], ']'),
+      if (isTRUE(x$c_lim_default)) ' (data-driven)' else '',
       '\n Observations at or above C_EV: ', sum(x$data$y >= x$coef$C),
       '\n Parameters:                    ', length(x$par.all),
       '\n Bootstraps (failed):           ',
       if (is.na(n_boot$n_bootstraps)) 'none' else
         paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ')'),
-      '\n', sep = ' ')
+      sep = ' ')
+  if (on_boundary) {
+    cat('\n Note: C_EV lies on the boundary of the candidate range.')
+  }
+  if (isTRUE(x$loglik_recomputed)) {
+    cat('\n Note: log-likelihood / AIC / BIC recomputed from the returned parameters.')
+  }
+  cat('\n')
   invisible(x)
 }
 
@@ -46,23 +66,7 @@ print.evzinb <- function(x, ...) {
 #' print(model)
 #' }
 print.evinb <- function(x, ...) {
-  fmt_formula <- function(f) paste(deparse(f), collapse = " ")
-  n_boot <- evinf_boot_counts(x)
-
-  cat('\n', 'Fitted EVINB model with formulas:',
-      '\n NB:    ', fmt_formula(x$formulas$formula_nb),
-      '\n EVI:   ', fmt_formula(x$formulas$formula_evi),
-      '\n Pareto:', fmt_formula(x$formulas$formula_pareto),
-      '\n ______',
-      '\n Converged:                     ', isTRUE(x$converge),
-      '\n C_EV:                          ', x$coef$C,
-      '\n Observations at or above C_EV: ', sum(x$data$y >= x$coef$C),
-      '\n Parameters:                    ', length(x$par.all),
-      '\n Bootstraps (failed):           ',
-      if (is.na(n_boot$n_bootstraps)) 'none' else
-        paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ')'),
-      '\n', sep = ' ')
-  invisible(x)
+  evinf_print_fit(x, "EVINB", zi = FALSE)
 }
 
 #' Print method for compare_models() output

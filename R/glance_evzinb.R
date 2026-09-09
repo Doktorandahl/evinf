@@ -5,8 +5,9 @@
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-#'   algorithm converged, and the number of (failed) bootstraps (\code{NA} when
-#'   the model was fitted without bootstrapping).
+#'   algorithm converged, the number of EM steps, the number of observations at or
+#'   above C_EV, and the number of (failed) bootstraps (\code{NA} when the model
+#'   was fitted without bootstrapping).
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -28,6 +29,8 @@ glance.evzinb <- function(x, ...) {
     bic = x$BIC,
     logLik = x$log.lik,
     converged = isTRUE(x$converge),
+    n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
+    n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps
   )
@@ -40,8 +43,9 @@ glance.evzinb <- function(x, ...) {
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-#'   algorithm converged, and the number of (failed) bootstraps (\code{NA} when
-#'   the model was fitted without bootstrapping).
+#'   algorithm converged, the number of EM steps, the number of observations at or
+#'   above C_EV, and the number of (failed) bootstraps (\code{NA} when the model
+#'   was fitted without bootstrapping).
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -63,6 +67,8 @@ glance.evinb <- function(x, ...) {
     bic = x$BIC,
     logLik = x$log.lik,
     converged = isTRUE(x$converge),
+    n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
+    n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps
   )

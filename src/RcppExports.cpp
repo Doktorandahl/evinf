@@ -23,8 +23,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ell_nb_i_fun
-double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i);
-RcppExport SEXP _evinf_ell_nb_i_fun(SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP x_nb_ext_iSEXP, SEXP y_iSEXP) {
+double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i);
+RcppExport SEXP _evinf_ell_nb_i_fun(SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP x_nb_ext_iSEXP, SEXP y_iSEXP, SEXP offset_nb_iSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -32,13 +32,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha_nb(alpha_nbSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type x_nb_ext_i(x_nb_ext_iSEXP);
     Rcpp::traits::input_parameter< int >::type y_i(y_iSEXP);
-    rcpp_result_gen = Rcpp::wrap(ell_nb_i_fun(beta_nb, alpha_nb, x_nb_ext_i, y_i));
+    Rcpp::traits::input_parameter< double >::type offset_nb_i(offset_nb_iSEXP);
+    rcpp_result_gen = Rcpp::wrap(ell_nb_i_fun(beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i));
     return rcpp_result_gen;
 END_RCPP
 }
 // delldtheta_nb_i_fun
-arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i);
-RcppExport SEXP _evinf_delldtheta_nb_i_fun(SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP x_nb_ext_iSEXP, SEXP y_iSEXP) {
+arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i);
+RcppExport SEXP _evinf_delldtheta_nb_i_fun(SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP x_nb_ext_iSEXP, SEXP y_iSEXP, SEXP offset_nb_iSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -46,13 +47,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha_nb(alpha_nbSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type x_nb_ext_i(x_nb_ext_iSEXP);
     Rcpp::traits::input_parameter< int >::type y_i(y_iSEXP);
-    rcpp_result_gen = Rcpp::wrap(delldtheta_nb_i_fun(beta_nb, alpha_nb, x_nb_ext_i, y_i));
+    Rcpp::traits::input_parameter< double >::type offset_nb_i(offset_nb_iSEXP);
+    rcpp_result_gen = Rcpp::wrap(delldtheta_nb_i_fun(beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i));
     return rcpp_result_gen;
 END_RCPP
 }
 // d2elldtheta2_nb_i_fun
-arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i);
-RcppExport SEXP _evinf_d2elldtheta2_nb_i_fun(SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP x_nb_ext_iSEXP, SEXP y_iSEXP) {
+arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i);
+RcppExport SEXP _evinf_d2elldtheta2_nb_i_fun(SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP x_nb_ext_iSEXP, SEXP y_iSEXP, SEXP offset_nb_iSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -60,7 +62,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha_nb(alpha_nbSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type x_nb_ext_i(x_nb_ext_iSEXP);
     Rcpp::traits::input_parameter< int >::type y_i(y_iSEXP);
-    rcpp_result_gen = Rcpp::wrap(d2elldtheta2_nb_i_fun(beta_nb, alpha_nb, x_nb_ext_i, y_i));
+    Rcpp::traits::input_parameter< double >::type offset_nb_i(offset_nb_iSEXP);
+    rcpp_result_gen = Rcpp::wrap(d2elldtheta2_nb_i_fun(beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -107,8 +110,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // log_lik_fun
-double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl, arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl, arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext, arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y);
-RcppExport SEXP _evinf_log_lik_fun(SEXP gamma_zSEXP, SEXP gamma_plSEXP, SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP beta_plSEXP, SEXP c_plSEXP, SEXP x_mult_z_extSEXP, SEXP x_mult_pl_extSEXP, SEXP x_nb_extSEXP, SEXP x_pl_extSEXP, SEXP ySEXP) {
+double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl, arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl, arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext, arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb);
+RcppExport SEXP _evinf_log_lik_fun(SEXP gamma_zSEXP, SEXP gamma_plSEXP, SEXP beta_nbSEXP, SEXP alpha_nbSEXP, SEXP beta_plSEXP, SEXP c_plSEXP, SEXP x_mult_z_extSEXP, SEXP x_mult_pl_extSEXP, SEXP x_nb_extSEXP, SEXP x_pl_extSEXP, SEXP ySEXP, SEXP offset_nbSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -123,13 +126,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type x_nb_ext(x_nb_extSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type x_pl_ext(x_pl_extSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    rcpp_result_gen = Rcpp::wrap(log_lik_fun(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y));
+    Rcpp::traits::input_parameter< arma::vec >::type offset_nb(offset_nbSEXP);
+    rcpp_result_gen = Rcpp::wrap(log_lik_fun(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb));
     return rcpp_result_gen;
 END_RCPP
 }
 // update_bfgs_fun
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in, arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl, arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext, arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps);
-RcppExport SEXP _evinf_update_bfgs_fun(SEXP gamma_z_inSEXP, SEXP gamma_pl_inSEXP, SEXP beta_nb_inSEXP, SEXP alpha_nb_inSEXP, SEXP beta_pl_inSEXP, SEXP c_plSEXP, SEXP x_mult_z_extSEXP, SEXP x_mult_pl_extSEXP, SEXP x_nb_extSEXP, SEXP x_pl_extSEXP, SEXP ySEXP, SEXP max_upd_parSEXP, SEXP no_m_bfgs_stepsSEXP) {
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in, arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl, arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext, arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb);
+RcppExport SEXP _evinf_update_bfgs_fun(SEXP gamma_z_inSEXP, SEXP gamma_pl_inSEXP, SEXP beta_nb_inSEXP, SEXP alpha_nb_inSEXP, SEXP beta_pl_inSEXP, SEXP c_plSEXP, SEXP x_mult_z_extSEXP, SEXP x_mult_pl_extSEXP, SEXP x_nb_extSEXP, SEXP x_pl_extSEXP, SEXP ySEXP, SEXP max_upd_parSEXP, SEXP no_m_bfgs_stepsSEXP, SEXP offset_nbSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -146,21 +150,22 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
     Rcpp::traits::input_parameter< double >::type max_upd_par(max_upd_parSEXP);
     Rcpp::traits::input_parameter< int >::type no_m_bfgs_steps(no_m_bfgs_stepsSEXP);
-    rcpp_result_gen = Rcpp::wrap(update_bfgs_fun(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps));
+    Rcpp::traits::input_parameter< arma::vec >::type offset_nb(offset_nbSEXP);
+    rcpp_result_gen = Rcpp::wrap(update_bfgs_fun(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_evinf_my_abs", (DL_FUNC) &_evinf_my_abs, 1},
-    {"_evinf_ell_nb_i_fun", (DL_FUNC) &_evinf_ell_nb_i_fun, 4},
-    {"_evinf_delldtheta_nb_i_fun", (DL_FUNC) &_evinf_delldtheta_nb_i_fun, 4},
-    {"_evinf_d2elldtheta2_nb_i_fun", (DL_FUNC) &_evinf_d2elldtheta2_nb_i_fun, 4},
+    {"_evinf_ell_nb_i_fun", (DL_FUNC) &_evinf_ell_nb_i_fun, 5},
+    {"_evinf_delldtheta_nb_i_fun", (DL_FUNC) &_evinf_delldtheta_nb_i_fun, 5},
+    {"_evinf_d2elldtheta2_nb_i_fun", (DL_FUNC) &_evinf_d2elldtheta2_nb_i_fun, 5},
     {"_evinf_ell_pl_i_fun", (DL_FUNC) &_evinf_ell_pl_i_fun, 4},
     {"_evinf_delldbeta_pl_i_fun_approx", (DL_FUNC) &_evinf_delldbeta_pl_i_fun_approx, 4},
     {"_evinf_d2elldbeta2_pl_i_fun_approx", (DL_FUNC) &_evinf_d2elldbeta2_pl_i_fun_approx, 4},
-    {"_evinf_log_lik_fun", (DL_FUNC) &_evinf_log_lik_fun, 11},
-    {"_evinf_update_bfgs_fun", (DL_FUNC) &_evinf_update_bfgs_fun, 13},
+    {"_evinf_log_lik_fun", (DL_FUNC) &_evinf_log_lik_fun, 12},
+    {"_evinf_update_bfgs_fun", (DL_FUNC) &_evinf_update_bfgs_fun, 14},
     {NULL, NULL, 0}
 };
 

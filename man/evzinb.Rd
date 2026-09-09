@@ -16,26 +16,27 @@ evzinb(
   ncores = NULL,
   block = NULL,
   boot_seed = NULL,
-  max.diff.par = 0.01,
-  max.no.em.steps = 500,
-  max.no.em.steps.warmup = 5,
-  c.lim = c(50, 1000),
-  prune.c.range = FALSE,
-  max.upd.par.zc.multinomial = 0.5,
-  max.upd.par.pl.multinomial = 0.5,
-  max.upd.par.nb = 0.5,
-  max.upd.par.pl = 0.5,
-  no.m.bfgs.steps.multinomial = 3,
-  no.m.bfgs.steps.nb = 3,
-  no.m.bfgs.steps.pl = 3,
-  pdf.pl.type = "approx",
-  eta.int = c(-1, 1),
-  init.Beta.multinom.ZC = NULL,
-  init.Beta.multinom.PL = NULL,
-  init.Beta.NB = NULL,
-  init.Beta.PL = NULL,
-  init.Alpha.NB = 0.01,
-  init.C = 200,
+  control = evinf_control(),
+  max.diff.par,
+  max.no.em.steps,
+  max.no.em.steps.warmup,
+  c.lim,
+  prune.c.range,
+  max.upd.par.zc.multinomial,
+  max.upd.par.pl.multinomial,
+  max.upd.par.nb,
+  max.upd.par.pl,
+  no.m.bfgs.steps.multinomial,
+  no.m.bfgs.steps.nb,
+  no.m.bfgs.steps.pl,
+  pdf.pl.type,
+  eta.int,
+  init.Beta.multinom.ZC,
+  init.Beta.multinom.PL,
+  init.Beta.NB,
+  init.Beta.PL,
+  init.Alpha.NB,
+  init.C,
   verbose = FALSE
 )
 }
@@ -62,45 +63,14 @@ evzinb(
 
 \item{boot_seed}{Optional bootstrap seed to ensure reproducible results.}
 
-\item{max.diff.par}{Tolerance for EM algorithm. Will be considered to have converged if the maximum absolute difference in the parameter estimates are lower than this value}
+\item{control}{An \code{\link{evinf_control}()} object holding the EM tuning
+settings (tolerances, candidate range for \eqn{C_{EV}}, BFGS steps, starting
+values, ...).}
 
-\item{max.no.em.steps}{Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached}
-
-\item{max.no.em.steps.warmup}{Number of EM steps in the warmup rounds}
-
-\item{c.lim}{Numeric vector of length 2. The candidate set for C is the unique observed values of the response that fall within this range}
-
-\item{prune.c.range}{Pruning fraction for the candidate set of C. Useful when the candidate set has many unique values and the model is slow to fit. If FALSE, no pruning is done. If numeric in [0, 1], the candidate set is thinned to approximately length(c.lim) * (1 - prune.c.range) values}
-
-\item{max.upd.par.zc.multinomial}{Maximum parameter change step size in the zero inflation component}
-
-\item{max.upd.par.pl.multinomial}{Maximum parameter change step size in the extreme value inflation component}
-
-\item{max.upd.par.nb}{Maximum parameter change step size in the count component}
-
-\item{max.upd.par.pl}{Maximum parameter change step size in the pareto component}
-
-\item{no.m.bfgs.steps.multinomial}{Number of BFGS steps for the multinomial model}
-
-\item{no.m.bfgs.steps.nb}{Number of BFGS steps for the negative binomial model}
-
-\item{no.m.bfgs.steps.pl}{Number of BFGS steps for the pareto model}
-
-\item{pdf.pl.type}{Probability density function type for the pareto component. Either 'approx' or 'exact'. 'approx' is adviced in most cases}
-
-\item{eta.int}{Initial values for eta}
-
-\item{init.Beta.multinom.ZC}{Initial values for beta parameters in the zero value inflation component. Vector of same length as number of parameters in the zero value inflation component or NULL (which gives starting values of 0)}
-
-\item{init.Beta.multinom.PL}{Initial values for beta parameters in the extreme value inflation component. Vector of same length as number of parameters in the extreme value inflation component or NULL (which gives starting values of 0)}
-
-\item{init.Beta.NB}{Initial values for beta parameters in the count component. Vector of same length as number of parameters in the count component or NULL (which gives starting values of 0)}
-
-\item{init.Beta.PL}{Initial values for beta parameters in the pareto component. Vector of same length as number of parameters in the pareto component or NULL (which gives starting values of 0)}
-
-\item{init.Alpha.NB}{Initial value of Alpha NB, integer or NULL (giving a starting value of 0)}
-
-\item{init.C}{Initial value of C. Integer which should be within the C_lim range.}
+\item{max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range, max.upd.par.zc.multinomial, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.ZC, init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C}{\strong{Deprecated.} These EM tuning arguments still work but should be
+passed through \code{control = evinf_control(...)}; supplying one directly
+overrides the corresponding \code{control} element and emits a warning. See
+\code{\link{evinf_control}} for their meaning.}
 
 \item{verbose}{Logical: should progress of the full run of the model be tracked?}
 }

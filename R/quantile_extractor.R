@@ -256,11 +256,16 @@ prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
 counts_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.nb <- object$data$x.nb
+    offset_nb <- object$offset_nb
   } else {
     x.nb <- evinf_design_newdata(object$terms$nb, object$xlevels$nb, newdata)
+    offset_nb <- evinf_offset_newdata(object$terms$nb, newdata)  # audit 4.4
+  }
+  if (is.null(offset_nb)) {
+    offset_nb <- rep(0, nrow(x.nb))
   }
 
-  count <- exp(cbind(1, x.nb) %*% object$coef$Beta.NB)
+  count <- exp(cbind(1, x.nb) %*% object$coef$Beta.NB + offset_nb)
 
   out <- tibble::tibble(count = as.numeric(count))
 

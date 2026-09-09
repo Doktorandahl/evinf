@@ -20,11 +20,12 @@ test_that("block column may have NAs where the formula variables do not (R0.1)",
 })
 
 test_that("lr_test() refits use the full model's control settings (R0.2)", {
-  m <- suppressWarnings(suppressMessages(evzinb(
+  m <- suppressMessages(evzinb(
     y ~ x1 + x2 + x3,
     data = { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2 },
-    n_bootstraps = 5, boot_seed = 1, c.lim = c(20, 500), verbose = FALSE
-  )))
+    n_bootstraps = 5, boot_seed = 1, verbose = FALSE,
+    control = evinf_control(c.lim = c(20, 500))
+  ))
   reduced <- formula_var_remover(m$formulas, "x1", m$data$data)$formulas
   args <- restricted_fit_args(m, reduced, m$data$data)
   expect_equal(args$c.lim, c(20, 500))

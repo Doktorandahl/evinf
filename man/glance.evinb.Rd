@@ -14,8 +14,9 @@
 \value{
 A one-row tibble of goodness-of-fit statistics: number of observations
   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-  algorithm converged, and the number of (failed) bootstraps (\code{NA} when
-  the model was fitted without bootstrapping).
+  algorithm converged, the number of EM steps, the number of observations at or
+  above C_EV, and the number of (failed) bootstraps (\code{NA} when the model
+  was fitted without bootstrapping).
 }
 \description{
 EVZINB and EVINB glance functions

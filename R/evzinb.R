@@ -1,32 +1,10 @@
 #' Running an extreme value and zero inflated negative binomial model
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model.
-#' @param formula_zi Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
-#' @param data Data to run the model on
-#' @param max.diff.par Tolerance for EM algorithm. Will be considered to have converged if the maximum absolute difference in the parameter estimates are lower than this value
-#' @param max.no.em.steps Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached
-#' @param max.no.em.steps.warmup Number of EM steps in the warmup rounds
-#' @param c.lim Numeric vector of length 2. The candidate set for C is the unique observed values of the response that fall within this range
-#' @param prune.c.range Pruning fraction for the candidate set of C. Useful when the candidate set has many unique values and the model is slow to fit. If FALSE, no pruning is done. If numeric in [0, 1], the candidate set is thinned to approximately length(c.lim) * (1 - prune.c.range) values
-#' @param max.upd.par.zc.multinomial Maximum parameter change step size in the zero inflation component
-#' @param max.upd.par.pl.multinomial Maximum parameter change step size in the extreme value inflation component
-#' @param max.upd.par.nb Maximum parameter change step size in the count component
-#' @param max.upd.par.pl Maximum parameter change step size in the pareto component
-#' @param no.m.bfgs.steps.multinomial Number of BFGS steps for the multinomial model
-#' @param no.m.bfgs.steps.nb Number of BFGS steps for the negative binomial model
-#' @param no.m.bfgs.steps.pl Number of BFGS steps for the pareto model
-#' @param pdf.pl.type Probability density function type for the pareto component. Either 'approx' or 'exact'. 'approx' is adviced in most cases
-#' @param eta.int Initial values for eta
-#' @param init.Beta.multinom.ZC Initial values for beta parameters in the zero value inflation component. Vector of same length as number of parameters in the zero value inflation component or NULL (which gives starting values of 0)
-#' @param init.Beta.multinom.PL Initial values for beta parameters in the extreme value inflation component. Vector of same length as number of parameters in the extreme value inflation component or NULL (which gives starting values of 0)
-#' @param init.Beta.NB Initial values for beta parameters in the count component. Vector of same length as number of parameters in the count component or NULL (which gives starting values of 0)
-#' @param init.Beta.PL Initial values for beta parameters in the pareto component. Vector of same length as number of parameters in the pareto component or NULL (which gives starting values of 0)
-#' @param init.Alpha.NB Initial value of Alpha NB, integer or NULL (giving a starting value of 0)
-#' @param init.C Initial value of C. Integer which should be within the C_lim range.
+#' @param formula_nb,formula_zi,formula_evi,formula_pareto Component formulas.
+#' @param data Data to run the model on.
+#' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
-#' @param verbose Should progress be printed for the first run of evzinb
+#' @param verbose Should progress be printed for the first run of evzinb.
 #'
 #' @return An object of class 'evzinb'
 #' @noRd
@@ -36,59 +14,21 @@ run_evzinb <- function(
   formula_evi = NULL,
   formula_pareto = NULL,
   data,
-  max.diff.par = 1e-3,
-  max.no.em.steps = 200,
-  max.no.em.steps.warmup = 5,
-  c.lim = c(50, 1000),
-  prune.c.range = FALSE,
-  max.upd.par.zc.multinomial = 0.5,
-  max.upd.par.pl.multinomial = 0.5,
-  max.upd.par.nb = 0.5,
-  max.upd.par.pl = 0.5,
-  no.m.bfgs.steps.multinomial = 3,
-  no.m.bfgs.steps.nb = 3,
-  no.m.bfgs.steps.pl = 3,
-  pdf.pl.type = "approx",
-  eta.int = c(-1, 1),
-  init.Beta.multinom.ZC = NULL,
-  init.Beta.multinom.PL = NULL,
-  init.Beta.NB = NULL,
-  init.Beta.PL = NULL,
-  init.Alpha.NB = 0.01,
-  init.C = 200,
+  control = evinf_control(),
   block = NULL,
   verbose = TRUE
 ) {
+  control <- validate_evinf_control(control)
   if (!is.null(block) && !(is.character(block) && length(block) == 1L)) {
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  if (is.null(formula_evi)) {
-    formula_evi <- formula_nb
-  }
-  if (is.null(formula_pareto)) {
-    formula_pareto <- formula_nb
-  }
-  if (is.null(formula_zi)) {
-    formula_zi <- formula_nb
-  }
-
-  # Normalise every component formula to a two-sided formula carrying the NB
-  # response, so downstream code (predict, lr_test, compare_models) can treat
-  # them uniformly.
-  ensure_response <- function(f) {
-    if (length(f) == 3L) {
-      return(f)
-    }
-    rhs <- paste(deparse(f[[2]]), collapse = " ")
-    stats::as.formula(
-      paste(paste(deparse(formula_nb[[2]]), collapse = " "), "~", rhs),
-      env = environment(f)
-    )
-  }
-  formula_zi <- ensure_response(formula_zi)
-  formula_evi <- ensure_response(formula_evi)
-  formula_pareto <- ensure_response(formula_pareto)
+  # audit 4.4: offsets are only supported in the count component. A non-NB
+  # formula the user supplied with offset() is an error; one that merely
+  # inherited formula_nb's offset by default has it stripped.
+  formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_zi <- evinf_component_formula(formula_zi, formula_nb, "formula_zi")
 
   # Restrict to the union of variables used by any component (plus the block
   # variable, audit R0.1) and drop incomplete rows once, so the design matrices
@@ -108,30 +48,26 @@ run_evzinb <- function(
   d_zi <- evinf_design(formula_zi, model_data)
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
+  offset_nb <- d_nb$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
+
+  # Resolve NULL c.lim / init.C against the data (audit 4.5). This is the single
+  # resolution point; lr_test() refits pass a concrete c.lim so no message fires.
+  control <- evinf_resolve_c(control, as.numeric(OBS.Y))
+  Control <- control
 
   OBS.X.obj <- list()
   OBS.X.obj$X.multinom.ZC <- d_zi$X
   OBS.X.obj$X.multinom.PL <- d_evi$X
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
-  Control <- list(
-    max.diff.par = max.diff.par,
-    max.no.em.steps = max.no.em.steps,
-    max.no.em.steps.warmup = max.no.em.steps.warmup,
-    c.lim = c.lim,
-    max.upd.par.zc.multinomial = max.upd.par.zc.multinomial,
-    max.upd.par.pl.multinomial = max.upd.par.pl.multinomial,
-    max.upd.par.nb = max.upd.par.nb,
-    max.upd.par.pl = max.upd.par.pl,
-    no.m.bfgs.steps.multinomial = no.m.bfgs.steps.multinomial,
-    no.m.bfgs.steps.nb = no.m.bfgs.steps.nb,
-    no.m.bfgs.steps.pl = no.m.bfgs.steps.pl,
-    pdf.pl.type = pdf.pl.type,
-    eta.int = eta.int,
-    prune.c.range = prune.c.range
-  )
+  OBS.X.obj$offset.nb <- offset_nb
+
+  init.Beta.multinom.ZC <- control$init.Beta.multinom.ZC
+  init.Beta.multinom.PL <- control$init.Beta.multinom.PL
+  init.Beta.NB <- control$init.Beta.NB
+  init.Beta.PL <- control$init.Beta.PL
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_zc <- ncol(OBS.X.obj$X.multinom.ZC) + 1L
@@ -164,8 +100,8 @@ run_evzinb <- function(
     Ini.Val$Beta.PL <- init.Beta.PL
   }
 
-  Ini.Val$Alpha.NB <- init.Alpha.NB
-  Ini.Val$C <- init.C
+  Ini.Val$Alpha.NB <- control$init.Alpha.NB
+  Ini.Val$C <- control$init.C
 
   if (verbose) {
     object <- zerinfl.nb.pl.regression.fun(OBS.Y, OBS.X.obj, Ini.Val, Control)
@@ -209,6 +145,10 @@ run_evzinb <- function(
     evi = d_evi$xlevels,
     pareto = d_pareto$xlevels
   )
+  object$control <- control
+  object$c_lim_default <- isTRUE(control$c_lim_default)
+  object$has_offset <- isTRUE(d_nb$has_offset)
+  object$offset_nb <- offset_nb
   object$data <- list()
 
   object$data$data <- model_data
@@ -234,6 +174,12 @@ run_evzinb <- function(
     'count',
     'evi'
   )
+
+  # audit 4.5: threshold diagnostics
+  object$c_profile <- tibble::as_tibble(object$c_profile)
+  object$loglik_trace <- object$log.lik.vec.all
+  object$n_above_c <- sum(object$data$y >= object$coef$C)
+  object$n_em_steps <- length(object$log.lik.vec.all)
 
   object$fitted <- list()
   object$fitted$y.hat.pl_exp.E.logy <- object$y.hat.plexpElogy
@@ -282,26 +228,14 @@ run_evzinb <- function(
 #' @param ncores Number of cores if multicore is used. Default (NULL) is one less than the available number of cores
 #' @param block Optional string indicating a case-identifier variable when using block bootstrapping
 #' @param boot_seed Optional bootstrap seed to ensure reproducible results.
-#' @param max.diff.par Tolerance for EM algorithm. Will be considered to have converged if the maximum absolute difference in the parameter estimates are lower than this value
-#' @param max.no.em.steps Maximum number of EM steps to run. Will be considered to not have converged if this number is reached and convergence is not reached
-#' @param max.no.em.steps.warmup Number of EM steps in the warmup rounds
-#' @param c.lim Numeric vector of length 2. The candidate set for C is the unique observed values of the response that fall within this range
-#' @param prune.c.range Pruning fraction for the candidate set of C. Useful when the candidate set has many unique values and the model is slow to fit. If FALSE, no pruning is done. If numeric in [0, 1], the candidate set is thinned to approximately length(c.lim) * (1 - prune.c.range) values
-#' @param max.upd.par.zc.multinomial Maximum parameter change step size in the zero inflation component
-#' @param max.upd.par.pl.multinomial Maximum parameter change step size in the extreme value inflation component
-#' @param max.upd.par.nb Maximum parameter change step size in the count component
-#' @param max.upd.par.pl Maximum parameter change step size in the pareto component
-#' @param no.m.bfgs.steps.multinomial Number of BFGS steps for the multinomial model
-#' @param no.m.bfgs.steps.nb Number of BFGS steps for the negative binomial model
-#' @param no.m.bfgs.steps.pl Number of BFGS steps for the pareto model
-#' @param pdf.pl.type Probability density function type for the pareto component. Either 'approx' or 'exact'. 'approx' is adviced in most cases
-#' @param eta.int Initial values for eta
-#' @param init.Beta.multinom.ZC Initial values for beta parameters in the zero value inflation component. Vector of same length as number of parameters in the zero value inflation component or NULL (which gives starting values of 0)
-#' @param init.Beta.multinom.PL Initial values for beta parameters in the extreme value inflation component. Vector of same length as number of parameters in the extreme value inflation component or NULL (which gives starting values of 0)
-#' @param init.Beta.NB Initial values for beta parameters in the count component. Vector of same length as number of parameters in the count component or NULL (which gives starting values of 0)
-#' @param init.Beta.PL Initial values for beta parameters in the pareto component. Vector of same length as number of parameters in the pareto component or NULL (which gives starting values of 0)
-#' @param init.Alpha.NB Initial value of Alpha NB, integer or NULL (giving a starting value of 0)
-#' @param init.C Initial value of C. Integer which should be within the C_lim range.
+#' @param control An \code{\link{evinf_control}()} object holding the EM tuning
+#'   settings (tolerances, candidate range for \eqn{C_{EV}}, BFGS steps, starting
+#'   values, ...).
+#' @param max.diff.par,max.no.em.steps,max.no.em.steps.warmup,c.lim,prune.c.range,max.upd.par.zc.multinomial,max.upd.par.pl.multinomial,max.upd.par.nb,max.upd.par.pl,no.m.bfgs.steps.multinomial,no.m.bfgs.steps.nb,no.m.bfgs.steps.pl,pdf.pl.type,eta.int,init.Beta.multinom.ZC,init.Beta.multinom.PL,init.Beta.NB,init.Beta.PL,init.Alpha.NB,init.C
+#'   \strong{Deprecated.} These EM tuning arguments still work but should be
+#'   passed through \code{control = evinf_control(...)}; supplying one directly
+#'   overrides the corresponding \code{control} element and emits a warning. See
+#'   \code{\link{evinf_control}} for their meaning.
 #' @param verbose Logical: should progress of the full run of the model be tracked?
 #'
 #' @importFrom foreach %do%
@@ -327,40 +261,18 @@ evzinb <- function(
   ncores = NULL,
   block = NULL,
   boot_seed = NULL,
-  max.diff.par = 1e-2,
-  max.no.em.steps = 500,
-  max.no.em.steps.warmup = 5,
-  c.lim = c(50, 1000),
-  prune.c.range = FALSE,
-  max.upd.par.zc.multinomial = 0.5,
-  max.upd.par.pl.multinomial = 0.5,
-  max.upd.par.nb = 0.5,
-  max.upd.par.pl = 0.5,
-  no.m.bfgs.steps.multinomial = 3,
-  no.m.bfgs.steps.nb = 3,
-  no.m.bfgs.steps.pl = 3,
-  pdf.pl.type = "approx",
-  eta.int = c(-1, 1),
-  init.Beta.multinom.ZC = NULL,
-  init.Beta.multinom.PL = NULL,
-  init.Beta.NB = NULL,
-  init.Beta.PL = NULL,
-  init.Alpha.NB = 0.01,
-  init.C = 200,
+  control = evinf_control(),
+  max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
+  max.upd.par.zc.multinomial, max.upd.par.pl.multinomial, max.upd.par.nb,
+  max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb,
+  no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.ZC,
+  init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C,
   verbose = FALSE
 ) {
   i <- 'temp_iter'
-  pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
+  ctrl <- resolve_evinf_control(control, match.call(), environment(), fn = "evzinb")
 
-  if (is.null(formula_evi)) {
-    formula_evi <- formula_nb
-  }
-  if (is.null(formula_pareto)) {
-    formula_pareto <- formula_nb
-  }
-  if (is.null(formula_zi)) {
-    formula_zi <- formula_nb
-  }
+  # NULL component formulas are resolved in run_evzinb() (audit 4.4).
   t1 <- Sys.time()
   full_run <- run_evzinb(
     formula_nb = formula_nb,
@@ -368,26 +280,7 @@ evzinb <- function(
     formula_evi = formula_evi,
     formula_pareto = formula_pareto,
     data = data,
-    max.diff.par = max.diff.par,
-    max.no.em.steps = max.no.em.steps,
-    max.no.em.steps.warmup = max.no.em.steps.warmup,
-    c.lim = c.lim,
-    prune.c.range = prune.c.range,
-    max.upd.par.zc.multinomial = max.upd.par.zc.multinomial,
-    max.upd.par.pl.multinomial = max.upd.par.pl.multinomial,
-    max.upd.par.nb = max.upd.par.nb,
-    max.upd.par.pl = max.upd.par.pl,
-    no.m.bfgs.steps.multinomial = no.m.bfgs.steps.multinomial,
-    no.m.bfgs.steps.nb = no.m.bfgs.steps.nb,
-    no.m.bfgs.steps.pl = no.m.bfgs.steps.pl,
-    pdf.pl.type = pdf.pl.type,
-    eta.int = eta.int,
-    init.Beta.multinom.ZC = init.Beta.multinom.ZC,
-    init.Beta.multinom.PL = init.Beta.multinom.PL,
-    init.Beta.NB = init.Beta.NB,
-    init.Beta.PL = init.Beta.PL,
-    init.Alpha.NB = init.Alpha.NB,
-    init.C = init.C,
+    control = ctrl,
     block = block,
     verbose = verbose
   )
@@ -509,6 +402,8 @@ bootrun_evzinb <- function(
   OBS.X.obj$X.multinom.PL <- object$data$x.multinom.pl[boot_id, , drop = FALSE]
   OBS.X.obj$X.NB <- object$data$x.nb[boot_id, , drop = FALSE]
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
+  OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
+    object$offset_nb[boot_id]
   Control <- object$control
 
   Ini.Val <- list()
@@ -576,6 +471,7 @@ bootrun_evzinb <- function(
   evzinb_boot$x.pl <- NULL
   evzinb_boot$x.multinom.pl <- NULL
   evzinb_boot$x.multinom.zc <- NULL
+  evzinb_boot$c_profile <- NULL  # keep bootstraps small; c_trace is enough (4.5)
 
   evzinb_boot$data <- NULL
   evzinb_boot$boot_id <- boot_id
