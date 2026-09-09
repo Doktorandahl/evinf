@@ -293,7 +293,7 @@ evzinb <- function(
   verbose = FALSE
 ) {
   i <- 'temp_iter'
-  block <- evinf_block_name(rlang::enquo(block), parent.frame())
+  block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evzinb")
 

@@ -73,6 +73,9 @@ review follow-ups in `dev/review_round1.md`.
   2e5`, or whenever set explicitly; `n_max = Inf` disables it), with a message.
   The per-observation `mistr` quantile machinery made this prohibitively slow
   on data the size of `hks`.
+* `evzinb()` / `evinb()` resolve a bare `block` name to the matching column of
+  `data` before trying to evaluate it, so an unrelated object of the same name
+  in the calling environment no longer shadows the column.
 * `add_bootstraps()` errors if `boot_seed` was already used for this model (the
   `%dorng%` stream is fully determined by the seed, so it would silently
   duplicate existing draws and shrink the bootstrap SEs). `evzinb()` / `evinb()`

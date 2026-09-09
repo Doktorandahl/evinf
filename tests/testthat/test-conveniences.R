@@ -56,6 +56,17 @@ test_that("block accepts a string held in a variable", {
   expect_identical(m$block, "cluster")
 })
 
+test_that("a bare block name is resolved to the data column, not a global (N5)", {
+  d <- genevzinb2_factor()
+  d$country <- rep(seq_len(nrow(d) / 5), each = 5)
+  country <- c("shadowing", "global", "vector")  # would break eval_tidy()
+  m <- suppressMessages(evinf::evzinb(
+    y ~ x1 + x2 + x3, data = d, control = .fast_control(),
+    bootstrap = FALSE, verbose = FALSE, block = country
+  ))
+  expect_identical(m$block, "country")
+})
+
 test_that("hks help lists exactly the columns that ship", {
   data(hks, package = "evinf", envir = environment())
   expect_setequal(
