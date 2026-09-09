@@ -17,10 +17,11 @@ test_that("compare_models() fits the bootstrapped ZINB with the full formula (au
 test_that("compare_models() supports evinb and renames the first slot (audit 1.6)", {
   mi <- fit_evinb_fast(n_bootstraps = 5)
 
-  expect_message(comp <- compare_models(mi), "zinb_comparison")
+  suppressWarnings(expect_message(comp <- compare_models(mi), "zinb_comparison"))
   expect_identical(comp$model, comp$evzinb)
   expect_false("zinb" %in% names(comp))
-  expect_error(compare_models(mi, zinb_comparison = TRUE), "not available")
+  expect_error(suppressWarnings(compare_models(mi, zinb_comparison = TRUE)),
+               "not available")
 })
 
 test_that("predict.nbboot()/predict.zinbboot() are registered (audit 2.5)", {

@@ -146,6 +146,9 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
   cat('\n', strrep('-', 40), '\n', sep = '')
   cat('alpha_NB: ', signif(ms$Alpha_nb[['Alpha_NB']], digits),
       '   C_EV: ', ms$C[['C']], '\n', sep = '')
+  if (!is.null(ms$n_above_c)) {
+    cat('Observations at or above C_EV: ', ms$n_above_c, '\n', sep = '')
+  }
 
   props <- x$component_proportions
   cat('Mean state proportions:  ',
@@ -159,6 +162,10 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
       '   AIC: ', signif(ms$fit[['AIC']], digits),
       '   BIC: ', signif(ms$fit[['BIC']], digits),
       '   Converged: ', isTRUE(ms$converged), '\n', sep = '')
+  if (isTRUE(ms$loglik_recomputed)) {
+    cat('Note: log-likelihood / AIC / BIC recomputed from the returned ',
+        'parameters (differed from the EM trace maximum).\n', sep = '')
+  }
 
   n_failed <- x$n_failed_bootstraps
   cat('Bootstraps: ', if (is.na(n_failed)) 'none (bootstrap = FALSE)' else

@@ -231,12 +231,16 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
 
   coefficients <- stats::setNames(lapply(components, function(cn) build_component(specs[[cn]])), components)
 
+  n_above_c <- sum(object$data$y >= object$coef$C)
+
   list(
     coefficients = coefficients,
     model_statistics = list(Alpha_nb = alpha_nb, C = C_est,
                             Obs = c(Obs = nobs, pars = npar, df = nobs - npar),
                             fit = c(logLik = object$log.lik, AIC = object$AIC, BIC = object$BIC),
-                            converged = isTRUE(object$converge)),
+                            converged = isTRUE(object$converge),
+                            n_above_c = n_above_c,
+                            loglik_recomputed = isTRUE(object$loglik_recomputed)),
     component_proportions = props,
     n_failed_bootstraps = n_failed_bootstraps
   )

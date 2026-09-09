@@ -41,15 +41,15 @@ test_that("predict(model) equals predict(model, newdata = model$data$data) (audi
                predict(m, newdata = m$data$data, type = "states"))
 })
 
-test_that("user-supplied init.Beta.NB is kept when NB and EVI formulas differ in length (audit 1.8)", {
+test_that("user-supplied init.Beta.NB is actually used (audit 1.8 / R0.6)", {
   d <- { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2 }
-  # NB has 3 predictors (+ intercept = 4), EVI has 1. A length-4 start must be
-  # accepted; a wrong-length one is replaced by zeros. We check acceptance by
-  # confirming no error and a fit is produced.
+  # NB has 3 predictors (+ intercept = 4), EVI has 1: before the fix, a length-4
+  # start was discarded because the guard compared against the EVI design size.
+  start <- c(1.5, 0.2, 0.3, 0.4)
   m <- suppressWarnings(suppressMessages(evzinb(
     y ~ x1 + x2 + x3, formula_evi = ~x1, data = d,
     bootstrap = FALSE, verbose = FALSE,
-    init.Beta.NB = c(1, 0, 0, 0)
+    init.Beta.NB = start
   )))
-  expect_length(m$coef$Beta.NB, 4L)
+  expect_equal(as.numeric(m$ini.val$Beta.NB), start)
 })

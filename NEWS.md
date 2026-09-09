@@ -1,3 +1,49 @@
+# evinf 0.10.0 (development)
+
+Implements section 4 of the internal package audit (new functionality) and the
+review follow-ups in `dev/review_round1.md`.
+
+## Bug fixes
+
+* Block-bootstrap: the block variable is now included in the single `na.omit()`
+  step, so a model whose block column has missing values where the model
+  variables do not no longer mis-indexes the resamples (previously could error
+  or silently sample the wrong rows).
+* `lr_test()` refits the restricted models with the full model's control
+  settings (candidate range for C, tolerances, `pdf.pl.type`, ...) and warm-
+  started from the full-model estimates. Previously it used the package
+  defaults, so a model fitted with a non-default `c.lim` was compared against a
+  restricted fit that searched a different candidate set for C_EV (the LR
+  statistic could even come out negative).
+* The internal check that the reported log-likelihood equals the log-likelihood
+  at the returned parameters no longer warns from inside every bootstrap; it
+  recomputes silently, records `object$loglik_recomputed`, and (only for the
+  full-sample fit, only when `verbose = TRUE`) emits a single message.
+* A user-registered parallel backend (`doParallel`, `doFuture`, ...) is left
+  untouched when a function is called with `multicore = FALSE`.
+* A non-finite value produced by an in-formula transformation (e.g. `log(x)`
+  with `x <= 0`) now raises an informative error naming the column instead of
+  misbehaving in the C++ code.
+* User-supplied `init.Beta.NB` is used (regression-test hardened).
+
+## Breaking changes / deprecations
+
+* The approximate bootstrap runtime estimate is printed only when
+  `verbose = TRUE` (it was always printed before 0.9.4; this note was missing
+  from the 0.9.4 changelog).
+* `predict(type = "all")` and every `confint = TRUE` output now lead with the
+  canonical state-probability columns (`pr_zero`, `pr_count`, `pr_evi`), keeping
+  the deprecated `pr_zc` / `pr_pareto` as trailing duplicates — matching what
+  `predict(type = "states")` already did.
+
+## New features
+
+* The per-observation fitted-value loop in the estimation routines is
+  vectorised (no change to results).
+* `print(summary(model))` reports the number of observations at or above C_EV
+  and notes when the log-likelihood was recomputed.
+
+
 # evinf 0.9.4
 
 This release works through sections 1-3 of the internal package audit: it fixes
