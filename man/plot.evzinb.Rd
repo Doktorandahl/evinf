@@ -54,4 +54,11 @@ model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 plot(model, type = "coefficients")
 plot(model, type = "prediction", variable = "x1")
 }
+
+\dontrun{
+data(hks)
+hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag,
+                  data = hks, n_bootstraps = 5, multicore = FALSE)
+plot(hks_mod, type = "prediction", variable = "troopLag")
+}
 }

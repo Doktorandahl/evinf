@@ -1,7 +1,59 @@
-# evinf 0.10.0 (development)
+# evinf 0.10.0
 
 Implements section 4 of the internal package audit (new functionality) and the
 review follow-ups in `dev/review_round1.md`.
+
+## New features
+
+* `evinf_control()` bundles the EM tuning settings; `evzinb()` / `evinb()` gain
+  a `control` argument. The individual tuning arguments still work but are
+  deprecated in favour of `control`.
+* The candidate range for C_EV is now chosen from the data by default
+  (`c.lim = NULL`); it is printed with a message. `c_profile()` /
+  `plot_c_profile()` show the log-likelihood profile over that range;
+  `glance()` gains `n_above_c` and `n_em_steps`; the fitted object carries
+  `$c_profile`, `$c_trace`, `$loglik_trace`.
+* `offset()` in the count-component formula is supported
+  (`mu_NB = exp(x'b + offset)`), e.g. `y ~ x + offset(log(exposure))`.
+* Standard S3 methods: `coef()`, `vcov()` (bootstrap covariance), `confint()`,
+  `logLik()` / `AIC()` / `BIC()`, `nobs()`, `formula()`, `terms()`,
+  `model.frame()`, `fitted()`, `residuals()` (response and randomized quantile),
+  `simulate()`, `update()`. `revzinb_fit()` / `revinb_fit()` are superseded by
+  `simulate()`.
+* `add_bootstraps()` extends an existing fit with more replicates;
+  `failed_bootstraps()` returns the error messages of the replicates that
+  failed. Bootstrap seeds are recorded in `$boot_seeds`.
+* Progress reporting for the bootstrap loops (and for `lr_test(bootstrap =
+  TRUE)`) through `progressr` (shown when `verbose = TRUE` or a global handler
+  is set), replacing the old `cat()` messages.
+* `classify_states()` returns the prior and posterior state classification per
+  observation; `state_table()` cross-tabulates them.
+* `predict_grid()` builds a one-variable prediction grid (other covariates held
+  at their mean/median or modal level, or pinned via `at`) and evaluates the
+  model over it in long form, optionally with bootstrap confidence intervals.
+* `plot()` methods for fitted models: `type = "states"` (prior state
+  probabilities over a covariate), `"prediction"` (harmonic-mean prediction with
+  a bootstrap ribbon and quantile lines), `"coefficients"` (bootstrap
+  coefficient densities), and `"ppc"` (observed-vs-expected binned frequencies).
+* `compare_fit()` summarises the paired bootstrap differences (`compared -
+  evinf`) in AIC, BIC and out-of-bag RMSE / RMSLE for an `evzinbcomp` object,
+  with the proportion of bootstraps favouring the extreme-value model;
+  `plot()`, `tidy()` and `glance()` methods for `evzinbcomp` and an
+  `oob_evaluation()` method that tabulates the out-of-bag error per model.
+* `marginal_effects()` computes average marginal effects (central difference for
+  numeric covariates, level-vs-reference contrasts for factors) on the harmonic
+  mean, the state probabilities or a predicted quantile, with bootstrap
+  confidence intervals.
+* `marginaleffects` compatibility: `evzinb` / `evinb` models register with
+  `marginaleffects` on load, so `marginaleffects::avg_slopes()` and friends work
+  with bootstrap delta-method standard errors.
+* `gof_map_evinf()` returns the `modelsummary` goodness-of-fit map (with an
+  `extra` argument to append rows); the bundled `gm_evzinb` data object is now
+  generated from it and gains an `obs_above_c_ev` row.
+* `evzinb()` / `evinb()` accept `block` as a bare column name
+  (`block = id`) as well as a string.
+* `print(summary(model))` reports the number of observations at or above C_EV
+  and notes when the log-likelihood was recomputed.
 
 ## Bug fixes
 
@@ -25,6 +77,11 @@ review follow-ups in `dev/review_round1.md`.
   with `x <= 0`) now raises an informative error naming the column instead of
   misbehaving in the C++ code.
 * User-supplied `init.Beta.NB` is used (regression-test hardened).
+* `evinb` parameter count and `predict.*boot(pred = "original")` indexing fixes
+  (carried over from the 0.9.4 audit follow-ups).
+* `predict()` on the `zinb` slot of a `compare_models()` result with
+  `type = "counts"` (or `type = "all"`, or `type = "counts", confint = TRUE`)
+  no longer errors with "$ operator is invalid for atomic vectors".
 
 ## Breaking changes / deprecations
 
@@ -35,57 +92,28 @@ review follow-ups in `dev/review_round1.md`.
   canonical state-probability columns (`pr_zero`, `pr_count`, `pr_evi`), keeping
   the deprecated `pr_zc` / `pr_pareto` as trailing duplicates — matching what
   `predict(type = "states")` already did.
-
-## New features
-
-* `evinf_control()` bundles the EM tuning settings; `evzinb()` / `evinb()` gain
-  a `control` argument. The individual tuning arguments still work but are
-  deprecated in favour of `control`.
-* The candidate range for C_EV is now chosen from the data by default
-  (`c.lim = NULL`); it is printed with a message. `c_profile()` /
-  `plot_c_profile()` show the log-likelihood profile over that range;
-  `glance()` gains `n_above_c` and `n_em_steps`; the fitted object carries
-  `$c_profile`, `$c_trace`, `$loglik_trace`.
-* `offset()` in the count-component formula is supported
-  (`mu_NB = exp(x'b + offset)`), e.g. `y ~ x + offset(log(exposure))`.
-* Standard S3 methods: `coef()`, `vcov()` (bootstrap covariance), `confint()`,
-  `logLik()` / `AIC()` / `BIC()`, `nobs()`, `formula()`, `terms()`,
-  `model.frame()`, `fitted()`, `residuals()` (response and randomized quantile),
-  `simulate()`, `update()`. `revzinb_fit()` / `revinb_fit()` are superseded by
-  `simulate()`.
-* `add_bootstraps()` extends an existing fit with more replicates;
-  `failed_bootstraps()` returns the error messages of the replicates that
-  failed. Bootstrap seeds are recorded in `$boot_seeds`.
-* Progress reporting for the bootstrap loops through `progressr` (shown when
-  `verbose = TRUE` or a global handler is set), replacing the old `cat()`
-  messages.
-* `classify_states()` returns the prior and posterior state classification per
-  observation; `state_table()` cross-tabulates them.
-* The per-observation fitted-value loop in the estimation routines is
-  vectorised (no change to results).
-* `print(summary(model))` reports the number of observations at or above C_EV
-  and notes when the log-likelihood was recomputed.
-* `predict_grid()` builds a one-variable prediction grid (other covariates held
-  at their mean/median or modal level, or pinned via `at`) and evaluates the
-  model over it in long form, optionally with bootstrap confidence intervals.
-* `plot()` methods for fitted models: `type = "states"` (prior state
-  probabilities over a covariate), `"prediction"` (harmonic-mean prediction with
-  a bootstrap ribbon and quantile lines), `"coefficients"` (bootstrap
-  coefficient densities), and `"ppc"` (observed-vs-expected binned frequencies).
-* `compare_fit()` summarises the paired bootstrap differences (`compared -
-  evinf`) in AIC, BIC and out-of-bag RMSE / RMSLE for an `evzinbcomp` object,
-  with the proportion of bootstraps favouring the extreme-value model;
-  `plot()`, `tidy()` and `glance()` methods for `evzinbcomp` and an
-  `oob_evaluation()` method that tabulates the out-of-bag error per model.
-* `marginal_effects()` computes average marginal effects (central difference for
-  numeric covariates, level-vs-reference contrasts for factors) on the harmonic
-  mean, the state probabilities or a predicted quantile, with bootstrap
-  confidence intervals.
-* `marginaleffects` compatibility: `evzinb` / `evinb` models register with
-  `marginaleffects` on load, so `marginaleffects::avg_slopes()` and friends work
-  with bootstrap delta-method standard errors.
+* Default fits change slightly: with `c.lim = NULL` the candidate set for C_EV
+  is data-driven and `init.C` defaults to the median of that set, so estimates
+  from a default 0.9.x call are not bit-identical to a default 0.10.0 call. Pin
+  `evinf_control(c.lim = ..., init.C = ...)` to reproduce an older fit.
+* `gm_evzinb` gains a row (`obs_above_c_ev`) and its `parameter` row is now
+  formatted with 0 decimals; regenerate any cached copy with `gof_map_evinf()`.
 * The three internal `marginal.effect.*` helpers (never exported, superseded by
   `marginal_effects()`) were removed.
+
+## Documentation
+
+* New `pkgdown` reference index grouping the exported functions (Fitting,
+  Summaries & tables, Prediction & effects, Diagnostics & plots, Model
+  comparison, Simulation, Data).
+* `?hks` now documents the columns as they actually ship (the previous help
+  page listed several columns that are not in the data and omitted the `_log`
+  transforms) and explains that `log1p(troopLag)` etc. can be used directly in
+  the formula since 0.9.4.
+* GitHub Actions workflows for `R CMD check`, test coverage and the pkgdown
+  site; coverage and check badges in the README.
+* The per-observation fitted-value loop in the estimation routines is
+  vectorised (no change to results).
 
 
 # evinf 0.9.4

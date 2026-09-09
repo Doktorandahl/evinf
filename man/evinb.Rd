@@ -54,7 +54,9 @@ evinb(
 
 \item{ncores}{Number of cores if multicore is used. Default (NULL) is one less than the available number of cores}
 
-\item{block}{Optional string indicating a case-identifier variable when using block bootstrapping}
+\item{block}{Optional case-identifier column for block bootstrapping, given
+either as a bare column name (\code{block = id}) or a string
+(\code{block = "id"}).}
 
 \item{boot_seed}{Optional bootstrap seed to ensure reproducible results.}
 
@@ -77,5 +79,15 @@ Running an extreme value inflated negative binomial model with bootstrapping
 \donttest{
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+}
+
+\dontrun{
+data(hks)
+hks_mod <- evinb(
+  osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
+    lntpop + brv_AllLag + osvAllLagDum + incomp,
+  formula_pareto = ~ log1p(troopLag),
+  data = hks, n_bootstraps = 5, multicore = FALSE
+)
 }
 }

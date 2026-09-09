@@ -88,16 +88,18 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
     on.exit(be$stop(), add = TRUE)
     `%op%` <- be$operator
 
-    reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %:%
-      foreach::foreach(j = 1:length(object$bootstraps)) %op% {
-        if(verbose){
-          message(paste('Running bootstrap',j,'for formula',i))
+    n_steps <- length(formulas_dfs) * length(object$bootstraps)
+    reruns <- evinf_progress_run(n_steps, verbose, function(p) {
+      foreach::foreach(i = 1:length(formulas_dfs)) %:%
+        foreach::foreach(j = 1:length(object$bootstraps)) %op% {
+          res <- try(refit_restricted(
+            formulas_dfs[[i]]$formulas,
+            model_data[object$bootstraps[[j]]$boot_id, ]
+          ))
+          p()
+          res
         }
-        try(refit_restricted(
-          formulas_dfs[[i]]$formulas,
-          model_data[object$bootstraps[[j]]$boot_id, ]
-        ))
-      }
+    })
 
 
    logliks_boot_reduced <-  foreach::foreach(i = 1:length(formulas_dfs)) %:%

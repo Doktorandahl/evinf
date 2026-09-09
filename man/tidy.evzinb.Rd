@@ -59,4 +59,11 @@ data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 tidy(model)
 }
+
+\dontrun{
+data(hks)
+hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag,
+                  data = hks, n_bootstraps = 5, multicore = FALSE)
+tidy(hks_mod)
+}
 }

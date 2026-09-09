@@ -11,3 +11,5 @@
 ^dev$
 ^data-raw$
 ^vignettes$
+^\.github$
+^codecov\.yml$

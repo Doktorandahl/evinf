@@ -5,6 +5,9 @@
 # update(). These plug the models into modelsummary / marginaleffects / texreg /
 # sandwich, which dispatch on exactly these.
 
+#' @importFrom stats coef vcov confint nobs fitted residuals simulate update
+NULL
+
 # --- shared helpers ---------------------------------------------------------
 
 # Component -> $coef slot name.

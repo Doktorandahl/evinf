@@ -1,3 +1,4 @@
+# nocov start
 .onLoad <- function(libname, pkgname) {
   # Register the model classes with marginaleffects (audit 4.8) so
   # marginaleffects::avg_slopes(model) etc. dispatch on the get_*/set_coef
@@ -9,3 +10,4 @@
   }
   invisible()
 }
+# nocov end

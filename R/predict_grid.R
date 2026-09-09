@@ -43,6 +43,13 @@ evinf_hold_fixed <- function(x, fixed) {
 #' model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #' predict_grid(model, "x1", type = "harmonic")
 #' }
+#'
+#' \dontrun{
+#' data(hks)
+#' hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag,
+#'                   data = hks, n_bootstraps = 5, multicore = FALSE)
+#' predict_grid(hks_mod, "troopLag", type = "states")
+#' }
 predict_grid <- function(object, variable, values = NULL, n = 50, at = list(),
                          fixed = c("mean", "median"),
                          type = c("states", "harmonic", "quantile", "counts",

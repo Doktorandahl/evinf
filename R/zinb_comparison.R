@@ -30,6 +30,15 @@ inv <- function(x){
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' compare_models(model)
 #' }
+#'
+#' \dontrun{
+#' data(hks)
+#' hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag + osvAllLagDum,
+#'                   formula_pareto = ~ log1p(troopLag),
+#'                   data = hks, n_bootstraps = 5, multicore = FALSE)
+#' cmp <- compare_models(hks_mod)
+#' compare_fit(cmp)
+#' }
 compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE, winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = FALSE, ncores=NULL){
 
   if(!inherits(object, c('evzinb','evinb'))){
@@ -516,8 +525,8 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
     prbs <- prob_from_znb(object$full_run,
                              newdata = newdata)
     ## Estimate mu_nb for all individuals
-    cnts <- count_from_znb(object$full_run,
-                               newdata = newdata)
+    cnts <- tibble::tibble(count = as.numeric(count_from_znb(object$full_run,
+                               newdata = newdata)))
 
     predicted <- if(is.null(newdata)){
       predict(object$full_run, type = 'r')

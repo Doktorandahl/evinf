@@ -323,7 +323,9 @@ bootrun_evinb <- function(
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
 #' @param multicore Should multiple cores be used?
 #' @param ncores Number of cores if multicore is used. Default (NULL) is one less than the available number of cores
-#' @param block Optional string indicating a case-identifier variable when using block bootstrapping
+#' @param block Optional case-identifier column for block bootstrapping, given
+#'   either as a bare column name (\code{block = id}) or a string
+#'   (\code{block = "id"}).
 #' @param boot_seed Optional bootstrap seed to ensure reproducible results.
 #' @param control An \code{\link{evinf_control}()} object holding the EM tuning
 #'   settings.
@@ -343,6 +345,16 @@ bootrun_evinb <- function(
 #' \donttest{
 #' data(genevzinb2)
 #' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+#' }
+#'
+#' \dontrun{
+#' data(hks)
+#' hks_mod <- evinb(
+#'   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
+#'     lntpop + brv_AllLag + osvAllLagDum + incomp,
+#'   formula_pareto = ~ log1p(troopLag),
+#'   data = hks, n_bootstraps = 5, multicore = FALSE
+#' )
 #' }
 evinb <- function(
   formula_nb,
@@ -364,6 +376,7 @@ evinb <- function(
   verbose = FALSE
 ) {
   i <- 'temp_iter'
+  block <- evinf_block_name(rlang::enquo(block), parent.frame())
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evinb")
 

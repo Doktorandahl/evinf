@@ -2,3 +2,85 @@ url: ~
 template:
   bootstrap: 5
 
+reference:
+- title: Fitting
+  desc: Estimate the EVZINB / EVINB model and tune the EM algorithm.
+  contents:
+  - evzinb
+  - evinb
+  - evinf_control
+  - add_bootstraps
+  - failed_bootstraps
+
+- title: Summaries and tables
+  desc: Inspect a fitted model and build regression tables.
+  contents:
+  - summary.evzinb
+  - print.evzinb
+  - tidy.evzinb
+  - glance.evzinb
+  - coefficient_extractor
+  - gof_map_evinf
+  - gm_evzinb
+
+- title: Prediction and effects
+  desc: Predicted quantities, prediction grids and marginal effects.
+  contents:
+  - predict.evzinb
+  - predict_grid
+  - marginal_effects
+
+- title: Diagnostics and plots
+  desc: Threshold diagnostics, state classification and plot methods.
+  contents:
+  - plot.evzinb
+  - c_profile
+  - plot_c_profile
+  - classify_states
+  - state_table
+
+- title: Model comparison
+  desc: Compare against negative-binomial and ZINB alternatives.
+  contents:
+  - compare_models
+  - compare_fit
+  - lr_test
+  - oob_evaluation
+  - evzinbcomp-tidiers
+
+- title: Standard S3 methods
+  contents:
+  - evinf-s3-accessors
+  - evinf-s3-predict
+  - coef.evzinb
+  - vcov.evzinb
+  - confint.evzinb
+  - update.evzinb
+  - reexports
+
+- title: Simulation
+  contents:
+  - revzinb_fit
+  - revinb_fit
+
+- title: Data
+  contents:
+  - hks
+  - genevzinb
+  - genevzinb2
+
+- title: internal
+  contents:
+  - evinf-package
+  - predict.nbboot
+  - predict.zinbboot
+  - tidy.nbboot
+  - tidy.zinbboot
+  - glance.zinbboot
+  - print.evzinbcomp
+  - print.summary.evzinb
+  - glance.evinb
+  - predict.evinb
+  - tidy.evinb
+  - summary.evinb
+  - print.evinb

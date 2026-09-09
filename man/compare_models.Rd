@@ -54,4 +54,13 @@ data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 compare_models(model)
 }
+
+\dontrun{
+data(hks)
+hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag + osvAllLagDum,
+                  formula_pareto = ~ log1p(troopLag),
+                  data = hks, n_bootstraps = 5, multicore = FALSE)
+cmp <- compare_models(hks_mod)
+compare_fit(cmp)
+}
 }

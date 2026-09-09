@@ -28,6 +28,13 @@
 #' plot(model, type = "coefficients")
 #' plot(model, type = "prediction", variable = "x1")
 #' }
+#'
+#' \dontrun{
+#' data(hks)
+#' hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag,
+#'                   data = hks, n_bootstraps = 5, multicore = FALSE)
+#' plot(hks_mod, type = "prediction", variable = "troopLag")
+#' }
 plot.evzinb <- function(x, type = c("states", "prediction", "coefficients", "ppc"),
                         variable = NULL, quantiles = c(0.5, 0.95), ...) {
   rlang::check_installed("ggplot2", "for plot.evzinb() / plot.evinb()")
