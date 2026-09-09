@@ -955,8 +955,7 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
     n <- nrow(newdata)
   }
   out <- purrr::map(seq_len(n_draws), function(draw) {
-      # mistr::rpareto() is not vectorised over `shape`; this is its formula.
-      pl_draws <- round(C_est * stats::runif(n)^(-1 / alphs))
+      pl_draws <- rpareto_disc(n, C_est, alphs)
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
       state_draw <- runif(n)
       prbs %>%
@@ -1013,8 +1012,7 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   }
 
   out <- purrr::map(seq_len(n_draws), function(draw) {
-      # mistr::rpareto() is not vectorised over `shape`; this is its formula.
-      pl_draws <- round(C_est * stats::runif(n)^(-1 / alphs))
+      pl_draws <- rpareto_disc(n, C_est, alphs)
       count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
       state_draw <- runif(n)
       prbs %>%

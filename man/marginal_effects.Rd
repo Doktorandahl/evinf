@@ -98,8 +98,9 @@ therefore defaults to \code{method = "difference"} (the average change in the
 predicted quantile from a \code{delta}-unit increase in the covariate). The
 derivative is still available with \code{method = "derivative"} but its
 bootstrap distribution can be very heavy-tailed. The quantile effect is
-evaluated per observation through \code{mistr}, which is slow, so it is
-averaged over at most \code{n_max} rows (see that argument).
+evaluated per observation by bisection on the mixture CDF, which is still
+the slowest prediction type, so it is averaged over at most \code{n_max}
+rows (see that argument).
 }
 \section{Parallel processing}{
 

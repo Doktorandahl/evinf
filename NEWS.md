@@ -58,6 +58,12 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Bug fixes
 
+* `predict(type = "quantile")` and `marginal_effects(type = "quantile")`
+  parametrised the negative-binomial part of the mixture by `Alpha.NB` where
+  every other part of the package (the likelihood, `residuals(type =
+  "quantile")`, `simulate()`) uses `size = 1 / Alpha.NB`. Predicted quantiles
+  now use the correct dispersion; the effect is small for `evzinb` (`Alpha.NB`
+  near 1) and can be large for an over-dispersed `evinb` fit.
 * `marginal_effects(type = "quantile")` no longer returns zeros. The mixture
   quantile is rounded to an integer for `predict()`, but a central finite
   difference of that step function is zero almost everywhere; the marginal-
@@ -71,8 +77,8 @@ review follow-ups in `dev/review_round1.md`.
 * `marginal_effects(type = "quantile")` caps the rows it averages over at
   `n_max` (new argument, default 500; automatic above `nrow * n_bootstraps =
   2e5`, or whenever set explicitly; `n_max = Inf` disables it), with a message.
-  The per-observation `mistr` quantile machinery made this prohibitively slow
-  on data the size of `hks`.
+  The per-observation mixture-quantile solve made this prohibitively slow on
+  data the size of `hks`.
 * `update()` no longer embeds the whole data frame in the refitted model's
   stored call. `evzinb()` / `evinb()` keep `data` as the expression the user
   passed; `update()` re-evaluates it, falling back to the embedded copy (bound
@@ -140,8 +146,23 @@ review follow-ups in `dev/review_round1.md`.
   the bootstrap resamples drawn for a given `boot_seed` differ from earlier
   versions (the resampling distribution is unchanged, and results no longer
   depend on the number of workers). Pin results you need to reproduce.
-* `future` and `furrr` are new hard dependencies; `foreach`, `doParallel` and
-  `doRNG` are dropped.
+* `future` and `furrr` are new hard dependencies; `foreach`, `doParallel`,
+  `doRNG` and **`mistr`** are dropped.
+* The extreme-value component of the mixture is now a single, package-wide
+  **discretised Pareto** (`R/dist_pareto.R`): pmf
+  \eqn{(C/y)^\alpha - (C/(y+1))^\alpha} for integer \eqn{y \ge C}. Previously
+  `predict(type = "quantile")` / `quantiles_from_*()` /
+  `marginal_effects(type = "quantile")` built the mixture with `mistr` and
+  inverted it there. The new path bisects the same mixture CDF used by
+  `residuals(type = "quantile")` and the likelihood, so it also **corrects the
+  negative-binomial dispersion** those quantiles used (they parametrised the NB
+  by `Alpha.NB` rather than the canonical `size = 1 / Alpha.NB`). For an
+  `evzinb` fit, where `Alpha.NB` is near 1, predicted quantiles move by at most
+  a count or two; for an `evinb` fit with a strongly over-dispersed count
+  component the old quantiles could be off by a large factor. `simulate()` /
+  `revzinb_fit()` / `revinb_fit()` draw the extreme-value part with
+  `floor(C * U^(-1/alpha))` (was `round(...)`), so simulated extreme-value
+  counts are ~0.5 lower on average and never below `C`.
 * The minimum R version is now 4.1.0. The `NAMESPACE` uses delayed S3 method
   registration for `insight` / `marginaleffects`, which needs R >= 3.6.0; 4.1
   is the common floor for packages using that pattern.

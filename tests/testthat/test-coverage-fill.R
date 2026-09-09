@@ -1,16 +1,5 @@
-# issue 4.3 - targeted coverage for the thin internal files
-# (parallel.R, extra_distributions.R) and the
+# issue 4.3 - targeted coverage for the thin internal files (parallel.R) and the
 # bootstrap_mean / bootstrap_median prediction paths.
-
-test_that("nbinomdist2() validates its arguments", {
-  expect_error(evinf:::nbinomdist2(size = 10), "prob or mu")
-  expect_error(evinf:::nbinomdist2(prob = "a"), "numeric")
-  expect_error(evinf:::nbinomdist2(prob = 1.5), "\\[0,1\\]")
-  expect_error(evinf:::nbinomdist2(size = 2.5, prob = 0.3), "integer")
-  expect_error(evinf:::nbinomdist2(mu = "a"), "numeric")
-  d <- evinf:::nbinomdist2(mu = 3, size = 2)
-  expect_s3_class(d, "nbinomdist")
-})
 
 test_that("evinf_pmap() runs its progressr path and is seed-stable", {
   old <- progressr::handlers("void")

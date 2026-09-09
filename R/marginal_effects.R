@@ -10,8 +10,8 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
     return(as.matrix(st[, cols, drop = FALSE]))
   }
   if (type == "quantile") {
-    # unrounded mixture quantile: the rounded step function has a zero
-    # derivative almost everywhere (audit N1).
+    # continuous (interpolated) mixture quantile: the integer step function has
+    # a zero derivative almost everywhere (audit N1).
     qf <- if (evzinb) quantiles_from_evzinb else quantiles_from_evinb
     return(as.numeric(qf(mod, quantile, newdata = newdata,
                          return_data = FALSE, multicore = FALSE, round = FALSE)))
@@ -131,8 +131,9 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #' predicted quantile from a \code{delta}-unit increase in the covariate). The
 #' derivative is still available with \code{method = "derivative"} but its
 #' bootstrap distribution can be very heavy-tailed. The quantile effect is
-#' evaluated per observation through \code{mistr}, which is slow, so it is
-#' averaged over at most \code{n_max} rows (see that argument).
+#' evaluated per observation by bisection on the mixture CDF, which is still
+#' the slowest prediction type, so it is averaged over at most \code{n_max}
+#' rows (see that argument).
 #'
 #' @return A tibble with columns \code{variable}, \code{contrast}, \code{type},
 #'   \code{estimate}, \code{std.error}, \code{conf.low}, \code{conf.high}.

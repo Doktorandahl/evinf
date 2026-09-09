@@ -84,7 +84,9 @@ test_that("quantiles_from_evzinb(round = FALSE) returns non-integer values", {
   nd <- m$data$data[1:20, ]
   q_round <- evinf:::quantiles_from_evzinb(m, 0.9, newdata = nd, round = TRUE)
   q_cont  <- evinf:::quantiles_from_evzinb(m, 0.9, newdata = nd, round = FALSE)
-  expect_equal(q_round, round(q_cont))
+  # the integer quantile is the ceiling of the interpolated one: q_cont sits in
+  # the open-below/closed-above step interval (q_round - 1, q_round].
+  expect_true(all(q_cont > q_round - 1 - 1e-9 & q_cont <= q_round + 1e-9))
   expect_gt(sum(abs(q_cont - round(q_cont))), 0)  # at least some non-integers
 })
 

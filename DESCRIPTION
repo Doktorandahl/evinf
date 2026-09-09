@@ -19,7 +19,6 @@ Imports:
     parallelly,
     magrittr,
     tibble,
-    mistr,
     tidyr,
     purrr,
     MASS,

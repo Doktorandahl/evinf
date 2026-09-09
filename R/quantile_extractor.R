@@ -4,12 +4,13 @@
 #' @param quantile The quantile for which to produce predictions
 #' @param newdata  Optional new data (tibble) to produce predicted quantiles for
 #' @param return_data Logical: Should the data be returned in the object
-#' @param multicore Logical: Should parallel processing be used to obtain results
-#' @param ncores Number of cores if multicore is used
-#' @param round Logical: round the mixture quantile to the nearest integer
-#'   (the sensible default for a count-valued prediction). Pass \code{FALSE} for
-#'   the continuous root of the mixture CDF, e.g. for numerical differentiation
-#'   in \code{marginal_effects()}.
+#' @param multicore,ncores Retained for back-compatibility; ignored. The mixture
+#'   quantile is now a vectorised integer bisection on \code{mixture_p()} that
+#'   runs in one pass over all rows.
+#' @param round Logical: return the integer mixture quantile (the sensible
+#'   default for a count-valued prediction). Pass \code{FALSE} for the
+#'   continuous root of the linearly-interpolated mixture CDF, e.g. for
+#'   numerical differentiation in \code{marginal_effects()}.
 #'
 #' @return A vector of predicted quantiles, or if return_data=T, a tibble with the predicted quantile attached last
 #'
@@ -24,43 +25,25 @@ quantiles_from_evzinb <- function(
   round = TRUE
 ) {
 
-  ## Estimate component probabilities for all individuals
   prbs <- prob_from_evzinb(object, newdata = newdata)
-  ## Estimate mu_nb for all individuals
   cnts <- counts_from_evzinb(object, newdata = newdata)
-  ## Estimate pareto alpha for all individuals
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
   if (min(alphs$pareto_alpha) < 1e-02) {
     warning(
       'Fitted pareto alpha-values below 1e-02 detected. Setting those alphas to 1e-02 for quantile prediction'
     )
-    alphs <- alphs %>%
-      dplyr::mutate(
-        pareto_alpha = dplyr::case_when(
-          pareto_alpha < 1e-02 ~ 1e-02,
-          T ~ pareto_alpha
-        )
-      )
+    alphs$pareto_alpha[alphs$pareto_alpha < 1e-02] <- 1e-02
   }
 
-  all_pars <- dplyr::bind_cols(prbs, cnts, alphs) %>%
-    dplyr::mutate(C = object$coef$C, alpha_nb = object$coef$Alpha.NB)
-
-  individual_dists <- all_pars %>%
-    purrr::transpose() %>%
-    purrr::map(
-      ~ mistr::mixdist(
-        mistr::binomdist(1, 0),
-        nbinomdist2(mu = .x$count, size = .x$alpha_nb),
-        mistr::paretodist(scale = .x$C, shape = .x$pareto_alpha),
-        weights = c(.x$pr_zc, .x$pr_count, .x$pr_pareto)
-      )
-    )
-  q <- individual_dists %>%
-    purrr::map_dbl(~ mistr::mistr_q(.x, quantile))
-  if (round) {
-    q <- round(q)
-  }
+  q <- mixture_quantile(
+    quantile,
+    pl_alphas = alphs$pareto_alpha,
+    C = object$coef$C,
+    nb_mu = cnts$count,
+    nb_alpha = object$coef$Alpha.NB,
+    probabilities = cbind(prbs$pr_zc, prbs$pr_count, prbs$pr_pareto),
+    continuous = !round
+  )
 
   if (return_data) {
     return(newdata %>% dplyr::mutate(q = q))
@@ -75,10 +58,9 @@ quantiles_from_evzinb <- function(
 #' @param quantile The quantile for which to produce predictions
 #' @param newdata  Optional new data (tibble) to produce predicted quantiles for
 #' @param return_data Logical: Should the data be returned in the object
-#' @param multicore Logical: Should parallel processing be used to obtain results
-#' @param ncores Number of cores if multicore is used
-#' @param round Logical: round the mixture quantile to the nearest integer.
-#'   Pass \code{FALSE} for the continuous root of the mixture CDF.
+#' @param multicore,ncores Retained for back-compatibility; ignored.
+#' @param round Logical: return the integer mixture quantile. Pass \code{FALSE}
+#'   for the continuous root of the linearly-interpolated mixture CDF.
 #'
 #' @return A vector of predicted quantiles, or if return_data=T, a tibble with the predicted quantile attached last
 #'
@@ -88,40 +70,24 @@ quantiles_from_evinb <- function(
   quantile,
   newdata = NULL,
   return_data = FALSE,
-  multicore = TRUE,
+  multicore = FALSE,
   ncores = NULL,
   round = TRUE
 ) {
 
-  ## Estimate component probabilities for all individuals
   prbs <- prob_from_evinb(object, newdata = newdata)
-  ## Estimate mu_nb for all individuals
   cnts <- counts_from_evzinb(object, newdata = newdata)
-  ## Estimate pareto alpha for all individuals
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
-  # if(min(alphs)<1e-02){
-  #   warning('Fitted pareto alpha-values below 1e-02 detected. Setting those alphas to 1e-02.')
-  #   alphs <- alphs %>% dplyr::mutate(alpha = dplyr::case_when(alpha<1e-02 ~ 1e-02,
-  #                                                             T~alpha))
-  # }
 
-  all_pars <- dplyr::bind_cols(prbs, cnts, alphs) %>%
-    dplyr::mutate(C = object$coef$C, alpha_nb = object$coef$Alpha.NB)
-
-  individual_dists <- all_pars %>%
-    purrr::transpose() %>%
-    purrr::map(
-      ~ mistr::mixdist(
-        nbinomdist2(mu = .x$count, size = .x$alpha_nb),
-        mistr::paretodist(scale = .x$C, shape = .x$pareto_alpha),
-        weights = c(.x$pr_count, .x$pr_pareto)
-      )
-    )
-  q <- individual_dists %>%
-    purrr::map_dbl(~ mistr::mistr_q(.x, quantile))
-  if (round) {
-    q <- round(q)
-  }
+  q <- mixture_quantile(
+    quantile,
+    pl_alphas = alphs$pareto_alpha,
+    C = object$coef$C,
+    nb_mu = cnts$count,
+    nb_alpha = object$coef$Alpha.NB,
+    probabilities = cbind(0, prbs$pr_count, prbs$pr_pareto),
+    continuous = !round
+  )
 
   if (return_data) {
     return(newdata %>% dplyr::mutate(q = q))
