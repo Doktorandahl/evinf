@@ -49,24 +49,28 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
     vars <- vars  %>% purrr::map(~paste(.x,collapse = '_')) %>% purrr::reduce(c)
   }
 
-  if(inherits(object,'evzinb')){
-    reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %do%
-      evzinb(formulas_dfs[[i]]$formulas$nb,
-             formulas_dfs[[i]]$formulas$zi,
-             formulas_dfs[[i]]$formulas$evinf,
-             formulas_dfs[[i]]$formulas$pareto,
-             data = model_data,
-             bootstrap = FALSE,
-             verbose = verbose)
-  }else{
-    reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %do%
-      evinb(formulas_dfs[[i]]$formulas$nb,
-             formulas_dfs[[i]]$formulas$evinf,
-             formulas_dfs[[i]]$formulas$pareto,
-             data = model_data,
-             bootstrap = FALSE,
-            verbose = verbose)
+  # audit R0.2: refit the restricted models with the full model's control
+  # settings (c.lim, tolerances, pdf.pl.type, ...) and warm-started from the
+  # full-model estimates, so the fits are genuinely nested and the statistic
+  # cannot come out negative because of a different c-grid.
+  refit_restricted <- function(reduced, data) {
+    if (inherits(object, 'evzinb')) {
+      do.call(evzinb, c(
+        list(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
+             data = data, bootstrap = FALSE, verbose = verbose),
+        restricted_fit_args(object, reduced, model_data)
+      ))
+    } else {
+      do.call(evinb, c(
+        list(reduced$nb, reduced$evinf, reduced$pareto,
+             data = data, bootstrap = FALSE, verbose = verbose),
+        restricted_fit_args(object, reduced, model_data)
+      ))
+    }
   }
+
+  reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %do%
+    refit_restricted(formulas_dfs[[i]]$formulas, model_data)
 
     logliks <- reruns %>% purrr::map('log.lik') %>% purrr::reduce(c)
     dfs <- formulas_dfs %>% purrr::map('df') %>% purrr::reduce(c)
@@ -84,33 +88,16 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
     on.exit(be$stop(), add = TRUE)
     `%op%` <- be$operator
 
-    if(inherits(object,'evzinb')){
     reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %:%
       foreach::foreach(j = 1:length(object$bootstraps)) %op% {
         if(verbose){
           message(paste('Running bootstrap',j,'for formula',i))
         }
-        try(evzinb(formulas_dfs[[i]]$formulas$nb,
-                   formulas_dfs[[i]]$formulas$zi,
-                   formulas_dfs[[i]]$formulas$evinf,
-                   formulas_dfs[[i]]$formulas$pareto,
-                   data = model_data[object$bootstraps[[j]]$boot_id,],
-                   bootstrap = FALSE))
+        try(refit_restricted(
+          formulas_dfs[[i]]$formulas,
+          model_data[object$bootstraps[[j]]$boot_id, ]
+        ))
       }
-
-    }else{
-      reruns <- foreach::foreach(i = 1:length(formulas_dfs)) %:%
-        foreach::foreach(j = 1:length(object$bootstraps)) %op% {
-          if(verbose){
-            message(paste('Running bootstrap',j,'for formula',i))
-          }
-        try(evinb(formulas_dfs[[i]]$formulas$nb,
-               formulas_dfs[[i]]$formulas$evinf,
-               formulas_dfs[[i]]$formulas$pareto,
-               data = model_data[object$bootstraps[[j]]$boot_id,],
-               bootstrap = FALSE))
-        }
-    }
 
 
    logliks_boot_reduced <-  foreach::foreach(i = 1:length(formulas_dfs)) %:%
@@ -220,4 +207,55 @@ formula_var_remover <- function(formulas, vars, data){
                          pareto = new_pareto)
   }
   return(out)
+}
+
+
+#' Control + warm-start arguments for the restricted LR-test refits (audit R0.2)
+#'
+#' @param object The fitted evzinb/evinb object.
+#' @param reduced The \code{$formulas} list from \code{formula_var_remover()}.
+#' @param data The full model data (for resolving the reduced design column names).
+#' @return A named list of arguments to pass to \code{evzinb()} / \code{evinb()}.
+#' @noRd
+restricted_fit_args <- function(object, reduced, data) {
+  ctrl <- object$control
+  is_zinb <- inherits(object, 'evzinb')
+
+  # Retained coefficients start from the full-model estimate; anything the
+  # reduced design somehow adds (it never should) starts at zero.
+  beta_start <- function(full_named, reduced_formula) {
+    if (is.null(reduced_formula)) {
+      return(NULL)
+    }
+    cn <- c('(Intercept)', colnames(evinf_design(reduced_formula, data)$X))
+    v <- full_named[cn]
+    v[is.na(v)] <- 0
+    as.numeric(v)
+  }
+
+  args <- list(
+    max.diff.par = ctrl$max.diff.par,
+    max.no.em.steps = ctrl$max.no.em.steps,
+    max.no.em.steps.warmup = ctrl$max.no.em.steps.warmup,
+    c.lim = ctrl$c.lim,
+    prune.c.range = ctrl$prune.c.range,
+    max.upd.par.pl.multinomial = ctrl$max.upd.par.pl.multinomial,
+    max.upd.par.nb = ctrl$max.upd.par.nb,
+    max.upd.par.pl = ctrl$max.upd.par.pl,
+    no.m.bfgs.steps.multinomial = ctrl$no.m.bfgs.steps.multinomial,
+    no.m.bfgs.steps.nb = ctrl$no.m.bfgs.steps.nb,
+    no.m.bfgs.steps.pl = ctrl$no.m.bfgs.steps.pl,
+    pdf.pl.type = ctrl$pdf.pl.type,
+    eta.int = ctrl$eta.int,
+    init.Alpha.NB = as.numeric(object$coef$Alpha.NB),
+    init.C = as.numeric(object$coef$C),
+    init.Beta.NB = beta_start(object$coef$Beta.NB, reduced$nb),
+    init.Beta.multinom.PL = beta_start(object$coef$Beta.multinom.PL, reduced$evinf),
+    init.Beta.PL = beta_start(object$coef$Beta.PL, reduced$pareto)
+  )
+  if (is_zinb) {
+    args$max.upd.par.zc.multinomial <- ctrl$max.upd.par.zc.multinomial
+    args$init.Beta.multinom.ZC <- beta_start(object$coef$Beta.multinom.ZC, reduced$zi)
+  }
+  args
 }
