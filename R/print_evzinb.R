@@ -38,12 +38,13 @@ evinf_print_fit <- function(x, kind, zi) {
       if (isTRUE(x$c_lim_default)) ' (data-driven)' else '',
       '\n Observations at or above C_EV: ', sum(x$data$y >= x$coef$C),
       '\n Parameters:                    ', length(x$par.all),
-      '\n Bootstraps (failed):           ',
+      '\n Bootstraps (failed, degenerate):',
       if (is.na(n_boot$n_bootstraps)) 'none' else
-        paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ')'),
+        paste0(n_boot$n_bootstraps, ' (', n_boot$n_failed_bootstraps, ', ',
+               n_boot$n_degenerate_bootstraps, ')'),
       sep = ' ')
-  if (!is.na(n_boot$n_failed_bootstraps) && n_boot$n_failed_bootstraps > 0) {
-    cat('\n   (call failed_bootstraps() for the error messages)')
+  if (isTRUE(n_boot$n_failed_bootstraps + n_boot$n_degenerate_bootstraps > 0)) {
+    cat('\n   (call failed_bootstraps() for the details)')
   }
   if (on_boundary) {
     cat('\n Note: C_EV lies on the boundary of the candidate range.')
@@ -175,8 +176,10 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
   }
 
   n_failed <- x$n_failed_bootstraps
+  n_degen <- x$n_degenerate_bootstraps %||% NA_integer_
   cat('Bootstraps: ', if (is.na(n_failed)) 'none (bootstrap = FALSE)' else
-      paste0('failed = ', n_failed), '\n', sep = '')
+      paste0('failed = ', n_failed, ', degenerate = ',
+             if (is.na(n_degen)) 0L else n_degen), '\n', sep = '')
 
   invisible(x)
 }

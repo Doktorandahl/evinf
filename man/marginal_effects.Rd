@@ -16,6 +16,7 @@ marginal_effects(
   conf_level = 0.9,
   newdata = NULL,
   n_max = 500,
+  exclude_degenerate = TRUE,
   multicore = NULL,
   ncores = NULL
 )
@@ -56,6 +57,10 @@ The cap is applied automatically when \code{nrow(newdata) * n_bootstraps >
 2e5}, or whenever \code{n_max} is passed explicitly; \code{n_max = Inf}
 disables it. The subsample is reproducible from the model's bootstrap seed.}
 
+\item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate
+(default \code{TRUE}); see the \code{alpha_floor} argument of
+\code{\link{evinf_control}}.}
+
 \item{multicore}{Bootstrap parallelisation shortcut. The default
 (\code{NULL}) respects whatever \code{future} plan is currently set (see
 the \strong{Parallel processing} section). \code{TRUE} sets a temporary
@@ -79,8 +84,11 @@ recomputing the effect on every bootstrap fit.
 \details{
 The confidence interval is a percentile interval: \code{conf.low} /
 \code{conf.high} are the empirical quantiles of the effect recomputed on each
-bootstrap fit, and \code{std.error} is the standard deviation of those
-recomputed effects (reported for reference, not used to build the interval).
+bootstrap fit. \code{std.error} is the standard deviation of those recomputed
+effects, except for \code{type = "quantile"} where the bootstrap distribution
+is heavy-tailed and \code{std.error} is instead a robust scale read off the
+interval, \code{(conf.high - conf.low) / (2 * qnorm(1 - (1 - conf_level)/2))}.
+It is reported for reference and is not used to build the interval.
 
 \strong{Harmonic-mean effects and bootstrap intervals.} The harmonic-mean
 prediction is \eqn{C(1 + \alpha)/\alpha}, which blows up on bootstrap fits

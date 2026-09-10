@@ -82,9 +82,13 @@ test_that("bootstrap coefficient matrices are identical (n = 3, seed 123)", {
                   n_bootstraps = 3, boot_seed = 123, multicore = FALSE)
   mib <- fit_i_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = TRUE,
                   n_bootstraps = 3, boot_seed = 123, multicore = FALSE)
-  expect_equal(as.data.frame(suppressWarnings(coefficient_extractor(mzb, "all"))),
+  # compare every replicate (the fixture has all 3); a degenerate one would
+  # otherwise be dropped by coefficient_extractor()'s default.
+  expect_equal(as.data.frame(suppressWarnings(
+                 coefficient_extractor(mzb, "all", exclude_degenerate = FALSE))),
                as.data.frame(base$evzinb), tolerance = 1e-8)
-  expect_equal(as.data.frame(suppressWarnings(coefficient_extractor(mib, "all"))),
+  expect_equal(as.data.frame(suppressWarnings(
+                 coefficient_extractor(mib, "all", exclude_degenerate = FALSE))),
                as.data.frame(base$evinb), tolerance = 1e-8)
 })
 

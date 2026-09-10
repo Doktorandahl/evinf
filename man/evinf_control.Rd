@@ -24,7 +24,8 @@ evinf_control(
   init.Beta.NB = NULL,
   init.Beta.PL = NULL,
   init.Alpha.NB = 0.01,
-  init.C = NULL
+  init.C = NULL,
+  alpha_floor = 0.001
 )
 }
 \arguments{
@@ -58,6 +59,16 @@ starts at zero).}
 
 \item{init.C}{\code{NULL} or a starting value for \eqn{C_{EV}} within
 \code{c.lim}. \code{NULL} uses the median of the candidate set.}
+
+\item{alpha_floor}{Positive number (default \code{0.001}). A bootstrap
+replicate whose smallest fitted Pareto shape falls below this is flagged
+\emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}): the
+extreme-value tail has effectively collapsed, so harmonic-mean predictions
+and tail quantiles from that replicate are unbounded. Degenerate replicates
+are excluded from bootstrap summaries by default (see
+\code{exclude_degenerate}) and counted in \code{glance()} /
+\code{failed_bootstraps()}. The default is deliberately low --- it catches
+an outright collapse (shape near 0), not a merely heavy tail.}
 }
 \value{
 A list of class \code{"evinf_control"}.

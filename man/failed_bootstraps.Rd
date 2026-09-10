@@ -2,7 +2,7 @@
 % Please edit documentation in R/failed_bootstraps.R
 \name{failed_bootstraps}
 \alias{failed_bootstraps}
-\title{Inspect the bootstrap replicates that failed}
+\title{Inspect the bootstrap replicates that failed or came out degenerate}
 \usage{
 failed_bootstraps(object)
 }
@@ -10,13 +10,17 @@ failed_bootstraps(object)
 \item{object}{A fitted \code{evzinb} / \code{evinb} model.}
 }
 \value{
-A tibble with columns \code{id} and \code{message} (zero rows when
-  nothing failed).
+A tibble with columns \code{id}, \code{type} (\code{"error"} or
+  \code{"degenerate"}) and \code{message} (the error text, or the reason the
+  replicate is degenerate); zero rows when every replicate is usable.
 }
 \description{
 Bootstrap fits that error are kept as \code{try-error} objects rather than
-discarded; this returns their error messages, which are useful diagnostics
-(e.g. a resample with a singular design).
+discarded; fits that converge but whose extreme-value tail is so heavy that
+summaries from them are effectively unbounded are flagged \emph{degenerate}
+(see \code{alpha_floor} in \code{\link{evinf_control}}). This returns both,
+which are useful diagnostics (e.g. a resample with a singular design, or one
+whose Pareto shape collapsed).
 }
 \examples{
 \donttest{

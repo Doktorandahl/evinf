@@ -57,7 +57,7 @@ test_that("failed_bootstraps() returns a tibble", {
   m <- fit_evzinb_fast(n_bootstraps = 5)
   fb <- failed_bootstraps(m)
   expect_s3_class(fb, "tbl_df")
-  expect_named(fb, c("id", "message"))
+  expect_named(fb, c("id", "type", "message"))
 
   m0 <- fit_evzinb_fast(bootstrap = FALSE)
   expect_equal(nrow(failed_bootstraps(m0)), 0L)

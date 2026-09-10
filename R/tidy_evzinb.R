@@ -12,6 +12,7 @@
 #' @param conf_level Confidence level for the confidence interval
 #' @param approx_t_value Should approximate t-values be returned
 #' @param symmetric_bootstrap_p Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #' @param ... Other arguments passed to the tidy function
 #'
 #' @details When \code{x} was fitted with \code{bootstrap = FALSE}, standard
@@ -60,6 +61,7 @@ tidy.evzinb <- function(x,
                         conf_level = 0.95,
                         approx_t_value = TRUE,
                         symmetric_bootstrap_p = TRUE,
+                        exclude_degenerate = TRUE,
                         ...) {
   coef_type <- match.arg(coef_type, c('original', 'bootstrap_mean', 'bootstrap_median'))
   p_value <- match.arg(p_value, c('bootstrapped', 'approx', 'none'))
@@ -72,7 +74,8 @@ tidy.evzinb <- function(x,
     y_levels = c('zero', 'evi', 'count', 'pareto'),
     coef_type = coef_type, standard_error = standard_error, p_value = p_value,
     confint = confint, conf_level = conf_level, approx_t_value = approx_t_value,
-    symmetric_bootstrap_p = symmetric_bootstrap_p
+    symmetric_bootstrap_p = symmetric_bootstrap_p,
+    exclude_degenerate = exclude_degenerate
   )
 }
 
@@ -90,6 +93,7 @@ tidy.evzinb <- function(x,
 #' @param conf_level Confidence level for the confidence interval
 #' @param approx_t_value Should approximate t-values be returned
 #' @param symmetric_bootstrap_p Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #' @param ... Other arguments passed to the tidy function
 #'
 #' @inherit tidy.evzinb details
@@ -112,6 +116,7 @@ tidy.evinb <- function(x,
                        conf_level = 0.95,
                        approx_t_value = TRUE,
                        symmetric_bootstrap_p = TRUE,
+                       exclude_degenerate = TRUE,
                        ...) {
   coef_type <- match.arg(coef_type, c('original', 'bootstrap_mean', 'bootstrap_median'))
   p_value <- match.arg(p_value, c('bootstrapped', 'approx', 'none'))
@@ -124,7 +129,8 @@ tidy.evinb <- function(x,
     y_levels = c('evi', 'count', 'pareto'),
     coef_type = coef_type, standard_error = standard_error, p_value = p_value,
     confint = confint, conf_level = conf_level, approx_t_value = approx_t_value,
-    symmetric_bootstrap_p = symmetric_bootstrap_p
+    symmetric_bootstrap_p = symmetric_bootstrap_p,
+    exclude_degenerate = exclude_degenerate
   )
 }
 
@@ -132,7 +138,7 @@ tidy.evinb <- function(x,
 # Shared engine for tidy.evzinb() / tidy.evinb().
 evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
                               p_value, confint, conf_level, approx_t_value,
-                              symmetric_bootstrap_p) {
+                              symmetric_bootstrap_p, exclude_degenerate = TRUE) {
 
   has_zi <- 'zero' %in% y_levels
   has_boot <- !is.null(x$bootstraps)
@@ -161,7 +167,7 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
 
   boot_tabs <- list()
   if (has_boot) {
-    x$bootstraps <- x$bootstraps %>% purrr::discard(~ 'try-error' %in% class(.x))
+    x$bootstraps <- evinf_usable_bootstraps(x, exclude_degenerate)
     boot_long <- function(slot) {
       x$bootstraps %>%
         purrr::map('coef') %>%

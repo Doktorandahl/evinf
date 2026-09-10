@@ -6,8 +6,9 @@
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
 #'   algorithm converged, the number of EM steps, the number of observations at or
-#'   above C_EV, and the number of (failed) bootstraps (\code{NA} when the model
-#'   was fitted without bootstrapping).
+#'   above C_EV, and the number of usable, failed and
+#'   degenerate bootstraps (\code{NA} when the model was fitted without
+#'   bootstrapping; see \code{\link{evinf_control}} for "degenerate").
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -32,7 +33,8 @@ glance.evzinb <- function(x, ...) {
     n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
-    n_failed_bootstraps = boot$n_failed_bootstraps
+    n_failed_bootstraps = boot$n_failed_bootstraps,
+    n_degenerate_bootstraps = boot$n_degenerate_bootstraps
   )
 }
 
@@ -44,8 +46,9 @@ glance.evzinb <- function(x, ...) {
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
 #'   algorithm converged, the number of EM steps, the number of observations at or
-#'   above C_EV, and the number of (failed) bootstraps (\code{NA} when the model
-#'   was fitted without bootstrapping).
+#'   above C_EV, and the number of usable, failed and
+#'   degenerate bootstraps (\code{NA} when the model was fitted without
+#'   bootstrapping; see \code{\link{evinf_control}} for "degenerate").
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -70,16 +73,24 @@ glance.evinb <- function(x, ...) {
     n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
-    n_failed_bootstraps = boot$n_failed_bootstraps
+    n_failed_bootstraps = boot$n_failed_bootstraps,
+    n_degenerate_bootstraps = boot$n_degenerate_bootstraps
   )
 }
 
-# Number of successful / failed bootstraps, or NA when not bootstrapped.
+# Bootstrap replicate counts, or NA when the model was fitted without
+# bootstrapping. `n_bootstraps` counts replicates that neither errored nor came
+# out degenerate (see evinf_control(alpha_floor =)).
 evinf_boot_counts <- function(x) {
   if (is.null(x$bootstraps)) {
-    return(list(n_bootstraps = NA_integer_, n_failed_bootstraps = NA_integer_))
+    return(list(n_bootstraps = NA_integer_, n_failed_bootstraps = NA_integer_,
+                n_degenerate_bootstraps = NA_integer_))
   }
-  n_total <- length(x$bootstraps)
-  n_failed <- sum(vapply(x$bootstraps, function(b) inherits(b, 'try-error'), logical(1)))
-  list(n_bootstraps = n_total - n_failed, n_failed_bootstraps = n_failed)
+  b <- x$bootstraps
+  n_failed <- sum(vapply(b, function(z) inherits(z, 'try-error'), logical(1)))
+  n_degen <- sum(vapply(b, function(z)
+    !inherits(z, 'try-error') && isTRUE(z$degenerate), logical(1)))
+  list(n_bootstraps = length(b) - n_failed - n_degen,
+       n_failed_bootstraps = n_failed,
+       n_degenerate_bootstraps = n_degen)
 }

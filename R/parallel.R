@@ -112,6 +112,29 @@ evinf_with_plan <- function(multicore = NULL, ncores = NULL, expr) {
   expr
 }
 
+# Flag a bootstrap replicate whose extreme-value tail is so heavy that
+# harmonic-mean predictions and tail quantiles from it are effectively
+# unbounded: the smallest fitted Pareto shape on its own resample is below
+# `alpha_floor` (evinf_control()), or not finite. Sets $degenerate (logical)
+# and $degenerate_reason (string or NA) on the replicate (round 5 Part C).
+evinf_flag_degenerate <- function(boot, X.PL, alpha_floor) {
+  af <- if (is.null(alpha_floor)) 0.001 else alpha_floor
+  pl_alpha <- exp(as.numeric(cbind(1, X.PL) %*% boot$coef$Beta.PL))
+  min_a <- suppressWarnings(min(pl_alpha))
+  if (!is.finite(min_a)) {
+    boot$degenerate <- TRUE
+    boot$degenerate_reason <- "fitted Pareto shape is not finite"
+  } else if (min_a < af) {
+    boot$degenerate <- TRUE
+    boot$degenerate_reason <- sprintf(
+      "smallest fitted Pareto shape %.3g < alpha_floor (%.3g)", min_a, af)
+  } else {
+    boot$degenerate <- FALSE
+    boot$degenerate_reason <- NA_character_
+  }
+  boot
+}
+
 # Trim a fitted evzinb / evinb object to the fields bootrun_*() reads, so that
 # only a compact "spec" is shipped to parallel workers (not the raw data frame,
 # the c-profile, the loglik trace or the fitted-value vectors).
@@ -131,6 +154,10 @@ evinf_boot_spec <- function(full_run) {
   spec$terms     <- full_run$terms
   spec$xlevels   <- full_run$xlevels
   spec$block_vec <- full_run$block_vec
+  # alpha_floor for the degeneracy check: evzinb carries a full $control;
+  # evinb's bootstraps run without one, so it is stashed here directly.
+  spec$alpha_floor <- full_run$alpha_floor %||%
+    full_run$control$alpha_floor %||% 0.001
   class(spec) <- class(full_run)
   spec
 }

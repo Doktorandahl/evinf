@@ -5,9 +5,23 @@
 \alias{confint.evinb}
 \title{Confidence intervals for an evzinb / evinb model}
 \usage{
-\method{confint}{evzinb}(object, parm, level = 0.95, type = c("percentile", "approx"), ...)
+\method{confint}{evzinb}(
+  object,
+  parm,
+  level = 0.95,
+  type = c("percentile", "approx"),
+  exclude_degenerate = TRUE,
+  ...
+)
 
-\method{confint}{evinb}(object, parm, level = 0.95, type = c("percentile", "approx"), ...)
+\method{confint}{evinb}(
+  object,
+  parm,
+  level = 0.95,
+  type = c("percentile", "approx"),
+  exclude_degenerate = TRUE,
+  ...
+)
 }
 \arguments{
 \item{object}{A fitted model with bootstraps.}
@@ -18,6 +32,9 @@
 
 \item{type}{\code{"percentile"} (bootstrap percentile intervals, the default)
 or \code{"approx"} (\code{estimate +/- qnorm() * sqrt(diag(vcov))}).}
+
+\item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate
+(default \code{TRUE}); see \code{\link{evinf_control}}.}
 
 \item{...}{Unused.}
 }

@@ -488,6 +488,8 @@ bootrun_evzinb <- function(
   evzinb_boot$c_profile <- NULL  # keep bootstraps small; c_trace is enough (4.5)
 
   evzinb_boot$data <- NULL
+  evzinb_boot <- evinf_flag_degenerate(
+    evzinb_boot, OBS.X.obj$X.PL, object$alpha_floor %||% Control$alpha_floor)
   evzinb_boot$boot_id <- boot_id
   if (timing) {
     evzinb_boot$time <- difftime(Sys.time(), tim, units = 'secs')

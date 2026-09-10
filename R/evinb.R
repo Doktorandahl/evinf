@@ -304,6 +304,8 @@ bootrun_evinb <- function(
   evinb_boot$c_profile <- NULL  # keep bootstraps small; c_trace is enough (4.5)
 
   evinb_boot$data <- NULL
+  evinb_boot <- evinf_flag_degenerate(
+    evinb_boot, OBS.X.obj$X.PL, object$alpha_floor %||% Control$alpha_floor)
   evinb_boot$boot_id <- boot_id
 
   class(evinb_boot) <- 'evinb_boot'
@@ -401,6 +403,9 @@ evinb <- function(
     verbose = verbose
   )
   full_run$call <- stored_call
+  # evinb bootstraps run without a $control (see bootrun_evinb); carry just the
+  # degeneracy threshold across for evinf_boot_spec() (round 5 Part C).
+  full_run$alpha_floor <- ctrl$alpha_floor
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec

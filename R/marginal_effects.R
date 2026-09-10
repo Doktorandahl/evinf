@@ -106,14 +106,20 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #'   The cap is applied automatically when \code{nrow(newdata) * n_bootstraps >
 #'   2e5}, or whenever \code{n_max} is passed explicitly; \code{n_max = Inf}
 #'   disables it. The subsample is reproducible from the model's bootstrap seed.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate
+#'   (default \code{TRUE}); see the \code{alpha_floor} argument of
+#'   \code{\link{evinf_control}}.
 #'
 #' @inheritSection evzinb Parallel processing
 #'
 #' @details
 #' The confidence interval is a percentile interval: \code{conf.low} /
 #' \code{conf.high} are the empirical quantiles of the effect recomputed on each
-#' bootstrap fit, and \code{std.error} is the standard deviation of those
-#' recomputed effects (reported for reference, not used to build the interval).
+#' bootstrap fit. \code{std.error} is the standard deviation of those recomputed
+#' effects, except for \code{type = "quantile"} where the bootstrap distribution
+#' is heavy-tailed and \code{std.error} is instead a robust scale read off the
+#' interval, \code{(conf.high - conf.low) / (2 * qnorm(1 - (1 - conf_level)/2))}.
+#' It is reported for reference and is not used to build the interval.
 #'
 #' \strong{Harmonic-mean effects and bootstrap intervals.} The harmonic-mean
 #' prediction is \eqn{C(1 + \alpha)/\alpha}, which blows up on bootstrap fits
@@ -151,6 +157,7 @@ marginal_effects <- function(object, variables = NULL,
                              method = c("derivative", "difference"),
                              eps = 1e-4, delta = 1, conf_level = 0.9,
                              newdata = NULL, n_max = 500,
+                             exclude_degenerate = TRUE,
                              multicore = NULL, ncores = NULL) {
   type <- match.arg(type)
   # type = "quantile" defaults to a one-unit difference (the derivative of a
@@ -179,8 +186,7 @@ marginal_effects <- function(object, variables = NULL,
   if (is.null(variables)) variables <- raw_vars
   variables <- intersect(variables, raw_vars)
 
-  boots <- object$bootstraps[!vapply(object$bootstraps, inherits, logical(1),
-                                     "try-error")]
+  boots <- evinf_usable_bootstraps(object, exclude_degenerate)
   qs <- c((1 - conf_level) / 2, 1 - (1 - conf_level) / 2)
 
   # audit N8: the per-observation mixture-quantile machinery is slow; subsample
@@ -251,14 +257,22 @@ marginal_effects <- function(object, variables = NULL,
       } else {
         matrix(NA_real_, nrow = 0, ncol = length(e))
       }
-      se <- if (nrow(bmat) > 1) apply(bmat, 2L, stats::sd, na.rm = TRUE)
-            else rep(NA_real_, length(e))
       lo <- if (nrow(bmat) > 1) apply(bmat, 2L, stats::quantile, qs[1],
                                      na.rm = TRUE, names = FALSE)
             else rep(NA_real_, length(e))
       hi <- if (nrow(bmat) > 1) apply(bmat, 2L, stats::quantile, qs[2],
                                      na.rm = TRUE, names = FALSE)
             else rep(NA_real_, length(e))
+      se <- if (nrow(bmat) <= 1) {
+        rep(NA_real_, length(e))
+      } else if (type == "quantile") {
+        # the bootstrap distribution of a quantile effect is heavy-tailed
+        # (a few near-degenerate fits dominate the variance); report a robust
+        # scale from the percentile interval instead of the raw sd.
+        (hi - lo) / (2 * stats::qnorm(qs[2]))
+      } else {
+        apply(bmat, 2L, stats::sd, na.rm = TRUE)
+      }
 
       rows[[length(rows) + 1L]] <- tibble::tibble(
         variable = v, contrast = ct, type = types,

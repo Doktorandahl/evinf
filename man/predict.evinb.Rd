@@ -16,6 +16,7 @@
   multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
+  exclude_degenerate = TRUE,
   ...
 )
 }
@@ -46,6 +47,8 @@ restored on exit.}
 \code{multicore} is \code{NULL} or \code{FALSE}.}
 
 \item{return_bootstraps}{Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.}
+
+\item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().}
 
 \item{...}{Other arguments passed to predict function}
 }

@@ -41,14 +41,14 @@ evinf_components <- function(object) {
 }
 
 # n x p matrix of bootstrap coefficient draws, columns in coef() order/names.
-evinf_boot_coef_matrix <- function(object) {
+evinf_boot_coef_matrix <- function(object, exclude_degenerate = TRUE) {
   if (is.null(object$bootstraps)) {
     stop("This requires a model fitted with bootstrap = TRUE.", call. = FALSE)
   }
-  boots <- object$bootstraps[!vapply(object$bootstraps, inherits, logical(1),
-                                     "try-error")]
+  boots <- evinf_usable_bootstraps(object, exclude_degenerate)
   if (!length(boots)) {
-    stop("All bootstrap fits failed; cannot compute a bootstrap covariance.",
+    stop("No usable bootstrap fits (all errored or were degenerate); cannot ",
+         "compute a bootstrap covariance. See failed_bootstraps().",
          call. = FALSE)
   }
   comps <- evinf_components(object)
@@ -96,6 +96,8 @@ coef.evinb <- function(object, component = "all", ...) {
 #' Bootstrap covariance matrix of an evzinb / evinb model
 #'
 #' @param object A fitted model with bootstraps.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate
+#'   (default \code{TRUE}); see \code{\link{evinf_control}}.
 #' @param ... Unused.
 #' @return The covariance matrix of the bootstrap coefficient draws, with the
 #'   same names and order as \code{coef(object)} (includes \code{alpha_nb} and
@@ -108,14 +110,14 @@ coef.evinb <- function(object, component = "all", ...) {
 #'   be read with that in mind. For uncertainty on covariate \emph{effects},
 #'   prefer the bootstrap route, \code{\link{marginal_effects}()}.
 #' @export
-vcov.evzinb <- function(object, ...) {
-  stats::cov(evinf_boot_coef_matrix(object))
+vcov.evzinb <- function(object, exclude_degenerate = TRUE, ...) {
+  stats::cov(evinf_boot_coef_matrix(object, exclude_degenerate))
 }
 
 #' @rdname vcov.evzinb
 #' @export
-vcov.evinb <- function(object, ...) {
-  stats::cov(evinf_boot_coef_matrix(object))
+vcov.evinb <- function(object, exclude_degenerate = TRUE, ...) {
+  stats::cov(evinf_boot_coef_matrix(object, exclude_degenerate))
 }
 
 #' Confidence intervals for an evzinb / evinb model
@@ -125,6 +127,8 @@ vcov.evinb <- function(object, ...) {
 #' @param level Confidence level.
 #' @param type \code{"percentile"} (bootstrap percentile intervals, the default)
 #'   or \code{"approx"} (\code{estimate +/- qnorm() * sqrt(diag(vcov))}).
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate
+#'   (default \code{TRUE}); see \code{\link{evinf_control}}.
 #' @param ... Unused.
 #' @return A two-column matrix.
 #' @examples
@@ -136,10 +140,11 @@ vcov.evinb <- function(object, ...) {
 #' }
 #' @export
 confint.evzinb <- function(object, parm, level = 0.95,
-                           type = c("percentile", "approx"), ...) {
+                           type = c("percentile", "approx"),
+                           exclude_degenerate = TRUE, ...) {
   type <- match.arg(type)
   est <- coef(object, "all")
-  m <- evinf_boot_coef_matrix(object)
+  m <- evinf_boot_coef_matrix(object, exclude_degenerate)
   if (missing(parm) || is.null(parm)) {
     parm <- names(est)
   }
@@ -162,8 +167,10 @@ confint.evzinb <- function(object, parm, level = 0.95,
 #' @rdname confint.evzinb
 #' @export
 confint.evinb <- function(object, parm, level = 0.95,
-                          type = c("percentile", "approx"), ...) {
-  confint.evzinb(object, parm = parm, level = level, type = match.arg(type), ...)
+                          type = c("percentile", "approx"),
+                          exclude_degenerate = TRUE, ...) {
+  confint.evzinb(object, parm = parm, level = level, type = match.arg(type),
+                 exclude_degenerate = exclude_degenerate, ...)
 }
 
 

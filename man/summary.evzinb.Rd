@@ -12,6 +12,7 @@
   bootstrapped_props = c("none", "mean", "median"),
   approx_t_value = TRUE,
   symmetric_bootstrap_p = TRUE,
+  exclude_degenerate = TRUE,
   ...
 )
 }
@@ -29,6 +30,8 @@
 \item{approx_t_value}{Should approximate t-values be returned}
 
 \item{symmetric_bootstrap_p}{Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.}
+
+\item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().}
 
 \item{...}{Additional arguments passed to the summary function}
 }

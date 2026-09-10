@@ -7,6 +7,7 @@
 #' @param bootstrapped_props Type of bootstrapped proportions of component proportions to be returned
 #' @param approx_t_value Should approximate t-values be returned
 #' @param symmetric_bootstrap_p Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #' @param ... Additional arguments passed to the summary function
 #'
 #' @details When \code{object} was fitted with \code{bootstrap = FALSE}, the
@@ -27,7 +28,7 @@
 summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bootstrapped_median'),
                            standard_error = TRUE, p_value = c('bootstrapped', 'approx', 'both', 'none'),
                            bootstrapped_props = c('none', 'mean', 'median'), approx_t_value = TRUE,
-                           symmetric_bootstrap_p = TRUE, ...) {
+                           symmetric_bootstrap_p = TRUE, exclude_degenerate = TRUE, ...) {
 
   coef <- match.arg(coef, c('original', 'bootstrapped_mean', 'bootstrapped_median'))
   p_value <- match.arg(p_value, c('bootstrapped', 'approx', 'both', 'none'))
@@ -38,13 +39,14 @@ summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bo
     components = c('count', 'zero', 'evi', 'pareto'),
     coef = coef, standard_error = standard_error, p_value = p_value,
     bootstrapped_props = bootstrapped_props, approx_t_value = approx_t_value,
-    symmetric_bootstrap_p = symmetric_bootstrap_p
+    symmetric_bootstrap_p = symmetric_bootstrap_p, exclude_degenerate = exclude_degenerate
   )
 
   res <- list(coefficients = parts$coefficients,
               model_statistics = parts$model_statistics,
               component_proportions = parts$component_proportions,
-              n_failed_bootstraps = parts$n_failed_bootstraps)
+              n_failed_bootstraps = parts$n_failed_bootstraps,
+              n_degenerate_bootstraps = parts$n_degenerate_bootstraps)
   class(res) <- 'summary.evzinb'
   res
 }
@@ -58,6 +60,7 @@ summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bo
 #' @param bootstrapped_props Type of bootstrapped proportions of component proportions to be returned
 #' @param approx_t_value Should approximate t-values be returned
 #' @param symmetric_bootstrap_p Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #' @param ... Additional arguments passed to the summary function
 #'
 #' @inherit summary.evzinb details
@@ -74,7 +77,7 @@ summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bo
 summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bootstrapped_median'),
                           standard_error = TRUE, p_value = c('bootstrapped', 'approx', 'both', 'none'),
                           bootstrapped_props = c('none', 'mean', 'median'), approx_t_value = TRUE,
-                          symmetric_bootstrap_p = TRUE, ...) {
+                          symmetric_bootstrap_p = TRUE, exclude_degenerate = TRUE, ...) {
 
   coef <- match.arg(coef, c('original', 'bootstrapped_mean', 'bootstrapped_median'))
   p_value <- match.arg(p_value, c('bootstrapped', 'approx', 'both', 'none'))
@@ -85,13 +88,14 @@ summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'boo
     components = c('count', 'evi', 'pareto'),
     coef = coef, standard_error = standard_error, p_value = p_value,
     bootstrapped_props = bootstrapped_props, approx_t_value = approx_t_value,
-    symmetric_bootstrap_p = symmetric_bootstrap_p
+    symmetric_bootstrap_p = symmetric_bootstrap_p, exclude_degenerate = exclude_degenerate
   )
 
   res <- list(coefficients = parts$coefficients,
               model_statistics = parts$model_statistics,
               component_proportions = parts$component_proportions,
-              n_failed_bootstraps = parts$n_failed_bootstraps)
+              n_failed_bootstraps = parts$n_failed_bootstraps,
+              n_degenerate_bootstraps = parts$n_degenerate_bootstraps)
   class(res) <- 'summary.evinb'
   res
 }
@@ -99,11 +103,13 @@ summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'boo
 
 # Shared engine for summary.evzinb() / summary.evinb().
 evinf_summary_components <- function(object, components, coef, standard_error, p_value,
-                                     bootstrapped_props, approx_t_value, symmetric_bootstrap_p) {
+                                     bootstrapped_props, approx_t_value, symmetric_bootstrap_p,
+                                     exclude_degenerate = TRUE) {
 
   has_zi <- 'zero' %in% components
   has_boot <- !is.null(object$bootstraps)
   n_failed_bootstraps <- NA_integer_
+  n_degenerate_bootstraps <- NA_integer_
 
   if (!has_boot) {
     if (coef != 'original') {
@@ -141,9 +147,10 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
 
   boot_tabs <- list()
   if (has_boot) {
-    n_bootstraps_org <- length(object$bootstraps)
-    object$bootstraps <- object$bootstraps %>% purrr::discard(~ 'try-error' %in% class(.x))
-    n_failed_bootstraps <- n_bootstraps_org - length(object$bootstraps)
+    bc <- evinf_boot_counts(object)
+    n_failed_bootstraps <- bc$n_failed_bootstraps
+    n_degenerate_bootstraps <- bc$n_degenerate_bootstraps
+    object$bootstraps <- evinf_usable_bootstraps(object, exclude_degenerate)
 
     boot_long <- function(slot) {
       object$bootstraps %>%
@@ -242,7 +249,8 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
                             n_above_c = n_above_c,
                             loglik_recomputed = isTRUE(object$loglik_recomputed)),
     component_proportions = props,
-    n_failed_bootstraps = n_failed_bootstraps
+    n_failed_bootstraps = n_failed_bootstraps,
+    n_degenerate_bootstraps = n_degenerate_bootstraps
   )
 }
 

@@ -5,12 +5,15 @@
 \alias{vcov.evinb}
 \title{Bootstrap covariance matrix of an evzinb / evinb model}
 \usage{
-\method{vcov}{evzinb}(object, ...)
+\method{vcov}{evzinb}(object, exclude_degenerate = TRUE, ...)
 
-\method{vcov}{evinb}(object, ...)
+\method{vcov}{evinb}(object, exclude_degenerate = TRUE, ...)
 }
 \arguments{
 \item{object}{A fitted model with bootstraps.}
+
+\item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate
+(default \code{TRUE}); see \code{\link{evinf_control}}.}
 
 \item{...}{Unused.}
 }

@@ -13,12 +13,14 @@ coefficient_extractor(object, ...)
 \method{coefficient_extractor}{evzinb}(
   object,
   component = c("all", "count", "zero", "evi", "pareto"),
+  exclude_degenerate = TRUE,
   ...
 )
 
 \method{coefficient_extractor}{evinb}(
   object,
   component = c("all", "count", "evi", "pareto"),
+  exclude_degenerate = TRUE,
   ...
 )
 
@@ -35,6 +37,9 @@ coefficient_extractor(object, ...)
 and \code{"evinf"} are still accepted with a deprecation warning.}
 
 \item{component}{Which component should be extracted}
+
+\item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate
+(default \code{TRUE}); see \code{\link{evinf_control}}.}
 }
 \value{
 A tibble with coefficient values, one row per bootstrap and component

@@ -5,6 +5,16 @@ review follow-ups in `dev/review_round1.md`.
 
 ## New features
 
+* Bootstrap replicates whose extreme-value tail collapses (smallest fitted
+  Pareto shape below `evinf_control(alpha_floor = )`, default `0.001`) are
+  flagged \emph{degenerate} rather than silently skewing summaries. They carry
+  `$degenerate` / `$degenerate_reason`; `failed_bootstraps()` lists them (new
+  `type` column, `"error"` / `"degenerate"`); `glance()` gains
+  `n_degenerate_bootstraps` and `n_bootstraps` now counts only usable
+  replicates; `print()` / `summary()` report the count. Every bootstrap-summary
+  function (`coef()` bootstrap extractor, `vcov()`, `confint()`, `tidy()`,
+  `summary()`, `predict()`, `marginal_effects()`) excludes degenerate
+  replicates by default and takes `exclude_degenerate = FALSE` to keep them.
 * `evinf_control()` bundles the EM tuning settings; `evzinb()` / `evinb()` gain
   a `control` argument. The individual tuning arguments still work but are
   deprecated in favour of `control`.
@@ -44,7 +54,9 @@ review follow-ups in `dev/review_round1.md`.
 * `marginal_effects()` computes average marginal effects (central difference for
   numeric covariates, level-vs-reference contrasts for factors) on the harmonic
   mean, the state probabilities or a predicted quantile, with bootstrap
-  confidence intervals.
+  confidence intervals. For `type = "quantile"`, whose bootstrap distribution is
+  heavy-tailed, the reported `std.error` is a robust scale from the percentile
+  interval rather than the raw standard deviation.
 * `marginaleffects` compatibility: `evzinb` / `evinb` models register with
   `marginaleffects` on load, so `marginaleffects::avg_slopes()` and friends work
   with bootstrap delta-method standard errors.

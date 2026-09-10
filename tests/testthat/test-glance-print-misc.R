@@ -4,9 +4,11 @@ test_that("glance() is unrounded and carries convergence / bootstrap counts (aud
   mi <- fit_evinb_fast(bootstrap = FALSE)
 
   g <- glance(m)
-  expect_true(all(c("converged", "n_bootstraps", "n_failed_bootstraps") %in% names(g)))
+  expect_true(all(c("converged", "n_bootstraps", "n_failed_bootstraps",
+                    "n_degenerate_bootstraps") %in% names(g)))
   expect_true(g$converged)
-  expect_equal(g$n_bootstraps + g$n_failed_bootstraps, 5L)
+  expect_equal(g$n_bootstraps + g$n_failed_bootstraps +
+                 g$n_degenerate_bootstraps, 5L)
 
   expect_true(is.na(glance(m0)$n_bootstraps))
 

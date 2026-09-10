@@ -84,6 +84,7 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
 #' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
 #' @param conf_level What confidence level should be used for confidence intervals
 #' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #'
 #' @inheritSection evzinb Parallel processing
 #'
@@ -122,6 +123,7 @@ predict.evzinb <- function(
   multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
+  exclude_degenerate = TRUE,
   ...
 ) {
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
@@ -147,8 +149,7 @@ predict.evzinb <- function(
   }
 
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
-    object$bootstraps <- object$bootstraps %>%
-      purrr::discard(~ 'try-error' %in% class(.x))
+    object$bootstraps <- evinf_usable_bootstraps(object, exclude_degenerate)
     nboots <- length(object$bootstraps)
     if (is.null(newdata)) {
       newdata <- object$data$data
@@ -520,6 +521,7 @@ predict.evzinb <- function(
 #' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
 #' @param conf_level What confidence level should be used for confidence intervals
 #' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
+#' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #'
 #' @inheritSection evzinb Parallel processing
 #'
@@ -556,6 +558,7 @@ predict.evinb <- function(
   multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
+  exclude_degenerate = TRUE,
   ...
 ) {
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
@@ -580,8 +583,7 @@ predict.evinb <- function(
   }
 
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
-    object$bootstraps <- object$bootstraps %>%
-      purrr::discard(~ 'try-error' %in% class(.x))
+    object$bootstraps <- evinf_usable_bootstraps(object, exclude_degenerate)
 
     nboots <- length(object$bootstraps)
     if (is.null(newdata)) {
