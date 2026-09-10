@@ -1,0 +1,232 @@
+# evinf
+
+`evinf` fits **extreme-value inflated** count-regression models: the
+extreme-value and zero-inflated negative binomial (EVZINB) model and its
+zero-inflation-free counterpart (EVINB), as described in
+
+> Randahl, David, and Johan Vegelius. 2024. “Inference with Extremes:
+> Accounting for Extreme Values in Count Regression Models.”
+> *International Studies Quarterly* 68(4): sqae137.
+> <https://doi.org/10.1093/isq/sqae137>
+
+The package also provides bootstrap-based inference, prediction
+(component probabilities, harmonic mean, quantiles), likelihood-ratio
+tests for individual covariates, and comparison against plain
+negative-binomial and ZINB models. It is designed to work with `broom` /
+`generics` ([`tidy()`](https://generics.r-lib.org/reference/tidy.html),
+[`glance()`](https://generics.r-lib.org/reference/glance.html)) and
+`modelsummary`.
+
+Since version 0.10.0 the EM tuning settings are bundled in
+[`evinf_control()`](reference/evinf_control.md), the candidate range for
+the extreme-value threshold `C_EV` is chosen from the data by default,
+the count formula accepts an
+[`offset()`](https://rdrr.io/r/stats/offset.html) term, and the fitted
+models support the standard S3 methods
+([`coef()`](https://rdrr.io/r/stats/coef.html),
+[`vcov()`](https://rdrr.io/r/stats/vcov.html),
+[`confint()`](https://rdrr.io/r/stats/confint.html),
+[`AIC()`](https://rdrr.io/r/stats/AIC.html),
+[`predict()`](https://rdrr.io/r/stats/predict.html),
+[`residuals()`](https://rdrr.io/r/stats/residuals.html),
+[`simulate()`](https://rdrr.io/r/stats/simulate.html),
+[`update()`](https://rdrr.io/r/stats/update.html),
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html)) as well as
+[`predict_grid()`](reference/predict_grid.md),
+[`marginal_effects()`](reference/marginal_effects.md) and
+[`compare_fit()`](reference/compare_fit.md). See `NEWS.md` for the full
+list.
+
+## Installation
+
+``` r
+
+# install.packages("remotes")
+remotes::install_github("Doktorandahl/evinf")
+```
+
+## Usage
+
+``` r
+
+library(evinf)
+data(genevzinb2)
+
+# Fit an EVZINB model with 100 bootstrap replicates
+model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 100)
+
+summary(model)
+tidy(model)                       # all components, one row per coefficient
+glance(model)                     # goodness-of-fit
+predict(model, type = "harmonic") # harmonic-mean prediction
+
+lr_test(model, "x1")              # LR test for x1 across all components
+compare_models(model)             # against NB and ZINB
+```
+
+Separate formulas can be given for the count, zero-inflation,
+extreme-value inflation and Pareto components, e.g.
+
+``` r
+
+evzinb(y ~ x1 + x2, formula_zi = ~ x1, formula_pareto = ~ log1p(x3),
+       data = genevzinb2)
+```
+
+# Package index
+
+## Fitting
+
+Estimate the EVZINB / EVINB model and tune the EM algorithm.
+
+- [`evzinb()`](evzinb.md) : Running an extreme value and zero inflated
+  negative binomial model with bootstrapping
+- [`evinb()`](evinb.md) : Running an extreme value inflated negative
+  binomial model with bootstrapping
+- [`evinf_control()`](evinf_control.md) : Control settings for evzinb()
+  / evinb()
+- [`add_bootstraps()`](add_bootstraps.md) : Add more bootstrap
+  replicates to a fitted model
+- [`failed_bootstraps()`](failed_bootstraps.md) : Inspect the bootstrap
+  replicates that failed or came out degenerate
+
+## Summaries and tables
+
+Inspect a fitted model and build regression tables.
+
+- [`summary(`*`<evzinb>`*`)`](summary.evzinb.md) : EVZINB summary
+  function
+
+- [`print(`*`<evzinb>`*`)`](print.evzinb.md) : EVZINB print function
+
+- [`tidy(`*`<evzinb>`*`)`](tidy.evzinb.md) : EVZINB tidy function
+
+- [`glance(`*`<evzinb>`*`)`](glance.evzinb.md) : EVZINB and EVINB glance
+  functions
+
+- [`coefficient_extractor()`](coefficient_extractor.md) : Bootstrap
+  coefficient extractor
+
+- [`gof_map_evinf()`](gof_map_evinf.md) :
+
+  Goodness-of-fit map for `modelsummary`
+
+- [`gm_evzinb`](gm_evzinb.md) : A goodness-of-fit gof tibble for GOF
+  metrics when using modelsummary
+
+## Prediction and effects
+
+Predicted quantities, prediction grids and marginal effects.
+
+- [`predict(`*`<evzinb>`*`)`](predict.evzinb.md) : Predictions from
+  evzinb object
+- [`predict_grid()`](predict_grid.md) : Build a prediction grid and
+  evaluate a model over it
+- [`marginal_effects()`](marginal_effects.md) : Average marginal effects
+  for an evzinb / evinb model
+
+## Diagnostics and plots
+
+Threshold diagnostics, state classification and plot methods.
+
+- [`plot(`*`<evzinb>`*`)`](plot.evzinb.md)
+  [`plot(`*`<evinb>`*`)`](plot.evzinb.md) : Plots for evzinb / evinb
+  models
+- [`c_profile()`](c_profile.md) : Log-likelihood profile over the
+  candidate values of C_EV
+- [`plot_c_profile()`](plot_c_profile.md) : Plot the log-likelihood
+  profile over the candidate values of C_EV
+- [`classify_states()`](classify_states.md) : Prior and posterior state
+  classification
+- [`state_table()`](state_table.md) : Cross-tabulate prior vs posterior
+  state classification
+
+## Model comparison
+
+Compare against negative-binomial and ZINB alternatives.
+
+- [`compare_models()`](compare_models.md) : Function to compare evzinb
+  or evinb models with zinb and nb models
+- [`compare_fit()`](compare_fit.md)
+  [`plot(`*`<evzinbcomp>`*`)`](compare_fit.md) : Compare the
+  extreme-value model against its plainer counterparts
+- [`lr_test()`](lr_test.md) : Likelihood ratio test for individual
+  variables of evzinb
+- [`oob_evaluation()`](oob_evaluation.md) : Out of bag predictive
+  performance of EVZINB and EVINB models
+- [`tidy(`*`<evzinbcomp>`*`)`](evzinbcomp-tidiers.md)
+  [`glance(`*`<evzinbcomp>`*`)`](evzinbcomp-tidiers.md) : Stacked tidy /
+  glance for a model comparison
+
+## Standard S3 methods
+
+- [`logLik(`*`<evzinb>`*`)`](evinf-s3-accessors.md)
+  [`logLik(`*`<evinb>`*`)`](evinf-s3-accessors.md)
+  [`nobs(`*`<evzinb>`*`)`](evinf-s3-accessors.md)
+  [`nobs(`*`<evinb>`*`)`](evinf-s3-accessors.md)
+  [`model.frame(`*`<evzinb>`*`)`](evinf-s3-accessors.md)
+  [`model.frame(`*`<evinb>`*`)`](evinf-s3-accessors.md)
+  [`formula(`*`<evzinb>`*`)`](evinf-s3-accessors.md)
+  [`formula(`*`<evinb>`*`)`](evinf-s3-accessors.md)
+  [`terms(`*`<evzinb>`*`)`](evinf-s3-accessors.md)
+  [`terms(`*`<evinb>`*`)`](evinf-s3-accessors.md) : logLik / nobs /
+  model.frame / formula / terms for evzinb / evinb models
+- [`fitted(`*`<evzinb>`*`)`](evinf-s3-predict.md)
+  [`fitted(`*`<evinb>`*`)`](evinf-s3-predict.md)
+  [`residuals(`*`<evzinb>`*`)`](evinf-s3-predict.md)
+  [`residuals(`*`<evinb>`*`)`](evinf-s3-predict.md)
+  [`simulate(`*`<evzinb>`*`)`](evinf-s3-predict.md)
+  [`simulate(`*`<evinb>`*`)`](evinf-s3-predict.md) : Fitted values,
+  residuals and simulations from an evzinb / evinb model
+- [`coef(`*`<evzinb>`*`)`](coef.evzinb.md)
+  [`coef(`*`<evinb>`*`)`](coef.evzinb.md) : Coefficients of an evzinb /
+  evinb model
+- [`vcov(`*`<evzinb>`*`)`](vcov.evzinb.md)
+  [`vcov(`*`<evinb>`*`)`](vcov.evzinb.md) : Bootstrap covariance matrix
+  of an evzinb / evinb model
+- [`confint(`*`<evzinb>`*`)`](confint.evzinb.md)
+  [`confint(`*`<evinb>`*`)`](confint.evzinb.md) : Confidence intervals
+  for an evzinb / evinb model
+- [`update(`*`<evzinb>`*`)`](update.evzinb.md)
+  [`update(`*`<evinb>`*`)`](update.evzinb.md) : Update and re-fit an
+  evzinb / evinb model
+- [`reexports`](reexports.md) [`tidy`](reexports.md)
+  [`glance`](reexports.md) : Objects exported from other packages
+
+## Simulation
+
+- [`revzinb_fit()`](revzinb_fit.md) : Random draws from a fitted evzinb
+  model
+- [`revinb_fit()`](revinb_fit.md) : Random draws from a fitted evinb
+  model
+
+## Data
+
+- [`hks`](hks.md) : Replication data for Hultman, Kathman, and
+  Shannon (2013) United Nations Peacekeeping and Civilian Protection in
+  Civil War
+- [`genevzinb`](genevzinb.md) : Simulated data from the EVZINB
+  distribution
+- [`genevzinb2`](genevzinb2.md) : Simulated data from the EVZINB
+  distribution
+
+## Estimation internals
+
+The EM / ECME driver behind evzinb() and evinb(). Not exported;
+documented for readers of the algorithm.
+
+- [`em_fit()`](em_fit.md) : EM / ECME driver for the EVZINB and EVINB
+  models
+- [`em_fit_fixed_c()`](em_fit_fixed_c.md) : EM iterations for the EVZINB
+  / EVINB mixture at a fixed \\C\_{EV}\\
+- [`em_step()`](em_step.md) : One EM step for the EVZINB / EVINB mixture
+  at fixed \\C\_{EV}\\
+- [`em_profile_c()`](em_profile_c.md) : Profile the log-likelihood over
+  the extreme-value threshold
+- [`em_c_candidates()`](em_c_candidates.md) : Candidate set for the
+  extreme-value threshold \\C\_{EV}\\
+- [`em_extend_design()`](em_extend_design.md) : Prepend the intercept
+  column to each component design matrix
+- [`em_fitted_values()`](em_fitted_values.md) : Fitted quantities from a
+  fitted EVZINB / EVINB parameter set
+
