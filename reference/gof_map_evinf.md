@@ -25,10 +25,12 @@ gof_map_evinf(extra = NULL)
 
 A tibble with columns `raw` (the
 [`glance()`](https://generics.r-lib.org/reference/glance.html) column
-name), `clean` (the row label in the table) and `fmt` (default number of
-decimals). Rows: number of observations, number of parameters, alpha_NB,
-C_EV, observations at or above C_EV, log-likelihood, AIC, BIC, number of
-successful and failed bootstraps, and convergence.
+name, unchanged), `clean` (the title-case row label in the table) and
+`fmt` (default number of decimals). Rows: observations, parameters,
+alpha_NB, C_EV, observations at or above C_EV, log-likelihood, AIC, BIC,
+the usable / failed / degenerate bootstrap counts, the number of
+bootstrap replicates with C_EV on the candidate-grid boundary, and
+convergence.
 
 ## Details
 
@@ -46,43 +48,48 @@ has for
 
 ``` r
 gof_map_evinf()
-#> # A tibble: 11 × 3
-#>    raw                 clean                 fmt
-#>    <chr>               <chr>               <dbl>
-#>  1 nobs                obs                     0
-#>  2 npar                par                     0
-#>  3 alpha               alpha_nb                2
-#>  4 parameter           C_EV                    0
-#>  5 n_above_c           obs_above_c_ev          0
-#>  6 logLik              logLik                  2
-#>  7 aic                 AIC                     1
-#>  8 bic                 BIC                     1
-#>  9 n_bootstraps        n_bootstraps            0
-#> 10 n_failed_bootstraps n_failed_bootstraps     0
-#> 11 converged           converged               0
+#> # A tibble: 13 × 3
+#>    raw                     clean                   fmt
+#>    <chr>                   <chr>                 <dbl>
+#>  1 nobs                    Observations              0
+#>  2 npar                    Parameters                0
+#>  3 alpha                   alpha_nb                  2
+#>  4 parameter               C_EV                      0
+#>  5 n_above_c               Obs. above C_EV           0
+#>  6 logLik                  logLik                    2
+#>  7 aic                     AIC                       1
+#>  8 bic                     BIC                       1
+#>  9 n_bootstraps            Usable bootstraps         0
+#> 10 n_failed_bootstraps     Failed bootstraps         0
+#> 11 n_degenerate_bootstraps Degenerate bootstraps     0
+#> 12 n_c_on_boundary         C_EV on boundary          0
+#> 13 converged               Converged                 0
 gof_map_evinf(extra = data.frame(raw = "n_em_steps", clean = "EM steps",
                                  fmt = 0))
-#> # A tibble: 12 × 3
-#>    raw                 clean                 fmt
-#>    <chr>               <chr>               <dbl>
-#>  1 nobs                obs                     0
-#>  2 npar                par                     0
-#>  3 alpha               alpha_nb                2
-#>  4 parameter           C_EV                    0
-#>  5 n_above_c           obs_above_c_ev          0
-#>  6 logLik              logLik                  2
-#>  7 aic                 AIC                     1
-#>  8 bic                 BIC                     1
-#>  9 n_bootstraps        n_bootstraps            0
-#> 10 n_failed_bootstraps n_failed_bootstraps     0
-#> 11 converged           converged               0
-#> 12 n_em_steps          EM steps                0
+#> # A tibble: 14 × 3
+#>    raw                     clean                   fmt
+#>    <chr>                   <chr>                 <dbl>
+#>  1 nobs                    Observations              0
+#>  2 npar                    Parameters                0
+#>  3 alpha                   alpha_nb                  2
+#>  4 parameter               C_EV                      0
+#>  5 n_above_c               Obs. above C_EV           0
+#>  6 logLik                  logLik                    2
+#>  7 aic                     AIC                       1
+#>  8 bic                     BIC                       1
+#>  9 n_bootstraps            Usable bootstraps         0
+#> 10 n_failed_bootstraps     Failed bootstraps         0
+#> 11 n_degenerate_bootstraps Degenerate bootstraps     0
+#> 12 n_c_on_boundary         C_EV on boundary          0
+#> 13 converged               Converged                 0
+#> 14 n_em_steps              EM steps                  0
 
 # \donttest{
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 #> Error in eval(expr, p) : inv(): matrix is singular
+#> Warning: C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.
 if (requireNamespace("modelsummary", quietly = TRUE)) {
   modelsummary::modelsummary(
     model,

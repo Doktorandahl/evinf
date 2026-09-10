@@ -70,6 +70,7 @@ m <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 25)
 #> Error in eval(expr, p) : inv(): matrix is singular
 #> Error in eval(expr, p) : inv(): matrix is singular
 #> Error in eval(expr, p) : inv(): matrix is singular
+#> Warning: C_EV reached the boundary of the candidate range in 3 of 25 bootstrap replicates; consider widening c.lim.
 # the Pareto shape (alpha_nb) and the threshold (c_ev) are in coef()/confint()
 confint(m, parm = c("count_x1", "alpha_nb", "c_ev"))
 #>                 2.5 %     97.5 %

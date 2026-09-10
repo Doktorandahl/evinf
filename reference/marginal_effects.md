@@ -155,10 +155,27 @@ your session and leave `multicore` at its default:
 Any `future` backend works (`multisession`, `cluster`, `callr`, a HPC
 batchtools plan, ...). As a convenience `multicore = TRUE` sets a
 temporary `multisession` plan for the single call and restores the
-previous plan on exit. Bootstrap draws are reproducible from `boot_seed`
-and do not depend on the number of workers. Large models may need
+previous plan on exit. Large models may need
 `options(future.globals.maxSize = <bytes>)` to raise the default limit
 on the data shipped to each worker.
+
+## Reproducibility
+
+The bootstrap **resample indices** (`object$bootstraps[[i]]$boot_id`)
+are fully determined by `boot_seed` and are independent of the future
+backend, the number of workers, and chunking — a fixed seed always draws
+the same resamples.
+
+The **fitted coefficients** are reproducible only to within
+floating-point noise. BLAS operations are not bit-reproducible across
+processes, so a sequential run and a `multisession` run of the same seed
+can differ in the last few digits; and because the EM log-likelihood can
+have close local optima, an occasional replicate converges to a
+different one under a different backend. For replication material,
+record the `future` plan and
+[`utils::sessionInfo()`](https://rdrr.io/r/utils/sessionInfo.html)
+alongside `boot_seed`, and produce the canonical set of estimates under
+a single fixed plan.
 
 ## Examples
 
@@ -171,6 +188,7 @@ model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 10)
 #> Error in eval(expr, p) : inv(): matrix is singular
 #> Error in eval(expr, p) : inv(): matrix is singular
 #> Error in eval(expr, p) : inv(): matrix is singular
+#> Warning: C_EV reached the boundary of the candidate range in 1 of 10 bootstrap replicates; consider widening c.lim.
 marginal_effects(model, variables = "x1")
 #> # A tibble: 1 × 7
 #>   variable contrast type     estimate std.error conf.low conf.high

@@ -31,7 +31,8 @@ evinf_control(
   init.Beta.PL = NULL,
   init.Alpha.NB = 0.01,
   init.C = NULL,
-  alpha_floor = 0.001
+  alpha_floor = 0.001,
+  coef_limit = 50
 )
 ```
 
@@ -40,7 +41,11 @@ evinf_control(
 - max.diff.par:
 
   EM convergence tolerance: the algorithm has converged when the maximum
-  absolute change in the parameter estimates falls below this.
+  absolute change in the parameter estimates falls below this. The EM
+  log-likelihood can have close local optima; a tighter tolerance
+  reduces (without eliminating) the chance that two future backends run
+  with the same `boot_seed` settle in different ones (see the
+  **Reproducibility** section of `?`[`evzinb`](evzinb.md)).
 
 - max.no.em.steps:
 
@@ -95,19 +100,21 @@ evinf_control(
   `NULL` or a starting value for \\C\_{EV}\\ within `c.lim`. `NULL` uses
   the median of the candidate set.
 
-- alpha_floor:
+- alpha_floor, coef_limit:
 
-  Positive number (default `0.001`). A bootstrap replicate whose
-  smallest fitted Pareto shape falls below this is flagged *degenerate*
-  (`$degenerate`, `$degenerate_reason`): the extreme-value tail has
-  effectively collapsed, so harmonic-mean predictions and tail quantiles
-  from that replicate are unbounded. Degenerate replicates are excluded
-  from bootstrap summaries by default (see `exclude_degenerate`) and
-  counted in
-  [`glance()`](https://generics.r-lib.org/reference/glance.html) /
-  [`failed_bootstraps()`](failed_bootstraps.md). The default is
-  deliberately low — it catches an outright collapse (shape near 0), not
-  a merely heavy tail.
+  Thresholds for flagging a bootstrap replicate as *degenerate*
+  (`$degenerate`, `$degenerate_reason`), so it is excluded from
+  bootstrap summaries by default (see `exclude_degenerate`) and counted
+  in [`glance()`](https://generics.r-lib.org/reference/glance.html) /
+  [`failed_bootstraps()`](failed_bootstraps.md). A replicate is
+  degenerate if (in this order): its EM did not converge; any fitted
+  coefficient in a linear predictor (`Beta.*`) or the negative-binomial
+  dispersion is non-finite or exceeds `coef_limit` in absolute value; or
+  its smallest fitted Pareto shape is non-finite or below `alpha_floor`.
+  `alpha_floor` (default `0.001`) is deliberately low — it catches an
+  outright tail collapse (shape near 0), not a merely heavy tail.
+  `coef_limit` (default `50`) is on the linear-predictor scale, where
+  `50` is already extreme.
 
 ## Value
 

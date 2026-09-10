@@ -69,7 +69,8 @@ argument of <code><a href="evzinb.html">evzinb()</a></code> / <code><a href="evi
 <span>  init.Beta.PL <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  init.Alpha.NB <span class="op">=</span> <span class="fl">0.01</span>,</span>
 <span>  init.C <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  alpha_floor <span class="op">=</span> <span class="fl">0.001</span></span>
+<span>  alpha_floor <span class="op">=</span> <span class="fl">0.001</span>,</span>
+<span>  coef_limit <span class="op">=</span> <span class="fl">50</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -79,7 +80,11 @@ argument of <code><a href="evzinb.html">evzinb()</a></code> / <code><a href="evi
 
 <dl><dt id="arg-max-diff-par">max.diff.par<a class="anchor" aria-label="anchor" href="#arg-max-diff-par"></a></dt>
 <dd><p>EM convergence tolerance: the algorithm has converged when
-the maximum absolute change in the parameter estimates falls below this.</p></dd>
+the maximum absolute change in the parameter estimates falls below this.
+The EM log-likelihood can have close local optima; a tighter tolerance
+reduces (without eliminating) the chance that two <span class="pkg">future</span> backends run
+with the same <code>boot_seed</code> settle in different ones (see the
+<strong>Reproducibility</strong> section of <code>?<a href="evzinb.html">evzinb</a></code>).</p></dd>
 
 
 <dt id="arg-max-no-em-steps">max.no.em.steps<a class="anchor" aria-label="anchor" href="#arg-max-no-em-steps"></a></dt>
@@ -132,16 +137,20 @@ starts at zero).</p></dd>
 <code>c.lim</code>. <code>NULL</code> uses the median of the candidate set.</p></dd>
 
 
-<dt id="arg-alpha-floor">alpha_floor<a class="anchor" aria-label="anchor" href="#arg-alpha-floor"></a></dt>
-<dd><p>Positive number (default <code>0.001</code>). A bootstrap
-replicate whose smallest fitted Pareto shape falls below this is flagged
-<em>degenerate</em> (<code>$degenerate</code>, <code>$degenerate_reason</code>): the
-extreme-value tail has effectively collapsed, so harmonic-mean predictions
-and tail quantiles from that replicate are unbounded. Degenerate replicates
-are excluded from bootstrap summaries by default (see
+<dt id="arg-alpha-floor-coef-limit">alpha_floor, coef_limit<a class="anchor" aria-label="anchor" href="#arg-alpha-floor-coef-limit"></a></dt>
+<dd><p>Thresholds for flagging a bootstrap replicate
+as <em>degenerate</em> (<code>$degenerate</code>, <code>$degenerate_reason</code>), so it
+is excluded from bootstrap summaries by default (see
 <code>exclude_degenerate</code>) and counted in <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code> /
-<code><a href="failed_bootstraps.html">failed_bootstraps()</a></code>. The default is deliberately low — it catches
-an outright collapse (shape near 0), not a merely heavy tail.</p></dd>
+<code><a href="failed_bootstraps.html">failed_bootstraps()</a></code>. A replicate is degenerate if (in this order):
+its EM did not converge; any fitted coefficient in a linear predictor
+(<code>Beta.*</code>) or the negative-binomial dispersion is non-finite or
+exceeds <code>coef_limit</code> in absolute value; or its smallest fitted Pareto
+shape is non-finite or below <code>alpha_floor</code>. <code>alpha_floor</code>
+(default <code>0.001</code>) is deliberately low — it catches an outright tail
+collapse (shape near 0), not a merely heavy tail. <code>coef_limit</code>
+(default <code>50</code>) is on the linear-predictor scale, where <code>50</code> is
+already extreme.</p></dd>
 
 </dl></div>
     <div class="section level2">

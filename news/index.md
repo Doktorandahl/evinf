@@ -7,10 +7,13 @@ and the review follow-ups in `dev/review_round1.md`.
 
 ### New features
 
-- Bootstrap replicates whose extreme-value tail collapses (smallest
-  fitted Pareto shape below `evinf_control(alpha_floor = )`, default
-  `0.001`) are flagged rather than silently skewing summaries. They
-  carry `$degenerate` / `$degenerate_reason`;
+- Bootstrap replicates that would silently skew the bootstrap summaries
+  are flagged (`$degenerate` / `$degenerate_reason`): a replicate whose
+  EM did not converge; one with a non-finite fitted coefficient, or one
+  larger in absolute value than `evinf_control(coef_limit = )` (default
+  `50`, on the linear-predictor scale); or one whose smallest fitted
+  Pareto shape is non-finite or below `evinf_control(alpha_floor = )`
+  (default `0.001`).
   [`failed_bootstraps()`](../reference/failed_bootstraps.md) lists them
   (new `type` column, `"error"` / `"degenerate"`);
   [`glance()`](https://generics.r-lib.org/reference/glance.html) gains
@@ -27,6 +30,14 @@ and the review follow-ups in `dev/review_round1.md`.
   [`marginal_effects()`](../reference/marginal_effects.md)) excludes
   degenerate replicates by default and takes
   `exclude_degenerate = FALSE` to keep them.
+- A bootstrap replicate whose `C_EV` estimate lands on an endpoint of
+  the candidate grid is treated as degenerate (dropping those would bias
+  the bootstrap distribution of `C_EV` inward); instead the count is
+  stored as `object$n_c_on_boundary`, reported by
+  [`glance()`](https://generics.r-lib.org/reference/glance.html) and the
+  [`print()`](https://rdrr.io/r/base/print.html) boundary note, and a
+  single [`warning()`](https://rdrr.io/r/base/warning.html) suggests
+  widening `c.lim`.
 - [`evinf_control()`](../reference/evinf_control.md) bundles the EM
   tuning settings; [`evzinb()`](../reference/evzinb.md) /
   [`evinb()`](../reference/evinb.md) gain a `control` argument. The
@@ -210,6 +221,16 @@ and the review follow-ups in `dev/review_round1.md`.
 
 ### Breaking changes / deprecations
 
+- `glance()$n_bootstraps` no longer counts every bootstrap replicate —
+  it counts the **usable** ones (neither errored nor degenerate). The
+  three columns `n_bootstraps`, `n_failed_bootstraps` and
+  `n_degenerate_bootstraps` now partition the number of replicates
+  requested. The [`gof_map_evinf()`](../reference/gof_map_evinf.md) row
+  labels were retitled accordingly (“Usable bootstraps”, “Failed
+  bootstraps”, “Degenerate bootstraps”) and given title case throughout;
+  the `raw` names (i.e. the
+  [`glance()`](https://generics.r-lib.org/reference/glance.html) column
+  names) are unchanged.
 - The parallel backend is now **`future` / `furrr`** instead of
   `foreach` / `doParallel` / `doRNG` (which are no longer imported). Set
   a plan once for your session —

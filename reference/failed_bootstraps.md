@@ -32,6 +32,7 @@ zero rows when every replicate is usable.
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV reached the boundary of the candidate range in 3 of 5 bootstrap replicates; consider widening c.lim.
 failed_bootstraps(model)
 #> # A tibble: 4 × 3
 #>   id          type       message                                                
