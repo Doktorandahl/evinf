@@ -11,7 +11,11 @@ test_that("gof_map_evinf() has a row for every glance() column", {
   expect_true(all(gm$raw %in% glance_cols))
   # and the key statistics are present
   expect_true(all(c("nobs", "npar", "aic", "bic", "logLik", "converged",
-                    "n_above_c", "n_bootstraps", "n_failed_bootstraps") %in% gm$raw))
+                    "n_above_c", "n_bootstraps", "n_failed_bootstraps",
+                    "n_degenerate_bootstraps", "n_c_on_boundary") %in% gm$raw))
+  # bootstrap rows carry self-explanatory labels (review5 §4)
+  expect_equal(gm$clean[gm$raw == "n_bootstraps"], "Usable bootstraps")
+  expect_equal(gm$clean[gm$raw == "n_degenerate_bootstraps"], "Degenerate bootstraps")
 })
 
 test_that("gof_map_evinf(extra = ) appends rows", {

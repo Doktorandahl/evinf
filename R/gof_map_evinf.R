@@ -11,11 +11,12 @@
 #'   \code{raw}, \code{clean}, \code{fmt}) to append, e.g. for a statistic added
 #'   by a custom \code{glance()} method.
 #'
-#' @return A tibble with columns \code{raw} (the \code{glance()} column name),
-#'   \code{clean} (the row label in the table) and \code{fmt} (default number of
-#'   decimals). Rows: number of observations, number of parameters, alpha_NB,
-#'   C_EV, observations at or above C_EV, log-likelihood, AIC, BIC, number of
-#'   successful and failed bootstraps, and convergence.
+#' @return A tibble with columns \code{raw} (the \code{glance()} column name,
+#'   unchanged), \code{clean} (the title-case row label in the table) and
+#'   \code{fmt} (default number of decimals). Rows: observations, parameters,
+#'   alpha_NB, C_EV, observations at or above C_EV, log-likelihood, AIC, BIC,
+#'   the usable / failed / degenerate bootstrap counts, the number of bootstrap
+#'   replicates with C_EV on the candidate-grid boundary, and convergence.
 #'
 #' @details The coefficient table produced by \code{tidy()} with
 #'   \code{component = "all"} has one row per coefficient \emph{per component}.
@@ -43,18 +44,20 @@
 #' }
 gof_map_evinf <- function(extra = NULL) {
   base <- tibble::tribble(
-    ~raw,                  ~clean,                ~fmt,
-    "nobs",                "obs",                 0,
-    "npar",                "par",                 0,
-    "alpha",               "alpha_nb",            2,
-    "parameter",           "C_EV",                0,
-    "n_above_c",           "obs_above_c_ev",      0,
-    "logLik",              "logLik",              2,
-    "aic",                 "AIC",                 1,
-    "bic",                 "BIC",                 1,
-    "n_bootstraps",        "n_bootstraps",        0,
-    "n_failed_bootstraps", "n_failed_bootstraps", 0,
-    "converged",           "converged",           0
+    ~raw,                       ~clean,                   ~fmt,
+    "nobs",                     "Observations",           0,
+    "npar",                     "Parameters",             0,
+    "alpha",                    "alpha_nb",               2,
+    "parameter",                "C_EV",                   0,
+    "n_above_c",                "Obs. above C_EV",        0,
+    "logLik",                   "logLik",                 2,
+    "aic",                      "AIC",                    1,
+    "bic",                      "BIC",                    1,
+    "n_bootstraps",             "Usable bootstraps",      0,
+    "n_failed_bootstraps",      "Failed bootstraps",      0,
+    "n_degenerate_bootstraps",  "Degenerate bootstraps",  0,
+    "n_c_on_boundary",          "C_EV on boundary",       0,
+    "converged",                "Converged",              0
   )
   if (!is.null(extra)) {
     base <- dplyr::bind_rows(base, tibble::as_tibble(extra))

@@ -12,11 +12,12 @@ gof_map_evinf(extra = NULL)
 by a custom \code{glance()} method.}
 }
 \value{
-A tibble with columns \code{raw} (the \code{glance()} column name),
-  \code{clean} (the row label in the table) and \code{fmt} (default number of
-  decimals). Rows: number of observations, number of parameters, alpha_NB,
-  C_EV, observations at or above C_EV, log-likelihood, AIC, BIC, number of
-  successful and failed bootstraps, and convergence.
+A tibble with columns \code{raw} (the \code{glance()} column name,
+  unchanged), \code{clean} (the title-case row label in the table) and
+  \code{fmt} (default number of decimals). Rows: observations, parameters,
+  alpha_NB, C_EV, observations at or above C_EV, log-likelihood, AIC, BIC,
+  the usable / failed / degenerate bootstrap counts, the number of bootstrap
+  replicates with C_EV on the candidate-grid boundary, and convergence.
 }
 \description{
 Returns the \code{gof_map} that \code{modelsummary::modelsummary()} needs to

@@ -151,6 +151,13 @@ review follow-ups in `dev/review_round1.md`.
 
 ## Breaking changes / deprecations
 
+* `glance()$n_bootstraps` no longer counts every bootstrap replicate --- it
+  counts the **usable** ones (neither errored nor degenerate). The three
+  columns `n_bootstraps`, `n_failed_bootstraps` and `n_degenerate_bootstraps`
+  now partition the number of replicates requested. The `gof_map_evinf()` row
+  labels were retitled accordingly ("Usable bootstraps", "Failed bootstraps",
+  "Degenerate bootstraps") and given title case throughout; the `raw` names
+  (i.e. the `glance()` column names) are unchanged.
 * The parallel backend is now **`future` / `furrr`** instead of
   `foreach` / `doParallel` / `doRNG` (which are no longer imported).
   Set a plan once for your session — `future::plan(future::multisession,

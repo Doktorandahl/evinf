@@ -18,7 +18,9 @@ test_that("glance() is unrounded and carries convergence / bootstrap counts (aud
 
 test_that("gm_evzinb has rows for the new glance columns (audit 2.10)", {
   data(gm_evzinb, package = "evinf", envir = environment())
-  expect_true(all(c("converged", "n_bootstraps", "n_failed_bootstraps") %in% gm_evzinb$raw))
+  expect_true(all(c("converged", "n_bootstraps", "n_failed_bootstraps",
+                    "n_degenerate_bootstraps", "n_c_on_boundary") %in%
+                    gm_evzinb$raw))
 })
 
 test_that("summary has a print method (audit 2.6)", {
