@@ -342,6 +342,7 @@ bootrun_evinb <- function(
 #' @param verbose Should progress be printed for the first run of evinb
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @return An object of class 'evinb'
 #' @export

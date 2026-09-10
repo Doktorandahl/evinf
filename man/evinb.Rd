@@ -103,11 +103,27 @@ model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 1000)
 Any \code{future} backend works (\code{multisession}, \code{cluster},
 \code{callr}, a HPC batchtools plan, ...). As a convenience
 \code{multicore = TRUE} sets a temporary \code{multisession} plan for the
-single call and restores the previous plan on exit. Bootstrap draws are
-reproducible from \code{boot_seed} and do not depend on the number of
-workers. Large models may need
+single call and restores the previous plan on exit. Large models may need
 \code{options(future.globals.maxSize = <bytes>)} to raise the default limit
 on the data shipped to each worker.
+}
+
+\section{Reproducibility}{
+
+The bootstrap \strong{resample indices} (\code{object$bootstraps[[i]]$boot_id})
+are fully determined by \code{boot_seed} and are independent of the
+\pkg{future} backend, the number of workers, and chunking --- a fixed seed
+always draws the same resamples.
+
+The \strong{fitted coefficients} are reproducible only to within
+floating-point noise. BLAS operations are not bit-reproducible across
+processes, so a sequential run and a \code{multisession} run of the same
+seed can differ in the last few digits; and because the EM log-likelihood
+can have close local optima, an occasional replicate converges to a
+different one under a different backend. For replication material, record
+the \code{future} plan and \code{utils::sessionInfo()} alongside
+\code{boot_seed}, and produce the canonical set of estimates under a single
+fixed plan.
 }
 
 \examples{

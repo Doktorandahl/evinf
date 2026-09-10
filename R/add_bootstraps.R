@@ -15,6 +15,7 @@
 #' @param verbose Show a progress bar.
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @return The model with \code{n} more replicates in \code{object$bootstraps}
 #'   (names continue \code{bootstrap_<k>}).

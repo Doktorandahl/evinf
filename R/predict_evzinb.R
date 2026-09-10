@@ -87,6 +87,7 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
 #' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
 #'
@@ -524,6 +525,7 @@ predict.evzinb <- function(
 #' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
 #' @export

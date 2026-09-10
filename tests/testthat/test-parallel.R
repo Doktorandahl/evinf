@@ -27,8 +27,8 @@ seq_run <- function(code) {
   op <- future::plan("sequential"); on.exit(future::plan(op), add = TRUE)
   force(code)
 }
-ms_run <- function(code) {
-  op <- future::plan(future::multisession, workers = 2)
+ms_run <- function(code, workers = 2) {
+  op <- future::plan(future::multisession, workers = workers)
   on.exit(future::plan(op), add = TRUE)
   force(code)
 }
@@ -48,8 +48,14 @@ test_that("evzinb()/evinb() bootstraps: sequential and multisession resample ide
   ms_z <- ms_run(fit_z(bootstrap = TRUE, n_bootstraps = 4, boot_seed = 202, multicore = NULL))
   ms_i <- ms_run(fit_i(bootstrap = TRUE, n_bootstraps = 4, boot_seed = 202, multicore = NULL))
 
+  # the documented Reproducibility contract: boot_id is fully determined by
+  # boot_seed and independent of the backend AND the number of workers.
   expect_identical(boot_ids_of(ms_z), boot_ids_of(seq_z))
   expect_identical(boot_ids_of(ms_i), boot_ids_of(seq_i))
+  ms_z3 <- ms_run(fit_z(bootstrap = TRUE, n_bootstraps = 4, boot_seed = 202,
+                        multicore = NULL), workers = 3)
+  expect_identical(boot_ids_of(ms_z3), boot_ids_of(seq_z))
+
   expect_equal(ms_z$coef, seq_z$coef, tolerance = 1e-12)   # full fit is not parallel
   expect_equal(ms_i$coef, seq_i$coef, tolerance = 1e-12)
   expect_equal(coefs_num(ms_z), coefs_num(seq_z), tolerance = 1e-6)

@@ -17,6 +17,7 @@ inv <- function(x){
 #' @inheritParams evzinb
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @return An object of class \code{evzinbcomp}: a list whose first element
 #'   \code{model} is the original evzinb/evinb model (also available as

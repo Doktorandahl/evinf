@@ -41,6 +41,7 @@ lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
 #'   restricted four-level factor contributes three degrees of freedom).
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @return A tibble with one row per performed LR test, or, when \code{bootstrap = TRUE},
 #'   a list with the summary tibble (\code{results}) and the per-bootstrap statistics

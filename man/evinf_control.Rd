@@ -31,7 +31,11 @@ evinf_control(
 }
 \arguments{
 \item{max.diff.par}{EM convergence tolerance: the algorithm has converged when
-the maximum absolute change in the parameter estimates falls below this.}
+the maximum absolute change in the parameter estimates falls below this.
+The EM log-likelihood can have close local optima; a tighter tolerance
+reduces (without eliminating) the chance that two \pkg{future} backends run
+with the same \code{boot_seed} settle in different ones (see the
+\strong{Reproducibility} section of \code{?\link{evzinb}}).}
 
 \item{max.no.em.steps}{Maximum number of EM steps.}
 

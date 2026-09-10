@@ -111,6 +111,7 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #'   \code{\link{evinf_control}}.
 #'
 #' @inheritSection evzinb Parallel processing
+#' @inheritSection evzinb Reproducibility
 #'
 #' @details
 #' The confidence interval is a percentile interval: \code{conf.low} /
