@@ -304,8 +304,7 @@ bootrun_evinb <- function(
   evinb_boot$c_profile <- NULL  # keep bootstraps small; c_trace is enough (4.5)
 
   evinb_boot$data <- NULL
-  evinb_boot <- evinf_flag_degenerate(
-    evinb_boot, OBS.X.obj$X.PL, object$alpha_floor %||% Control$alpha_floor)
+  evinb_boot <- evinf_flag_degenerate(evinb_boot, OBS.X.obj$X.PL, Control)
   evinb_boot$boot_id <- boot_id
 
   class(evinb_boot) <- 'evinb_boot'
@@ -403,9 +402,6 @@ evinb <- function(
     verbose = verbose
   )
   full_run$call <- stored_call
-  # evinb bootstraps run without a $control (see bootrun_evinb); carry just the
-  # degeneracy threshold across for evinf_boot_spec() (round 5 Part C).
-  full_run$alpha_floor <- ctrl$alpha_floor
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
@@ -437,7 +433,13 @@ evinb <- function(
       )
     })
     names(boots) <- paste0("bootstrap_", seq_along(boots))
-    out <- c(full_run, list(bootstraps = boots))
+    n_c_bnd <- evinf_c_boundary_count(full_run, boots)
+    if (n_c_bnd > 0L) {
+      warning("C_EV reached the boundary of the candidate range in ", n_c_bnd,
+              " of ", length(boots), " bootstrap replicates; consider widening ",
+              "c.lim.", call. = FALSE)
+    }
+    out <- c(full_run, list(bootstraps = boots, n_c_on_boundary = n_c_bnd))
   } else {
     out <- full_run
   }

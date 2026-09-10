@@ -5,10 +5,14 @@
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-#'   algorithm converged, the number of EM steps, the number of observations at or
-#'   above C_EV, and the number of usable, failed and
-#'   degenerate bootstraps (\code{NA} when the model was fitted without
-#'   bootstrapping; see \code{\link{evinf_control}} for "degenerate").
+#'   algorithm converged, the number of EM steps, the number of observations at
+#'   or above C_EV, and, for a bootstrapped model, the bootstrap replicate
+#'   counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
+#'   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
+#'   partition the number of replicates requested (see \code{\link{evinf_control}}
+#'   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
+#'   whose C_EV landed on a candidate-grid endpoint (informational, not counted
+#'   as degenerate).
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -34,7 +38,8 @@ glance.evzinb <- function(x, ...) {
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps,
-    n_degenerate_bootstraps = boot$n_degenerate_bootstraps
+    n_degenerate_bootstraps = boot$n_degenerate_bootstraps,
+    n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary
   )
 }
 
@@ -45,10 +50,14 @@ glance.evzinb <- function(x, ...) {
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-#'   algorithm converged, the number of EM steps, the number of observations at or
-#'   above C_EV, and the number of usable, failed and
-#'   degenerate bootstraps (\code{NA} when the model was fitted without
-#'   bootstrapping; see \code{\link{evinf_control}} for "degenerate").
+#'   algorithm converged, the number of EM steps, the number of observations at
+#'   or above C_EV, and, for a bootstrapped model, the bootstrap replicate
+#'   counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
+#'   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
+#'   partition the number of replicates requested (see \code{\link{evinf_control}}
+#'   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
+#'   whose C_EV landed on a candidate-grid endpoint (informational, not counted
+#'   as degenerate).
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -74,7 +83,8 @@ glance.evinb <- function(x, ...) {
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps,
-    n_degenerate_bootstraps = boot$n_degenerate_bootstraps
+    n_degenerate_bootstraps = boot$n_degenerate_bootstraps,
+    n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary
   )
 }
 

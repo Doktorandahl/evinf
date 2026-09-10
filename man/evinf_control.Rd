@@ -25,7 +25,8 @@ evinf_control(
   init.Beta.PL = NULL,
   init.Alpha.NB = 0.01,
   init.C = NULL,
-  alpha_floor = 0.001
+  alpha_floor = 0.001,
+  coef_limit = 50
 )
 }
 \arguments{
@@ -60,15 +61,19 @@ starts at zero).}
 \item{init.C}{\code{NULL} or a starting value for \eqn{C_{EV}} within
 \code{c.lim}. \code{NULL} uses the median of the candidate set.}
 
-\item{alpha_floor}{Positive number (default \code{0.001}). A bootstrap
-replicate whose smallest fitted Pareto shape falls below this is flagged
-\emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}): the
-extreme-value tail has effectively collapsed, so harmonic-mean predictions
-and tail quantiles from that replicate are unbounded. Degenerate replicates
-are excluded from bootstrap summaries by default (see
+\item{alpha_floor, coef_limit}{Thresholds for flagging a bootstrap replicate
+as \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}), so it
+is excluded from bootstrap summaries by default (see
 \code{exclude_degenerate}) and counted in \code{glance()} /
-\code{failed_bootstraps()}. The default is deliberately low --- it catches
-an outright collapse (shape near 0), not a merely heavy tail.}
+\code{failed_bootstraps()}. A replicate is degenerate if (in this order):
+its EM did not converge; any fitted coefficient in a linear predictor
+(\code{Beta.*}) or the negative-binomial dispersion is non-finite or
+exceeds \code{coef_limit} in absolute value; or its smallest fitted Pareto
+shape is non-finite or below \code{alpha_floor}. \code{alpha_floor}
+(default \code{0.001}) is deliberately low --- it catches an outright tail
+collapse (shape near 0), not a merely heavy tail. \code{coef_limit}
+(default \code{50}) is on the linear-predictor scale, where \code{50} is
+already extreme.}
 }
 \value{
 A list of class \code{"evinf_control"}.

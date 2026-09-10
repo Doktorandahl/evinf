@@ -46,8 +46,18 @@ evinf_print_fit <- function(x, kind, zi) {
   if (isTRUE(n_boot$n_failed_bootstraps + n_boot$n_degenerate_bootstraps > 0)) {
     cat('\n   (call failed_bootstraps() for the details)')
   }
+  n_c_bnd <- x$n_c_on_boundary
+  n_boot_total <- if (is.null(x$bootstraps)) NA_integer_ else length(x$bootstraps)
   if (on_boundary) {
-    cat('\n Note: C_EV lies on the boundary of the candidate range.')
+    cat('\n Note: C_EV lies on the boundary of the candidate range')
+    if (isTRUE(n_c_bnd > 0)) {
+      cat(' (and in ', n_c_bnd, ' of ', n_boot_total,
+          ' bootstrap replicates)', sep = '')
+    }
+    cat('.')
+  } else if (isTRUE(n_c_bnd > 0)) {
+    cat('\n Note: C_EV reached the boundary of the candidate range in ',
+        n_c_bnd, ' of ', n_boot_total, ' bootstrap replicates.', sep = '')
   }
   if (isTRUE(x$loglik_recomputed)) {
     cat('\n Note: log-likelihood / AIC / BIC recomputed from the returned parameters.')

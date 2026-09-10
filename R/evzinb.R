@@ -378,7 +378,13 @@ evzinb <- function(
       )
     })
     names(boots) <- paste0("bootstrap_", seq_along(boots))
-    out <- c(full_run, list(bootstraps = boots))
+    n_c_bnd <- evinf_c_boundary_count(full_run, boots)
+    if (n_c_bnd > 0L) {
+      warning("C_EV reached the boundary of the candidate range in ", n_c_bnd,
+              " of ", length(boots), " bootstrap replicates; consider widening ",
+              "c.lim.", call. = FALSE)
+    }
+    out <- c(full_run, list(bootstraps = boots, n_c_on_boundary = n_c_bnd))
   } else {
     out <- full_run
   }
@@ -488,8 +494,7 @@ bootrun_evzinb <- function(
   evzinb_boot$c_profile <- NULL  # keep bootstraps small; c_trace is enough (4.5)
 
   evzinb_boot$data <- NULL
-  evzinb_boot <- evinf_flag_degenerate(
-    evzinb_boot, OBS.X.obj$X.PL, object$alpha_floor %||% Control$alpha_floor)
+  evzinb_boot <- evinf_flag_degenerate(evzinb_boot, OBS.X.obj$X.PL, Control)
   evzinb_boot$boot_id <- boot_id
   if (timing) {
     evzinb_boot$time <- difftime(Sys.time(), tim, units = 'secs')

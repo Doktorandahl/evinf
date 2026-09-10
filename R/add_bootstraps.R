@@ -71,5 +71,12 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = NULL,
 
   object$bootstraps <- c(object$bootstraps, new_boots)
   object$boot_seeds <- c(object$boot_seeds, list(boot_seed))
+  n_c_bnd <- evinf_c_boundary_count(object, object$bootstraps)
+  object$n_c_on_boundary <- n_c_bnd
+  if (n_c_bnd > 0L) {
+    warning("C_EV reached the boundary of the candidate range in ", n_c_bnd,
+            " of ", length(object$bootstraps), " bootstrap replicates; ",
+            "consider widening c.lim.", call. = FALSE)
+  }
   object
 }

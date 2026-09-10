@@ -5,16 +5,24 @@ review follow-ups in `dev/review_round1.md`.
 
 ## New features
 
-* Bootstrap replicates whose extreme-value tail collapses (smallest fitted
-  Pareto shape below `evinf_control(alpha_floor = )`, default `0.001`) are
-  flagged \emph{degenerate} rather than silently skewing summaries. They carry
-  `$degenerate` / `$degenerate_reason`; `failed_bootstraps()` lists them (new
-  `type` column, `"error"` / `"degenerate"`); `glance()` gains
-  `n_degenerate_bootstraps` and `n_bootstraps` now counts only usable
-  replicates; `print()` / `summary()` report the count. Every bootstrap-summary
-  function (`coef()` bootstrap extractor, `vcov()`, `confint()`, `tidy()`,
-  `summary()`, `predict()`, `marginal_effects()`) excludes degenerate
-  replicates by default and takes `exclude_degenerate = FALSE` to keep them.
+* Bootstrap replicates that would silently skew the bootstrap summaries are
+  flagged \emph{degenerate} (`$degenerate` / `$degenerate_reason`): a replicate
+  whose EM did not converge; one with a non-finite fitted coefficient, or one
+  larger in absolute value than `evinf_control(coef_limit = )` (default `50`,
+  on the linear-predictor scale); or one whose smallest fitted Pareto shape is
+  non-finite or below `evinf_control(alpha_floor = )` (default `0.001`).
+  `failed_bootstraps()` lists them (new `type` column, `"error"` /
+  `"degenerate"`); `glance()` gains `n_degenerate_bootstraps` and `n_bootstraps`
+  now counts only usable replicates; `print()` / `summary()` report the count.
+  Every bootstrap-summary function (`coef()` bootstrap extractor, `vcov()`,
+  `confint()`, `tidy()`, `summary()`, `predict()`, `marginal_effects()`)
+  excludes degenerate replicates by default and takes
+  `exclude_degenerate = FALSE` to keep them.
+* A bootstrap replicate whose `C_EV` estimate lands on an endpoint of the
+  candidate grid is \emph{not} treated as degenerate (dropping those would bias
+  the bootstrap distribution of `C_EV` inward); instead the count is stored as
+  `object$n_c_on_boundary`, reported by `glance()` and the `print()` boundary
+  note, and a single `warning()` suggests widening `c.lim`.
 * `evinf_control()` bundles the EM tuning settings; `evzinb()` / `evinb()` gain
   a `control` argument. The individual tuning arguments still work but are
   deprecated in favour of `control`.

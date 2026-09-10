@@ -27,15 +27,19 @@
 #' @param init.Alpha.NB Starting value for the negative-binomial dispersion.
 #' @param init.C \code{NULL} or a starting value for \eqn{C_{EV}} within
 #'   \code{c.lim}. \code{NULL} uses the median of the candidate set.
-#' @param alpha_floor Positive number (default \code{0.001}). A bootstrap
-#'   replicate whose smallest fitted Pareto shape falls below this is flagged
-#'   \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}): the
-#'   extreme-value tail has effectively collapsed, so harmonic-mean predictions
-#'   and tail quantiles from that replicate are unbounded. Degenerate replicates
-#'   are excluded from bootstrap summaries by default (see
+#' @param alpha_floor,coef_limit Thresholds for flagging a bootstrap replicate
+#'   as \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}), so it
+#'   is excluded from bootstrap summaries by default (see
 #'   \code{exclude_degenerate}) and counted in \code{glance()} /
-#'   \code{failed_bootstraps()}. The default is deliberately low --- it catches
-#'   an outright collapse (shape near 0), not a merely heavy tail.
+#'   \code{failed_bootstraps()}. A replicate is degenerate if (in this order):
+#'   its EM did not converge; any fitted coefficient in a linear predictor
+#'   (\code{Beta.*}) or the negative-binomial dispersion is non-finite or
+#'   exceeds \code{coef_limit} in absolute value; or its smallest fitted Pareto
+#'   shape is non-finite or below \code{alpha_floor}. \code{alpha_floor}
+#'   (default \code{0.001}) is deliberately low --- it catches an outright tail
+#'   collapse (shape near 0), not a merely heavy tail. \code{coef_limit}
+#'   (default \code{50}) is on the linear-predictor scale, where \code{50} is
+#'   already extreme.
 #'
 #' @details When \code{c.lim = NULL}, \code{evzinb()} / \code{evinb()} choose a
 #'   range from the data: the lower bound is the 90th percentile of the positive
@@ -70,7 +74,8 @@ evinf_control <- function(
   init.Beta.PL = NULL,
   init.Alpha.NB = 0.01,
   init.C = NULL,
-  alpha_floor = 0.001
+  alpha_floor = 0.001,
+  coef_limit = 50
 ) {
   pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
   control <- list(
@@ -94,7 +99,8 @@ evinf_control <- function(
     init.Beta.PL = init.Beta.PL,
     init.Alpha.NB = init.Alpha.NB,
     init.C = init.C,
-    alpha_floor = alpha_floor
+    alpha_floor = alpha_floor,
+    coef_limit = coef_limit
   )
   validate_evinf_control(control)
 }
@@ -111,11 +117,15 @@ validate_evinf_control <- function(control) {
   if (is.null(control$alpha_floor)) {
     control$alpha_floor <- 0.001
   }
+  if (is.null(control$coef_limit)) {
+    control$coef_limit <- 50
+  }
   pos_scalar <- c(
     "max.diff.par", "max.no.em.steps", "max.no.em.steps.warmup",
     "max.upd.par.zc.multinomial", "max.upd.par.pl.multinomial",
     "max.upd.par.nb", "max.upd.par.pl", "no.m.bfgs.steps.multinomial",
-    "no.m.bfgs.steps.nb", "no.m.bfgs.steps.pl", "init.Alpha.NB", "alpha_floor"
+    "no.m.bfgs.steps.nb", "no.m.bfgs.steps.pl", "init.Alpha.NB", "alpha_floor",
+    "coef_limit"
   )
   for (nm in pos_scalar) {
     v <- control[[nm]]

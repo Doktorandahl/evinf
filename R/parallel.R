@@ -112,26 +112,64 @@ evinf_with_plan <- function(multicore = NULL, ncores = NULL, expr) {
   expr
 }
 
-# Flag a bootstrap replicate whose extreme-value tail is so heavy that
-# harmonic-mean predictions and tail quantiles from it are effectively
-# unbounded: the smallest fitted Pareto shape on its own resample is below
-# `alpha_floor` (evinf_control()), or not finite. Sets $degenerate (logical)
-# and $degenerate_reason (string or NA) on the replicate (round 5 Part C).
-evinf_flag_degenerate <- function(boot, X.PL, alpha_floor) {
-  af <- if (is.null(alpha_floor)) 0.001 else alpha_floor
-  pl_alpha <- exp(as.numeric(cbind(1, X.PL) %*% boot$coef$Beta.PL))
-  min_a <- suppressWarnings(min(pl_alpha))
-  if (!is.finite(min_a)) {
-    boot$degenerate <- TRUE
-    boot$degenerate_reason <- "fitted Pareto shape is not finite"
-  } else if (min_a < af) {
-    boot$degenerate <- TRUE
-    boot$degenerate_reason <- sprintf(
-      "smallest fitted Pareto shape %.3g < alpha_floor (%.3g)", min_a, af)
-  } else {
-    boot$degenerate <- FALSE
-    boot$degenerate_reason <- NA_character_
+# Flag a bootstrap replicate as degenerate -- a numerically valid fit that would
+# nonetheless poison the bootstrap summaries. Checks, in order, and records the
+# first matching reason (thresholds from evinf_control(): `alpha_floor`,
+# `coef_limit`):
+#   1. the EM did not converge;
+#   2. a fitted linear-predictor coefficient or the NB dispersion is non-finite
+#      or larger than `coef_limit` in absolute value;
+#   3. the smallest fitted Pareto shape on the replicate's own resample is
+#      non-finite or below `alpha_floor`.
+# Sets $degenerate (a single logical) and $degenerate_reason (string or NA).
+evinf_flag_degenerate <- function(boot, X.PL, control) {
+  af <- control$alpha_floor %||% 0.001
+  cl <- control$coef_limit %||% 50
+  reason <- NA_character_
+
+  if (isFALSE(boot$converge)) {
+    reason <- "EM did not converge within max.no.em.steps"
   }
+
+  if (is.na(reason)) {
+    comps <- list(
+      Beta.NB          = boot$coef$Beta.NB,
+      Beta.multinom.ZC = boot$coef$Beta.multinom.ZC,   # NULL for evinb
+      Beta.multinom.PL = boot$coef$Beta.multinom.PL,
+      Beta.PL          = boot$coef$Beta.PL,
+      Alpha.NB         = boot$coef$Alpha.NB
+    )
+    for (nm in names(comps)) {
+      v <- comps[[nm]]
+      if (is.null(v)) next
+      if (any(!is.finite(v))) {
+        reason <- sprintf("non-finite coefficient in %s", nm)
+        break
+      }
+      hit <- which(abs(v) > cl)
+      if (length(hit)) {
+        lbl <- if (!is.null(names(v))) names(v)[hit[1]] else nm
+        reason <- sprintf(
+          "coefficient %s = %.3g in %s exceeds coef_limit (%g)",
+          lbl, v[hit[1]], nm, cl)
+        break
+      }
+    }
+  }
+
+  if (is.na(reason)) {
+    min_a <- suppressWarnings(
+      min(exp(as.numeric(cbind(1, X.PL) %*% boot$coef$Beta.PL))))
+    if (!is.finite(min_a)) {
+      reason <- "fitted Pareto shape is not finite"
+    } else if (min_a < af) {
+      reason <- sprintf(
+        "smallest fitted Pareto shape %.3g < alpha_floor (%.3g)", min_a, af)
+    }
+  }
+
+  boot$degenerate <- !is.na(reason)
+  boot$degenerate_reason <- reason
   boot
 }
 
@@ -154,10 +192,28 @@ evinf_boot_spec <- function(full_run) {
   spec$terms     <- full_run$terms
   spec$xlevels   <- full_run$xlevels
   spec$block_vec <- full_run$block_vec
-  # alpha_floor for the degeneracy check: evzinb carries a full $control;
-  # evinb's bootstraps run without one, so it is stashed here directly.
-  spec$alpha_floor <- full_run$alpha_floor %||%
-    full_run$control$alpha_floor %||% 0.001
   class(spec) <- class(full_run)
   spec
+}
+
+# Count the bootstrap replicates whose C_EV estimate sits on an endpoint of the
+# C_EV candidate grid for the full sample (the unique observed response values
+# inside control$c.lim). This is informational -- a warning, not a degeneracy
+# criterion: excluding these replicates would bias the bootstrap distribution of
+# C_EV inward.
+evinf_c_boundary_count <- function(full_run, boots) {
+  cl <- full_run$control$c.lim
+  if (is.null(cl)) {
+    return(0L)
+  }
+  uy <- sort(unique(full_run$data$y))
+  grid <- uy[uy >= cl[1] & uy <= cl[2]]
+  if (!length(grid)) {
+    return(0L)
+  }
+  ends <- range(grid)
+  c_boot <- vapply(boots, function(b) {
+    if (inherits(b, "try-error")) NA_real_ else b$coef$C
+  }, numeric(1))
+  sum(c_boot %in% ends, na.rm = TRUE)
 }
