@@ -17,7 +17,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: David Randahl \email{david.randahl@pcr.uu.se}
+\strong{Maintainer}: David Randahl \email{david.randahl@fhs.se}
 
 Authors:
 \itemize{
