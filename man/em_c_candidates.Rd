@@ -31,8 +31,8 @@ This is the ECME step of the algorithm in Appendix A1 of Randahl and
   has more than 100 elements and no pruning was requested, because each extra
   candidate is one extra full-data log-likelihood evaluation per EM iteration.
   Pruning is reproducible without touching the caller's global RNG state: the
-  thinning draw is seeded from the (unpruned) candidate range itself via
-  \code{\link{evinf_seeded_sample}}.
+  thinning draw is seeded from the (unpruned) candidate range itself via the
+  internal \code{evinf_seeded_sample()} helper.
 }
 \seealso{
 \code{\link{evzinb}()}, \code{\link{evinb}()}
