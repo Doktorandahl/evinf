@@ -12,7 +12,7 @@
   pred = c("original", "bootstrap_median", "bootstrap_mean"),
   quantile = NULL,
   confint = FALSE,
-  conf_level = 0.9,
+  conf_level = 0.95,
   multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,

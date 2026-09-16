@@ -340,6 +340,9 @@ review follow-ups in `dev/review_round1.md`.
   `prop_evinf_better = 1` for a model that clearly wins on AIC). `compare_fit()`
   / `plot.evzinbcomp()` also gain `exclude_degenerate = TRUE`, and
   `oob_evaluation()` now honours it for a single evinf model.
+* The default `conf_level` for `predict()` and `marginal_effects()` is now
+  `0.95` (was `0.9`), matching `confint()` and `tidy()`. Pass
+  `conf_level = 0.9` explicitly to keep the old default.
 
 ## Documentation
 

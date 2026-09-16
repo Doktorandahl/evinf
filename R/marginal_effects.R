@@ -228,7 +228,7 @@ marginal_effects <- function(object, variables = NULL,
                              type = c("harmonic", "states", "quantile"),
                              quantile = NULL, at = list(),
                              method = c("derivative", "difference"),
-                             eps = 1e-4, delta = 1, conf_level = 0.9,
+                             eps = 1e-4, delta = 1, conf_level = 0.95,
                              newdata = NULL, n_max = 500,
                              exclude_degenerate = TRUE,
                              multicore = NULL, ncores = NULL) {

@@ -13,7 +13,7 @@ marginal_effects(
   method = c("derivative", "difference"),
   eps = 1e-04,
   delta = 1,
-  conf_level = 0.9,
+  conf_level = 0.95,
   newdata = NULL,
   n_max = 500,
   exclude_degenerate = TRUE,

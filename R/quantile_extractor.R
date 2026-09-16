@@ -1,3 +1,18 @@
+# Clamp fitted Pareto alpha values away from 0 before quantile inversion
+# (shared by quantiles_from_evzinb() / quantiles_from_evinb(), audit0.10
+# §1.13, D.5): mixture_quantile()'s bisection needs a finite, well-behaved
+# alpha, and values below 1e-02 make the continuous-Pareto inverse CDF
+# numerically unstable.
+evinf_clamp_pareto_alpha <- function(alpha) {
+  if (min(alpha) < 1e-02) {
+    warning(
+      "Fitted pareto alpha-values below 1e-02 detected. Setting those alphas to 1e-02 for quantile prediction"
+    )
+    alpha[alpha < 1e-02] <- 1e-02
+  }
+  alpha
+}
+
 #' Extracting full mixture quantiles from an evzinb object
 #'
 #' @param object  An evzinb object for which to produce quantiles
@@ -28,12 +43,7 @@ quantiles_from_evzinb <- function(
   prbs <- prob_from_evzinb(object, newdata = newdata)
   cnts <- counts_from_evzinb(object, newdata = newdata)
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
-  if (min(alphs$pareto_alpha) < 1e-02) {
-    warning(
-      'Fitted pareto alpha-values below 1e-02 detected. Setting those alphas to 1e-02 for quantile prediction'
-    )
-    alphs$pareto_alpha[alphs$pareto_alpha < 1e-02] <- 1e-02
-  }
+  alphs$pareto_alpha <- evinf_clamp_pareto_alpha(alphs$pareto_alpha)
 
   q <- mixture_quantile(
     quantile,
@@ -78,6 +88,7 @@ quantiles_from_evinb <- function(
   prbs <- prob_from_evinb(object, newdata = newdata)
   cnts <- counts_from_evzinb(object, newdata = newdata)
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
+  alphs$pareto_alpha <- evinf_clamp_pareto_alpha(alphs$pareto_alpha)
 
   q <- mixture_quantile(
     quantile,

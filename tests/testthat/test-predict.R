@@ -6,6 +6,12 @@ evzinb_types <- c("harmonic", "explog", "counts", "pareto_alpha", "zi", "evinf",
 evinb_types  <- c("harmonic", "explog", "counts", "pareto_alpha", "evinf",
                   "count_state", "states", "all")
 
+test_that("predict()/marginal_effects() default conf_level is 0.95, matching confint()/tidy() (audit0.10 §1.13, D.5)", {
+  expect_equal(formals(predict.evzinb)$conf_level, 0.95)
+  expect_equal(formals(predict.evinb)$conf_level, 0.95)
+  expect_equal(formals(marginal_effects)$conf_level, 0.95)
+})
+
 test_that("predict.evzinb() returns a value for every prediction type", {
   m <- fit_evzinb_fast(n_bootstraps = 5)
   n <- nrow(m$data$data)
