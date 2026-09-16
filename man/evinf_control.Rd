@@ -54,7 +54,14 @@ inflation, count and Pareto components.}
 
 \item{no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl}{Number of BFGS steps per M-step for the multinomial, count and Pareto blocks.}
 
-\item{pdf.pl.type}{Pareto density approximation: \code{"approx"} or \code{"exact"}.}
+\item{pdf.pl.type}{Which Pareto-block derivatives the M-step uses for
+\eqn{\beta_{PL}}: \code{"approx"} (the default) uses the gradient/Hessian
+of the \emph{continuous} Pareto log-density; \code{"exact"} uses the
+gradient/Hessian of the \emph{discretised} Pareto log-pmf that the
+likelihood itself always uses (this only changes the Newton step taken
+each M-step, not what is being maximised). The two typically converge to
+nearly the same estimates; \code{"exact"} can help when \code{"approx"}'s
+steps are poorly scaled for a heavy-tailed fit.}
 
 \item{eta.int}{Interval for the eta line search, a numeric vector of length 2.}
 

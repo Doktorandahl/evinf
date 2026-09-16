@@ -167,6 +167,45 @@ arma::mat d2elldbeta2_pl_i_fun_approx(arma::vec beta_pl,double c_pl, arma::vec x
   return(hessian_pl_i);
 }
 
+// Shared derivative pieces for the exact discretised-Pareto gradient/Hessian
+// (audit0.10 §1.8): with alpha = exp(x'b), u = (C/y)^alpha, v = (C/(y+1))^alpha,
+// L1 = log(C/y), L2 = log(C/(y+1)), l = log(u - v):
+//   dl/dalpha    = (u*L1 - v*L2) / (u - v)
+//   d2l/dalpha2  = (u*L1^2 - v*L2^2) / (u - v) - (dl/dalpha)^2
+// u - v is computed in the same cancellation-free form as ell_pl_i_fun().
+struct pareto_exact_derivs {
+  double alpha_i, dl_dalpha, d2l_dalpha2;
+};
+pareto_exact_derivs pareto_exact_derivs_fun(arma::vec beta_pl, double c_pl,
+                                            arma::vec x_pl_ext_i, double y_i) {
+  double lp = (trans(x_pl_ext_i)*beta_pl).eval()(0,0);
+  double alpha_i = exp(lp);
+  double L1 = log(c_pl / y_i);
+  double L2 = log(c_pl / (y_i + 1));
+  double u = exp(alpha_i * L1);
+  double v = exp(alpha_i * L2);
+  double diff = u * (-expm1(alpha_i * (L2 - L1)));
+  double dl_dalpha = (u * L1 - v * L2) / diff;
+  double d2l_dalpha2 = (u * L1 * L1 - v * L2 * L2) / diff - dl_dalpha * dl_dalpha;
+  pareto_exact_derivs out = {alpha_i, dl_dalpha, d2l_dalpha2};
+  return out;
+}
+
+//[[Rcpp::export]]
+arma::vec delldbeta_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_pl_ext_i, double y_i){
+  pareto_exact_derivs d = pareto_exact_derivs_fun(beta_pl, c_pl, x_pl_ext_i, y_i);
+  arma::vec delldbeta_pl_i = x_pl_ext_i * (d.alpha_i * d.dl_dalpha);
+  return(delldbeta_pl_i);
+}
+
+//[[Rcpp::export]]
+arma::mat d2elldbeta2_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_pl_ext_i, double y_i){
+  pareto_exact_derivs d = pareto_exact_derivs_fun(beta_pl, c_pl, x_pl_ext_i, y_i);
+  arma::mat hessian_pl_i = x_pl_ext_i*trans(x_pl_ext_i) *
+    (d.alpha_i * d.dl_dalpha + d.alpha_i * d.alpha_i * d.d2l_dalpha2);
+  return(hessian_pl_i);
+}
+
 //[[Rcpp::export]]
 double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb){
 
@@ -244,7 +283,7 @@ arma::mat safe_newton_step(const arma::mat &H, const arma::mat &g) {
 }
 
 //[[Rcpp::export]]
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb){
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, bool exact_pl = false){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -356,8 +395,14 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
     for(int i=0; i<n; i++){
       if(y(i)>=c_pl){
-        dQdbeta_pl = dQdbeta_pl + delldbeta_pl_i_fun_approx(beta_pl_old,c_pl,trans(x_pl_ext.submat(i,0,i,n_pl-1)),y(i))*resp(i,2);
-        d2Qdbeta2_pl = d2Qdbeta2_pl + d2elldbeta2_pl_i_fun_approx(beta_pl_old,c_pl,trans(x_pl_ext.submat(i,0,i,n_pl-1)),y(i))*resp(i,2);
+        arma::vec x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
+        if (exact_pl) {
+          dQdbeta_pl = dQdbeta_pl + delldbeta_pl_i_fun_exact(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
+          d2Qdbeta2_pl = d2Qdbeta2_pl + d2elldbeta2_pl_i_fun_exact(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
+        } else {
+          dQdbeta_pl = dQdbeta_pl + delldbeta_pl_i_fun_approx(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
+          d2Qdbeta2_pl = d2Qdbeta2_pl + d2elldbeta2_pl_i_fun_approx(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
+        }
       }
     }
 

@@ -23,7 +23,14 @@
 #'   inflation, count and Pareto components.
 #' @param no.m.bfgs.steps.multinomial,no.m.bfgs.steps.nb,no.m.bfgs.steps.pl
 #'   Number of BFGS steps per M-step for the multinomial, count and Pareto blocks.
-#' @param pdf.pl.type Pareto density approximation: \code{"approx"} or \code{"exact"}.
+#' @param pdf.pl.type Which Pareto-block derivatives the M-step uses for
+#'   \eqn{\beta_{PL}}: \code{"approx"} (the default) uses the gradient/Hessian
+#'   of the \emph{continuous} Pareto log-density; \code{"exact"} uses the
+#'   gradient/Hessian of the \emph{discretised} Pareto log-pmf that the
+#'   likelihood itself always uses (this only changes the Newton step taken
+#'   each M-step, not what is being maximised). The two typically converge to
+#'   nearly the same estimates; \code{"exact"} can help when \code{"approx"}'s
+#'   steps are poorly scaled for a heavy-tailed fit.
 #' @param eta.int Interval for the eta line search, a numeric vector of length 2.
 #' @param init.Beta.multinom.ZC,init.Beta.multinom.PL,init.Beta.NB,init.Beta.PL
 #'   Optional starting values for the component coefficient vectors (\code{NULL}

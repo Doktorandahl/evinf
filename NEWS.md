@@ -227,6 +227,14 @@ review follow-ups in `dev/review_round1.md`.
   setting added to `evinf_control()` after the model was fitted (e.g.
   `max.c.iter`) is carried over automatically instead of needing to be added
   to a hand-picked argument list (audit0.10 §1.7).
+* `evinf_control(pdf.pl.type = "exact")` was accepted and stored but had no
+  effect: the M-step always used the continuous-Pareto gradient/Hessian for
+  the Pareto block, giving bit-identical estimates to `"approx"`. `"exact"`
+  now uses the analytic gradient/Hessian of the *discretised* Pareto log-pmf
+  (the pmf the likelihood itself always uses) in the Newton step, computed in
+  the same cancellation-free form as the likelihood (audit0.10 §1.11). The
+  default stays `"approx"`, and default estimates are unchanged. See
+  `?evinf_control` for what each option does (audit0.10 §1.8).
 
 ## Breaking changes / deprecations
 
