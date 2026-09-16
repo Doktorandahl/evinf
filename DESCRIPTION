@@ -39,6 +39,7 @@ Suggests:
     ggplot2 (>= 3.5.0),
     marginaleffects,
     insight,
+    broom,
     covr,
     quarto,
     withr

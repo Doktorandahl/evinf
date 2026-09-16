@@ -43,7 +43,8 @@
 #' tidy(model)
 #'
 #' # multi-component table with modelsummary
-#' if (requireNamespace("modelsummary", quietly = TRUE)) {
+#' if (requireNamespace("modelsummary", quietly = TRUE) &&
+#'     requireNamespace("broom", quietly = TRUE)) {
 #'   modelsummary::modelsummary(
 #'     model,
 #'     shape = term + y.level ~ model,

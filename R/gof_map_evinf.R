@@ -35,7 +35,8 @@
 #' \donttest{
 #' data(genevzinb2)
 #' model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
-#' if (requireNamespace("modelsummary", quietly = TRUE)) {
+#' if (requireNamespace("modelsummary", quietly = TRUE) &&
+#'     requireNamespace("broom", quietly = TRUE)) {
 #'   modelsummary::modelsummary(
 #'     model,
 #'     shape = term + y.level ~ model,
