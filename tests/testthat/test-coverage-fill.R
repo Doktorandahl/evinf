@@ -2,7 +2,14 @@
 # bootstrap_mean / bootstrap_median prediction paths.
 
 test_that("evinf_pmap() runs its progressr path and is seed-stable", {
-  old <- progressr::handlers("void")
+  # audit0.10 §2.1 (E.1): capture the prior handler via the plain getter
+  # (always a real list) rather than the setter's return value, which on
+  # progressr 0.14.0 was NULL when no handler had been set yet -- and
+  # `handlers(NULL)` fails progressr's own length(handler) == 1L check.
+  # Fixed in progressr upstream (0.15.0), but this sidesteps the setter's
+  # return value entirely rather than adding a version floor for it.
+  old <- progressr::handlers()
+  progressr::handlers("void")
   on.exit(progressr::handlers(old), add = TRUE)
 
   out <- evinf:::evinf_pmap(1:3, function(i) i^2, seed = 1L, label = "x",
