@@ -253,6 +253,14 @@ review follow-ups in `dev/review_round1.md`.
   propagate to a component formula that was originally left `NULL` and
   inherited from it -- that component keeps its own formula regardless
   (audit0.10 §1.11).
+* `object$props` / `object$resp` (and the `fitted$prob_*` / `posterior_*`
+  vectors derived from them) came from the E-step at the *start* of the last
+  EM step, one step behind the returned coefficients. They are now
+  recomputed at the actual returned parameters and final C_EV before
+  `evzinb()` / `evinb()` return, using the same stable softmax as the C++
+  E-step. Point predictions (`predict(type = "harmonic")` etc.) are
+  unaffected -- only these diagnostic quantities change, by up to ~0.008 on
+  the bundled example data (audit0.10 §1.11).
 
 ## Breaking changes / deprecations
 

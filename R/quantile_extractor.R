@@ -96,6 +96,23 @@ quantiles_from_evinb <- function(
   }
 }
 
+# Stable 3-category softmax (implicit zero logit for the count/baseline
+# category), shared by prob_from_evzinb() / prob_from_evinb() and em_fit()'s
+# final state-probability recompute (audit0.10 §1.11, D.3). eta_z / eta_pl are
+# numeric vectors of linear predictors (already X %*% coef); subtracting the
+# row max (including the implicit 0) before exponentiating means the largest
+# exp() argument is always 0, so a large coefficient (coef_limit allows up to
+# 50) cannot overflow it. Passing eta_z = -Inf gives the 2-category (evinb)
+# softmax as a special case (its "zero" column is then exactly 0 everywhere).
+evinf_stable_props3 <- function(eta_z, eta_pl) {
+  m <- pmax(0, eta_z, eta_pl)
+  base <- exp(-m)
+  d_z <- exp(eta_z - m)
+  d_pl <- exp(eta_pl - m)
+  denom <- base + d_z + d_pl
+  cbind(zero = d_z / denom, count = base / denom, evi = d_pl / denom)
+}
+
 #' Extracting state probabilities from an evzinb object
 #'
 #' @param object An evzinb object for which to produce probabilities
@@ -121,22 +138,14 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
   eta_zc <- as.numeric(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC)
   eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
 
-  # audit0.10 §1.11: stable softmax -- subtract the row max linear predictor
-  # (including the implicit 0 for the count/baseline category) before
-  # exponentiating, so a large linear predictor (coef_limit allows up to 50)
-  # cannot overflow exp(). pr_count is now computed directly (never by
-  # subtraction), so it is a proper probability by construction and cannot
-  # come out negative.
-  m <- pmax(0, eta_zc, eta_pl)
-  base <- exp(-m)
-  d_z <- exp(eta_zc - m)
-  d_pl <- exp(eta_pl - m)
-  denom <- base + d_z + d_pl
+  # pr_count is computed directly (never by subtraction), so it is a proper
+  # probability by construction and cannot come out negative.
+  sp <- evinf_stable_props3(eta_zc, eta_pl)
 
   out <- tibble::tibble(
-    pr_zc = d_z / denom,
-    pr_count = base / denom,
-    pr_pareto = d_pl / denom
+    pr_zc = sp[, "zero"],
+    pr_count = sp[, "count"],
+    pr_pareto = sp[, "evi"]
   )
 
   if (return_data) {
@@ -173,16 +182,13 @@ prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   #      exp(cbind(1,x.multinom.pl)%*%object$coef$Beta.multinom.PL))
   #
 
-  # audit0.10 §1.11: stable 2-category softmax, see prob_from_evzinb().
+  # audit0.10 §1.11: stable 2-category softmax, see evinf_stable_props3().
   eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
-  m <- pmax(0, eta_pl)
-  base <- exp(-m)
-  d_pl <- exp(eta_pl - m)
-  denom <- base + d_pl
+  sp <- evinf_stable_props3(rep(-Inf, length(eta_pl)), eta_pl)
 
   out <- tibble::tibble(
-    pr_count = base / denom,
-    pr_pareto = d_pl / denom
+    pr_count = sp[, "count"],
+    pr_pareto = sp[, "evi"]
   )
 
   if (return_data) {

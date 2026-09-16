@@ -148,7 +148,28 @@ em_fit <- function(y, x.obj, ini.val, control,
   final.val <- prel.val
   props.old <- prel.val$Props
 
-  fv <- em_fitted_values(x.obj, prel.val, props.old, c.pl.new, model = model)
+  # audit0.10 §1.11 (D.3): keep computing the point predictions (y.hat.pl_*)
+  # from the pre-recompute props.old, exactly as before -- em_fitted_values()'s
+  # mu.nb.vec / alpha.pl.vec don't depend on props at all, only its y.hat.pl_*
+  # weighting does, and that weighting is out of scope for this item (D.4
+  # covers point predictions separately).
+  fv <- em_fitted_values(x.obj, final.val, props.old, c.pl.new, model = model)
+
+  # par.mat$Props / resp came from step$upd_obj at the START of the last EM
+  # step (em_fit_fixed_c()), i.e. one step behind the returned parameters
+  # (par <- step$par happens after upd_obj is computed). Recompute both at
+  # the actual returned parameters and the final C_EV -- this is what
+  # object$props / object$resp (and the fitted$prob_* / posterior_* vectors
+  # derived from them) end up as -- using the same stable softmax as the
+  # C++ E-step (fill_props_row()) and the R-side E-step responsibilities
+  # formula.
+  final.val$Props <- evinf_stable_props3(
+    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
+    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
+  )
+  final.resp <- evinf_responsibilities(
+    y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props
+  )
 
   par.all <- c(
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
@@ -177,7 +198,7 @@ em_fit <- function(y, x.obj, ini.val, control,
     c_profile        = data.frame(c = c.range, loglik = log.lik.vec),
     c_trace          = c_trace,
     log.lik          = func.val,
-    resp             = est.obj$resp,
+    resp             = final.resp,
     converge         = est.obj$converge && c_converged,
     c_converged      = c_converged,
     ini.val          = ini.val,
