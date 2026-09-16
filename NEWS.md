@@ -205,6 +205,19 @@ review follow-ups in `dev/review_round1.md`.
   log-likelihood by at most ~7e-12 on the identity fixtures -- well under the
   1e-6 the round's numerical-identity gate would have required flagging
   (audit0.10 §1.11).
+* `evzinb()` / `evinb()` now validate the response after `na.omit()`: a
+  negative, non-finite or non-integer value errors, naming the count and the
+  problem, instead of being silently misread (a non-integer count is
+  effectively ceiling()'d by the NB part of the C++ code but used exactly by
+  the Pareto part; a negative one produced a cryptic "argument is of length
+  zero" several layers down). `evinf_control(prune.c.range = )` now requires
+  `[0, 1)` (was `[0, 1]`; `1` passed validation but crashed with "invalid
+  'size' argument"); `em_c_candidates()` clamps its internal sample size to
+  `>= 0`, skips pruning entirely below 3 candidates, and no longer risks
+  `sample()`'s length-1-population trap (`sample(2, ...)` samples from `1:2`,
+  not the single candidate `2`) on a 3-value grid. Pruning's random draw is
+  now reproducible without touching the caller's `.Random.seed`, via a
+  generalised `evinf_seeded_sample()` (audit0.10 §1.9).
 
 ## Breaking changes / deprecations
 

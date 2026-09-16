@@ -45,6 +45,7 @@ run_evinb <- function(
   offset_nb <- d_nb$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
+  evinf_check_response(as.numeric(OBS.Y))
 
   # Resolve NULL c.lim / init.C against the data (audit 4.5).
   control <- evinf_resolve_c(control, as.numeric(OBS.Y))

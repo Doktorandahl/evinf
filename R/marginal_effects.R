@@ -21,10 +21,12 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
 
 .me_colmeans <- function(x) if (is.matrix(x)) colMeans(x) else mean(x)
 
-# sample.int() with an optional seed, leaving the caller's RNG state untouched.
-evinf_seeded_sample <- function(n, size, seed = NULL) {
+# sample.int() with an optional seed and sampling weights, leaving the
+# caller's RNG state untouched (audit0.10 §1.9: reused by em_c_candidates()'s
+# pruning, which previously used sample() on the global RNG).
+evinf_seeded_sample <- function(n, size, seed = NULL, prob = NULL) {
   if (is.null(seed)) {
-    return(sample.int(n, size))
+    return(sample.int(n, size, prob = prob))
   }
   had <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
   if (had) saved <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
@@ -36,7 +38,7 @@ evinf_seeded_sample <- function(n, size, seed = NULL) {
     }
   }, add = TRUE)
   set.seed(seed)
-  sample.int(n, size)
+  sample.int(n, size, prob = prob)
 }
 
 # AME of one variable for one fit; returns a named vector (length 1 for scalar

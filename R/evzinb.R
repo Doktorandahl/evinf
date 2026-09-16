@@ -51,6 +51,7 @@ run_evzinb <- function(
   offset_nb <- d_nb$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
+  evinf_check_response(as.numeric(OBS.Y))
 
   # Resolve NULL c.lim / init.C against the data (audit 4.5). This is the single
   # resolution point; lr_test() refits pass a concrete c.lim so no message fires.

@@ -16,7 +16,7 @@
 #' @param c.lim \code{NULL} or a numeric vector of length 2. The candidate set for
 #'   \eqn{C_{EV}} is the unique observed response values within this range.
 #'   \code{NULL} (the default) uses a data-driven range (see Details).
-#' @param prune.c.range \code{FALSE}, or a number in \[0, 1]: thin the candidate
+#' @param prune.c.range \code{FALSE}, or a number in \[0, 1): thin the candidate
 #'   set to about \code{length(c.lim) * (1 - prune.c.range)} values.
 #' @param max.upd.par.zc.multinomial,max.upd.par.pl.multinomial,max.upd.par.nb,max.upd.par.pl
 #'   Maximum parameter-change step sizes for the zero-inflation, extreme-value
@@ -165,8 +165,8 @@ validate_evinf_control <- function(control) {
 
   if (!identical(control$prune.c.range, FALSE)) {
     p <- control$prune.c.range
-    if (!is.numeric(p) || length(p) != 1L || is.na(p) || p < 0 || p > 1) {
-      stop("evinf_control(): `prune.c.range` must be FALSE or a number in [0, 1].",
+    if (!is.numeric(p) || length(p) != 1L || is.na(p) || p < 0 || p >= 1) {
+      stop("evinf_control(): `prune.c.range` must be FALSE or a number in [0, 1).",
            call. = FALSE)
     }
   }

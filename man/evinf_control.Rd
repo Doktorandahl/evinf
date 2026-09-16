@@ -46,7 +46,7 @@ with the same \code{boot_seed} settle in different ones (see the
 \eqn{C_{EV}} is the unique observed response values within this range.
 \code{NULL} (the default) uses a data-driven range (see Details).}
 
-\item{prune.c.range}{\code{FALSE}, or a number in \[0, 1]: thin the candidate
+\item{prune.c.range}{\code{FALSE}, or a number in \[0, 1): thin the candidate
 set to about \code{length(c.lim) * (1 - prune.c.range)} values.}
 
 \item{max.upd.par.zc.multinomial, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl}{Maximum parameter-change step sizes for the zero-inflation, extreme-value
