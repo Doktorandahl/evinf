@@ -52,6 +52,12 @@ test_that("lr_test(bootstrap = TRUE) survives a try-error replicate (audit0.10 �
   expect_true(all(!is.na(bs$ll_full)))
 })
 
+test_that("lr_test() refits emit no deprecation warning (audit0.10 §1.7)", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  expect_no_warning(lr_test(m, "x1"))
+  expect_no_warning(lr_test(m, "x1", bootstrap = TRUE))
+})
+
 test_that("lr_test(bootstrap = TRUE) excludes degenerate replicates by default (audit0.10 §1.1)", {
   m <- fit_evzinb_fast(n_bootstraps = 6)
   m$bootstraps[[3]]$degenerate <- TRUE

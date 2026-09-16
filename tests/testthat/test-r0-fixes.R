@@ -27,10 +27,11 @@ test_that("lr_test() refits use the full model's control settings (R0.2)", {
     control = evinf_control(c.lim = c(20, 500))
   ))
   reduced <- formula_var_remover(m$formulas, "x1", m$data$data)$formulas
-  args <- restricted_fit_args(m, reduced, m$data$data)
-  expect_equal(args$c.lim, c(20, 500))
-  expect_equal(args$init.C, as.numeric(m$coef$C))
-  expect_equal(args$init.Alpha.NB, as.numeric(m$coef$Alpha.NB))
+  ctrl <- restricted_control(m, reduced, m$data$data)
+  expect_s3_class(ctrl, "evinf_control")
+  expect_equal(ctrl$c.lim, c(20, 500))
+  expect_equal(ctrl$init.C, as.numeric(m$coef$C))
+  expect_equal(ctrl$init.Alpha.NB, as.numeric(m$coef$Alpha.NB))
 
   res <- suppressWarnings(suppressMessages(lr_test(m, "x1")))
   expect_gte(res$statistic, 0)

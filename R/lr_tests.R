@@ -10,19 +10,18 @@
 #   data     the (possibly resampled) data to fit on
 #   obj      a stand-in carrying only $control and $coef, with the model class
 #   md       the full model data (for resolving reduced design column names)
+#
+# audit0.10 §1.7: passed as control = restricted_control(...) rather than the
+# ~20 individual tuning arguments, so nothing reaches resolve_evinf_control()'s
+# deprecation warning (which fires on exactly those arguments).
 lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
+  ctrl <- restricted_control(obj, reduced, md)
   if (inherits(obj, "evzinb")) {
-    do.call(evinf::evzinb, c(
-      list(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
-           data = data, bootstrap = FALSE, verbose = verbose),
-      restricted_fit_args(obj, reduced, md)
-    ))
+    evinf::evzinb(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
+                 data = data, control = ctrl, bootstrap = FALSE, verbose = verbose)
   } else {
-    do.call(evinf::evinb, c(
-      list(reduced$nb, reduced$evinf, reduced$pareto,
-           data = data, bootstrap = FALSE, verbose = verbose),
-      restricted_fit_args(obj, reduced, md)
-    ))
+    evinf::evinb(reduced$nb, reduced$evinf, reduced$pareto,
+                data = data, control = ctrl, bootstrap = FALSE, verbose = verbose)
   }
 }
 
@@ -238,16 +237,23 @@ formula_var_remover <- function(formulas, vars, data){
 }
 
 
-#' Control + warm-start arguments for the restricted LR-test refits (audit R0.2)
+#' A copy of the full model's control, warm-started at its estimates (audit0.10 §1.7)
+#'
+#' Returns a modified copy of \code{object$control} with the \code{init.*}
+#' fields (and \code{init.C}) set from the full-model estimate, so the
+#' restricted refit is genuinely nested (same tuning settings, same C_EV
+#' candidate grid) and starts near the constrained optimum. Every other
+#' tuning setting -- including ones added after this object was fitted, e.g.
+#' \code{max.c.iter} -- is carried over unchanged because it is a copy of the
+#' same \code{evinf_control} object, not a hand-picked subset of arguments.
 #'
 #' @param object The fitted evzinb/evinb object.
 #' @param reduced The \code{$formulas} list from \code{formula_var_remover()}.
 #' @param data The full model data (for resolving the reduced design column names).
-#' @return A named list of arguments to pass to \code{evzinb()} / \code{evinb()}.
+#' @return A modified \code{evinf_control} object.
 #' @noRd
-restricted_fit_args <- function(object, reduced, data) {
+restricted_control <- function(object, reduced, data) {
   ctrl <- object$control
-  is_zinb <- inherits(object, 'evzinb')
 
   # Retained coefficients start from the full-model estimate; anything the
   # reduced design somehow adds (it never should) starts at zero.
@@ -261,29 +267,13 @@ restricted_fit_args <- function(object, reduced, data) {
     as.numeric(v)
   }
 
-  args <- list(
-    max.diff.par = ctrl$max.diff.par,
-    max.no.em.steps = ctrl$max.no.em.steps,
-    max.no.em.steps.warmup = ctrl$max.no.em.steps.warmup,
-    c.lim = ctrl$c.lim,
-    prune.c.range = ctrl$prune.c.range,
-    max.upd.par.pl.multinomial = ctrl$max.upd.par.pl.multinomial,
-    max.upd.par.nb = ctrl$max.upd.par.nb,
-    max.upd.par.pl = ctrl$max.upd.par.pl,
-    no.m.bfgs.steps.multinomial = ctrl$no.m.bfgs.steps.multinomial,
-    no.m.bfgs.steps.nb = ctrl$no.m.bfgs.steps.nb,
-    no.m.bfgs.steps.pl = ctrl$no.m.bfgs.steps.pl,
-    pdf.pl.type = ctrl$pdf.pl.type,
-    eta.int = ctrl$eta.int,
-    init.Alpha.NB = as.numeric(object$coef$Alpha.NB),
-    init.C = as.numeric(object$coef$C),
-    init.Beta.NB = beta_start(object$coef$Beta.NB, reduced$nb),
-    init.Beta.multinom.PL = beta_start(object$coef$Beta.multinom.PL, reduced$evinf),
-    init.Beta.PL = beta_start(object$coef$Beta.PL, reduced$pareto)
-  )
-  if (is_zinb) {
-    args$max.upd.par.zc.multinomial <- ctrl$max.upd.par.zc.multinomial
-    args$init.Beta.multinom.ZC <- beta_start(object$coef$Beta.multinom.ZC, reduced$zi)
+  ctrl$init.Alpha.NB <- as.numeric(object$coef$Alpha.NB)
+  ctrl$init.C <- as.numeric(object$coef$C)
+  ctrl$init.Beta.NB <- beta_start(object$coef$Beta.NB, reduced$nb)
+  ctrl$init.Beta.multinom.PL <- beta_start(object$coef$Beta.multinom.PL, reduced$evinf)
+  ctrl$init.Beta.PL <- beta_start(object$coef$Beta.PL, reduced$pareto)
+  if (inherits(object, 'evzinb')) {
+    ctrl$init.Beta.multinom.ZC <- beta_start(object$coef$Beta.multinom.ZC, reduced$zi)
   }
-  args
+  ctrl
 }

@@ -219,6 +219,14 @@ review follow-ups in `dev/review_round1.md`.
   not the single candidate `2`) on a 3-value grid. Pruning's random draw is
   now reproducible without touching the caller's `.Random.seed`, via a
   generalised `evinf_seeded_sample()` (audit0.10 §1.9).
+* `lr_test()` no longer emits `evzinb()`/`evinb()`'s deprecation warning on
+  every restricted refit (once per model, or once per model x bootstrap with
+  `bootstrap = TRUE`). The restricted refits now pass a modified copy of the
+  full model's `control` object (its `init.*` fields set from the full-model
+  estimate) instead of ~20 individual tuning arguments, which also means a
+  setting added to `evinf_control()` after the model was fitted (e.g.
+  `max.c.iter`) is carried over automatically instead of needing to be added
+  to a hand-picked argument list (audit0.10 §1.7).
 
 ## Breaking changes / deprecations
 
