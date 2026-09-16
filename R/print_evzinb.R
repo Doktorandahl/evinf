@@ -140,6 +140,8 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
   cat(model_type, 'model summary\n')
   cat(strrep('=', nchar(model_type) + 14), '\n', sep = '')
 
+  n_boot_used <- x$n_bootstraps_used %||% NA_integer_
+
   for (cn in names(x$coefficients)) {
     tab <- x$coefficients[[cn]]
     cat('\n', comp_labels[[cn]], '\n', sep = '')
@@ -157,12 +159,25 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
     cs_ind <- which(orig_names %in% c('Estimate', 'se'))
     tst_ind <- which(orig_names == 'approx_t')
     p_col <- which(orig_names %in% c('bootstrap_p', 'approx_p'))
+    # audit0.10 §1.11: a bootstrap p-value from n_boot_used draws can never
+    # resolve below ~1/n_boot_used; show "< 1/B" (e.g. "<0.01" for 100 usable
+    # bootstraps) there instead of the default eps.Pvalue's "<2e-16", which
+    # implies a precision the bootstrap never had. The tiny relative nudge
+    # makes the floored value itself (exactly 1/B) also print with "<",
+    # since format.pval()/printCoefmat() only do that for values strictly
+    # below eps.Pvalue.
+    eps_pvalue <- if ('bootstrap_p' %in% orig_names && isTRUE(n_boot_used > 0)) {
+      (1 / n_boot_used) * (1 + 1e-8)
+    } else {
+      .Machine$double.eps
+    }
     stats::printCoefmat(m, digits = digits,
                         signif.stars = signif.stars && length(p_col) > 0,
                         has.Pvalue = length(p_col) > 0,
                         P.values = length(p_col) > 0,
                         cs.ind = cs_ind,
                         tst.ind = tst_ind,
+                        eps.Pvalue = eps_pvalue,
                         na.print = '')
   }
 

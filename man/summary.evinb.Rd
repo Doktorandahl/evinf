@@ -47,6 +47,14 @@ When \code{object} was fitted with \code{bootstrap = FALSE}, the
   and bootstrapped proportions) are unavailable; the summary then reports the
   point estimates only, \code{n_failed_bootstraps} is \code{NA}, and a message
   is emitted. Requesting bootstrapped coefficients for such a model is an error.
+
+  A bootstrapped p-value is never reported below \code{1 / B}, where
+  \code{B} is the number of usable bootstrap replicates: with no draw
+  crossing the estimate, the true p-value could be anywhere in
+  \code{[0, 1/B)}, so it is floored at \code{1/B} rather than reported as
+  exactly \code{0}. \code{print.summary.evzinb()} / \code{print.summary.evinb()}
+  show this as \code{"< 1/B"} (e.g. \code{"<0.01"} for 100 usable
+  bootstraps) rather than the default, misleadingly precise \code{"<2e-16"}.
 }
 \examples{
 \donttest{

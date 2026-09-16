@@ -235,6 +235,13 @@ review follow-ups in `dev/review_round1.md`.
   the same cancellation-free form as the likelihood (audit0.10 §1.11). The
   default stays `"approx"`, and default estimates are unchanged. See
   `?evinf_control` for what each option does (audit0.10 §1.8).
+* A bootstrapped p-value of exactly `0` (no draw crossed the estimate) is now
+  floored at `1 / B`, where `B` is the number of usable bootstrap replicates
+  -- the true p-value could be anywhere in `[0, 1/B)`, so reporting exactly
+  `0` overstates the precision `B` draws can deliver.
+  `print.summary.evzinb()` / `print.summary.evinb()` show this as `"< 1/B"`
+  (e.g. `"<0.01"` for 100 usable bootstraps) instead of the default,
+  misleadingly precise `"<2e-16"` (audit0.10 §1.11).
 
 ## Breaking changes / deprecations
 

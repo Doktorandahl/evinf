@@ -80,3 +80,30 @@ test_that("tidy(standard_error = FALSE) works for every approx_t_value/p_value/c
     }
   }
 })
+
+test_that("bootstrap_p_value_calculator() floors at 1/B instead of returning 0 (audit0.10 §1.11)", {
+  x_all_positive <- rep(1, 5)  # every draw on the same side -> raw p would be 0
+  expect_equal(evinf:::bootstrap_p_value_calculator(x_all_positive, estimate = 1), 1 / 5)
+  expect_equal(evinf:::bootstrap_p_value_calculator(x_all_positive, estimate = 1, symmetric = FALSE), 1 / 5)
+
+  x_mixed <- c(-1, 1, 1, 1, 1)  # 1/5 crossed zero -> raw p = 2/5, above the floor
+  expect_equal(evinf:::bootstrap_p_value_calculator(x_mixed, estimate = 1), 2 / 5)
+})
+
+test_that("print(summary()) shows '< 1/B' instead of '<2e-16' for a floored bootstrap p-value (audit0.10 §1.11)", {
+  m <- fit_evzinb_fast(n_bootstraps = 6)
+  # Force every usable replicate's x1 (count component) to the same sign, so
+  # its bootstrapped p-value is genuinely floored at 1/n_bootstraps_used.
+  for (i in seq_along(m$bootstraps)) {
+    if (!inherits(m$bootstraps[[i]], "try-error")) {
+      m$bootstraps[[i]]$coef$Beta.NB["x1"] <- abs(m$bootstraps[[i]]$coef$Beta.NB["x1"]) + 1
+    }
+  }
+  s <- suppressWarnings(summary(m, p_value = "bootstrapped"))
+  out <- capture.output(print(s))
+  # the row we forced to one sign (count component's x1) shows a
+  # "<"-prefixed (floored) p-value, not the raw exact-zero value.
+  x1_line <- out[grepl("^x1\\s", out)][1]
+  expect_match(x1_line, "<")
+  expect_false(any(grepl("2e-16", out)))
+})

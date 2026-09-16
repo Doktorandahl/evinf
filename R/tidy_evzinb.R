@@ -20,6 +20,12 @@
 #'   estimate column is returned on its own and a message is emitted. Requesting
 #'   bootstrapped coefficients for such a model is an error.
 #'
+#'   A bootstrapped \code{p.value} is never reported below \code{1 / B}, where
+#'   \code{B} is the number of usable bootstrap replicates: with no draw
+#'   crossing the estimate, the true p-value could be anywhere in
+#'   \code{[0, 1/B)}, so it is floored at \code{1/B} rather than reported as
+#'   exactly \code{0}.
+#'
 #'   With \code{component = "all"} the output has one row per coefficient
 #'   \emph{per component} (a \code{y.level} column names the component). Like
 #'   \code{nnet::multinom()}, this multi-component shape cannot be rendered by

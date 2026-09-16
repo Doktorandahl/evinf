@@ -16,6 +16,14 @@
 #'   point estimates only, \code{n_failed_bootstraps} is \code{NA}, and a message
 #'   is emitted. Requesting bootstrapped coefficients for such a model is an error.
 #'
+#'   A bootstrapped p-value is never reported below \code{1 / B}, where
+#'   \code{B} is the number of usable bootstrap replicates: with no draw
+#'   crossing the estimate, the true p-value could be anywhere in
+#'   \code{[0, 1/B)}, so it is floored at \code{1/B} rather than reported as
+#'   exactly \code{0}. \code{print.summary.evzinb()} / \code{print.summary.evinb()}
+#'   show this as \code{"< 1/B"} (e.g. \code{"<0.01"} for 100 usable
+#'   bootstraps) rather than the default, misleadingly precise \code{"<2e-16"}.
+#'
 #' @return An EVZINB summary object
 #' @export
 #'
@@ -46,7 +54,8 @@ summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bo
               model_statistics = parts$model_statistics,
               component_proportions = parts$component_proportions,
               n_failed_bootstraps = parts$n_failed_bootstraps,
-              n_degenerate_bootstraps = parts$n_degenerate_bootstraps)
+              n_degenerate_bootstraps = parts$n_degenerate_bootstraps,
+              n_bootstraps_used = parts$n_bootstraps_used)
   class(res) <- 'summary.evzinb'
   res
 }
@@ -95,7 +104,8 @@ summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'boo
               model_statistics = parts$model_statistics,
               component_proportions = parts$component_proportions,
               n_failed_bootstraps = parts$n_failed_bootstraps,
-              n_degenerate_bootstraps = parts$n_degenerate_bootstraps)
+              n_degenerate_bootstraps = parts$n_degenerate_bootstraps,
+              n_bootstraps_used = parts$n_bootstraps_used)
   class(res) <- 'summary.evinb'
   res
 }
@@ -110,6 +120,7 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
   has_boot <- !is.null(object$bootstraps)
   n_failed_bootstraps <- NA_integer_
   n_degenerate_bootstraps <- NA_integer_
+  n_bootstraps_used <- NA_integer_
 
   if (!has_boot) {
     if (coef != 'original') {
@@ -155,6 +166,7 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
     bc <- evinf_boot_counts(object)
     n_failed_bootstraps <- bc$n_failed_bootstraps
     n_degenerate_bootstraps <- bc$n_degenerate_bootstraps
+    n_bootstraps_used <- bc$n_bootstraps
     object$bootstraps <- evinf_usable_bootstraps(object, exclude_degenerate)
 
     boot_long <- function(slot) {
@@ -255,7 +267,8 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
                             loglik_recomputed = isTRUE(object$loglik_recomputed)),
     component_proportions = props,
     n_failed_bootstraps = n_failed_bootstraps,
-    n_degenerate_bootstraps = n_degenerate_bootstraps
+    n_degenerate_bootstraps = n_degenerate_bootstraps,
+    n_bootstraps_used = n_bootstraps_used
   )
 }
 
@@ -273,13 +286,17 @@ bootstrap_p_value_calculator <- function(x,estimate = NULL, estimate_fallback = 
     estimate_fallback <- match.arg(estimate_fallback,c('median','mean'))
     estimate <- do.call(estimate_fallback,list(x=x))
   }
-  if(symmetric){
+  p <- if(symmetric){
    if(estimate>=0){
-     return(min(1,2*mean(x<0)))
+     min(1,2*mean(x<0))
    }else{
-     return(min(1,2*mean(x>=0)))
+     min(1,2*mean(x>=0))
    }
   }else{
-    return(mean(abs(x-estimate)>=abs(estimate)))
+    mean(abs(x-estimate)>=abs(estimate))
   }
+  # audit0.10 §1.11: the smallest p resolvable from B draws is ~1/B (no draw
+  # crossed the estimate); floor there instead of reporting exactly 0, which
+  # printCoefmat() would otherwise show as the misleadingly precise "<2e-16".
+  max(p, 1 / length(x))
 }
