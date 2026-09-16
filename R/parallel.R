@@ -116,7 +116,8 @@ evinf_with_plan <- function(multicore = NULL, ncores = NULL, expr) {
 # nonetheless poison the bootstrap summaries. Checks, in order, and records the
 # first matching reason (thresholds from evinf_control(): `alpha_floor`,
 # `coef_limit`):
-#   1. the EM did not converge;
+#   1. the EM did not converge (inner loop, or the C_EV profile did not settle
+#      within max.c.iter -- see $c_converged to tell these apart);
 #   2. a fitted linear-predictor coefficient or the NB dispersion is non-finite
 #      or larger than `coef_limit` in absolute value;
 #   3. the smallest fitted Pareto shape on the replicate's own resample is
@@ -128,7 +129,11 @@ evinf_flag_degenerate <- function(boot, X.PL, control) {
   reason <- NA_character_
 
   if (isFALSE(boot$converge)) {
-    reason <- "EM did not converge within max.no.em.steps"
+    reason <- if (isFALSE(boot$c_converged)) {
+      "C_EV profile did not settle within max.c.iter"
+    } else {
+      "EM did not converge within max.no.em.steps"
+    }
   }
 
   if (is.na(reason)) {

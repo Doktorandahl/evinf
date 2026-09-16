@@ -257,7 +257,8 @@ bootrun_evinb <- function(
   Ini.Val$Alpha.NB <- object$coef$Alpha.NB
   Ini.Val$C <- object$coef$C
   capture.output(
-    evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
+    evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
+                         full_sample = FALSE)
   )
 
   evinb_boot$par.mat$Beta.multinom.PL <- as.numeric(

@@ -184,6 +184,16 @@ review follow-ups in `dev/review_round1.md`.
   small ridge, and if that also fails the affected block keeps its
   pre-step value for that EM step (audit0.10 §1.3). This is also the usual
   reason a bootstrap replicate failed.
+* The EM outer loop (the C_EV profile update) could in principle run forever
+  if the profile oscillated between two candidate values. `evinf_control()`
+  gains `max.c.iter` (default 50), capping each phase separately; hitting the
+  cap in the convergence phase sets `converge = FALSE` (see the new
+  `$c_converged` / `glance()` column to tell this apart from the inner EM not
+  converging) and, for a full-sample fit, a `warning()` names the last two
+  C_EV values visited. `em_profile_c()` also now uses `which.max()`, so an
+  exact tie in the profile no longer returns a length > 1 `c_hat` and every
+  candidate being `NaN`/infinite errors clearly instead of silently breaking
+  the outer loop (audit0.10 §1.4).
 
 ## Breaking changes / deprecations
 

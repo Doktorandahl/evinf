@@ -16,7 +16,8 @@
 #'   \code{fmt} (default number of decimals). Rows: observations, parameters,
 #'   alpha_NB, C_EV, observations at or above C_EV, log-likelihood, AIC, BIC,
 #'   the usable / failed / degenerate bootstrap counts, the number of bootstrap
-#'   replicates with C_EV on the candidate-grid boundary, and convergence.
+#'   replicates with C_EV on the candidate-grid boundary, and convergence (both
+#'   of the EM loop and of the C_EV profile).
 #'
 #' @details The coefficient table produced by \code{tidy()} with
 #'   \code{component = "all"} has one row per coefficient \emph{per component}.
@@ -57,7 +58,8 @@ gof_map_evinf <- function(extra = NULL) {
     "n_failed_bootstraps",      "Failed bootstraps",      0,
     "n_degenerate_bootstraps",  "Degenerate bootstraps",  0,
     "n_c_on_boundary",          "C_EV on boundary",       0,
-    "converged",                "Converged",              0
+    "converged",                "Converged",              0,
+    "c_converged",              "C_EV profile settled",   0
   )
   if (!is.null(extra)) {
     base <- dplyr::bind_rows(base, tibble::as_tibble(extra))

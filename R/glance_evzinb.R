@@ -5,9 +5,11 @@
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-#'   algorithm converged, the number of EM steps, the number of observations at
-#'   or above C_EV, and, for a bootstrapped model, the bootstrap replicate
-#'   counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
+#'   algorithm converged (\code{converged}) and whether the C_EV profile settled
+#'   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
+#'   before this field existed), the number of EM steps, the number of
+#'   observations at or above C_EV, and, for a bootstrapped model, the bootstrap
+#'   replicate counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
 #'   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
 #'   partition the number of replicates requested (see \code{\link{evinf_control}}
 #'   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
@@ -34,6 +36,7 @@ glance.evzinb <- function(x, ...) {
     bic = x$BIC,
     logLik = x$log.lik,
     converged = isTRUE(x$converge),
+    c_converged = if (is.null(x$c_converged)) NA else isTRUE(x$c_converged),
     n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,
@@ -50,9 +53,11 @@ glance.evzinb <- function(x, ...) {
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
 #'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-#'   algorithm converged, the number of EM steps, the number of observations at
-#'   or above C_EV, and, for a bootstrapped model, the bootstrap replicate
-#'   counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
+#'   algorithm converged (\code{converged}) and whether the C_EV profile settled
+#'   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
+#'   before this field existed), the number of EM steps, the number of
+#'   observations at or above C_EV, and, for a bootstrapped model, the bootstrap
+#'   replicate counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
 #'   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
 #'   partition the number of replicates requested (see \code{\link{evinf_control}}
 #'   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
@@ -79,6 +84,7 @@ glance.evinb <- function(x, ...) {
     bic = x$BIC,
     logLik = x$log.lik,
     converged = isTRUE(x$converge),
+    c_converged = if (is.null(x$c_converged)) NA else isTRUE(x$c_converged),
     n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
     n_bootstraps = boot$n_bootstraps,

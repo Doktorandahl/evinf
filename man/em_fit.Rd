@@ -4,7 +4,14 @@
 \alias{em_fit}
 \title{EM / ECME driver for the EVZINB and EVINB models}
 \usage{
-em_fit(y, x.obj, ini.val, control, model = c("evzinb", "evinb"))
+em_fit(
+  y,
+  x.obj,
+  ini.val,
+  control,
+  model = c("evzinb", "evinb"),
+  full_sample = TRUE
+)
 }
 \arguments{
 \item{y}{Numeric response vector.}
@@ -24,6 +31,11 @@ optional \code{offset.nb}).}
 (the zero-inflation component is switched off: its coefficients are held at
 \code{ini.val$Beta.multinom.ZC} in the convergence phase and in every
 \eqn{C_{EV}} profile).}
+
+\item{full_sample}{\code{TRUE} for the full-sample fit, \code{FALSE} for a
+bootstrap replicate. Controls only whether a \code{max.c.iter} cap-out emits
+a \code{warning()} (bootstrap replicates already record it via
+\code{converge} / \code{c_converged} without one).}
 }
 \value{
 A list with, among others, \code{par.mat} (estimated parameters),

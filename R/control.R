@@ -31,6 +31,13 @@
 #' @param init.Alpha.NB Starting value for the negative-binomial dispersion.
 #' @param init.C \code{NULL} or a starting value for \eqn{C_{EV}} within
 #'   \code{c.lim}. \code{NULL} uses the median of the candidate set.
+#' @param max.c.iter Maximum number of outer ECME iterations (each one re-profiles
+#'   \eqn{C_{EV}} over the candidate grid) per phase (warm-up, convergence). Guards
+#'   against the profile oscillating between two candidate values forever. If the
+#'   convergence-phase loop hits this cap, the fit's \code{converge} is set to
+#'   \code{FALSE} (see \code{$c_converged} to tell this apart from the EM inner
+#'   loop not converging) and, for a full-sample fit, a \code{warning()} names the
+#'   last two \eqn{C_{EV}} values visited.
 #' @param alpha_floor,coef_limit Thresholds for flagging a bootstrap replicate
 #'   as \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}), so it
 #'   is excluded from bootstrap summaries by default (see
@@ -79,7 +86,8 @@ evinf_control <- function(
   init.Alpha.NB = 0.01,
   init.C = NULL,
   alpha_floor = 0.001,
-  coef_limit = 50
+  coef_limit = 50,
+  max.c.iter = 50
 ) {
   pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
   control <- list(
@@ -104,7 +112,8 @@ evinf_control <- function(
     init.Alpha.NB = init.Alpha.NB,
     init.C = init.C,
     alpha_floor = alpha_floor,
-    coef_limit = coef_limit
+    coef_limit = coef_limit,
+    max.c.iter = max.c.iter
   )
   validate_evinf_control(control)
 }
@@ -124,12 +133,15 @@ validate_evinf_control <- function(control) {
   if (is.null(control$coef_limit)) {
     control$coef_limit <- 50
   }
+  if (is.null(control$max.c.iter)) {
+    control$max.c.iter <- 50
+  }
   pos_scalar <- c(
     "max.diff.par", "max.no.em.steps", "max.no.em.steps.warmup",
     "max.upd.par.zc.multinomial", "max.upd.par.pl.multinomial",
     "max.upd.par.nb", "max.upd.par.pl", "no.m.bfgs.steps.multinomial",
     "no.m.bfgs.steps.nb", "no.m.bfgs.steps.pl", "init.Alpha.NB", "alpha_floor",
-    "coef_limit"
+    "coef_limit", "max.c.iter"
   )
   for (nm in pos_scalar) {
     v <- control[[nm]]
@@ -137,6 +149,9 @@ validate_evinf_control <- function(control) {
       stop("evinf_control(): `", nm, "` must be a single positive number.",
            call. = FALSE)
     }
+  }
+  if (control$max.c.iter != round(control$max.c.iter)) {
+    stop("evinf_control(): `max.c.iter` must be a positive integer.", call. = FALSE)
   }
 
   if (!is.null(control$c.lim)) {

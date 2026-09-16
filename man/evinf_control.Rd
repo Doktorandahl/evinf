@@ -26,7 +26,8 @@ evinf_control(
   init.Alpha.NB = 0.01,
   init.C = NULL,
   alpha_floor = 0.001,
-  coef_limit = 50
+  coef_limit = 50,
+  max.c.iter = 50
 )
 }
 \arguments{
@@ -78,6 +79,14 @@ shape is non-finite or below \code{alpha_floor}. \code{alpha_floor}
 collapse (shape near 0), not a merely heavy tail. \code{coef_limit}
 (default \code{50}) is on the linear-predictor scale, where \code{50} is
 already extreme.}
+
+\item{max.c.iter}{Maximum number of outer ECME iterations (each one re-profiles
+\eqn{C_{EV}} over the candidate grid) per phase (warm-up, convergence). Guards
+against the profile oscillating between two candidate values forever. If the
+convergence-phase loop hits this cap, the fit's \code{converge} is set to
+\code{FALSE} (see \code{$c_converged} to tell this apart from the EM inner
+loop not converging) and, for a full-sample fit, a \code{warning()} names the
+last two \eqn{C_{EV}} values visited.}
 }
 \value{
 A list of class \code{"evinf_control"}.
