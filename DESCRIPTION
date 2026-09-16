@@ -36,9 +36,10 @@ LinkingTo:
 Suggests:
     testthat (>= 3.0.0),
     modelsummary,
-    ggplot2,
+    ggplot2 (>= 3.5.0),
     marginaleffects,
     insight,
+    broom,
     covr,
     quarto,
     withr
@@ -49,7 +50,7 @@ Depends:
 VignetteBuilder: quarto
 Config/Needs/website: quarto
 Authors@R: c(
-    person("David", "Randahl", , "david.randahl@pcr.uu.se", role = c("cre", "aut")),
+    person("David", "Randahl", , "david.randahl@fhs.se", role = c("cre", "aut")),
     person("Johan", "Vegelius", role = "aut")
   )
 URL: https://github.com/Doktorandahl/evinf

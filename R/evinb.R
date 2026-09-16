@@ -45,6 +45,7 @@ run_evinb <- function(
   offset_nb <- d_nb$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
+  evinf_check_response(as.numeric(OBS.Y))
 
   # Resolve NULL c.lim / init.C against the data (audit 4.5).
   control <- evinf_resolve_c(control, as.numeric(OBS.Y))
@@ -257,7 +258,8 @@ bootrun_evinb <- function(
   Ini.Val$Alpha.NB <- object$coef$Alpha.NB
   Ini.Val$C <- object$coef$C
   capture.output(
-    evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
+    evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
+                         full_sample = FALSE)
   )
 
   evinb_boot$par.mat$Beta.multinom.PL <- as.numeric(
@@ -338,7 +340,7 @@ bootrun_evinb <- function(
 #' @param max.diff.par,max.no.em.steps,max.no.em.steps.warmup,c.lim,prune.c.range,max.upd.par.pl.multinomial,max.upd.par.nb,max.upd.par.pl,no.m.bfgs.steps.multinomial,no.m.bfgs.steps.nb,no.m.bfgs.steps.pl,pdf.pl.type,eta.int,init.Beta.multinom.PL,init.Beta.NB,init.Beta.PL,init.Alpha.NB,init.C
 #'   \strong{Deprecated.} Pass these through \code{control = evinf_control(...)};
 #'   supplying one directly overrides the corresponding \code{control} element and
-#'   emits a warning. See \code{\link{evinf_control}}.
+#'   emits a warning. See \code{\link{evinf_control}}. Will be removed in 0.11.0.
 #' @param verbose Should progress be printed for the first run of evinb
 #'
 #' @inheritSection evzinb Parallel processing
@@ -434,12 +436,7 @@ evinb <- function(
       )
     })
     names(boots) <- paste0("bootstrap_", seq_along(boots))
-    n_c_bnd <- evinf_c_boundary_count(full_run, boots)
-    if (n_c_bnd > 0L) {
-      warning("C_EV reached the boundary of the candidate range in ", n_c_bnd,
-              " of ", length(boots), " bootstrap replicates; consider widening ",
-              "c.lim.", call. = FALSE)
-    }
+    n_c_bnd <- evinf_warn_c_boundary(full_run, boots)
     out <- c(full_run, list(bootstraps = boots, n_c_on_boundary = n_c_bnd))
   } else {
     out <- full_run

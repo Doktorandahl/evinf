@@ -38,6 +38,10 @@
 #'   (the zero-inflation component is switched off: its coefficients are held at
 #'   \code{ini.val$Beta.multinom.ZC} in the convergence phase and in every
 #'   \eqn{C_{EV}} profile).
+#' @param full_sample \code{TRUE} for the full-sample fit, \code{FALSE} for a
+#'   bootstrap replicate. Controls only whether a \code{max.c.iter} cap-out emits
+#'   a \code{warning()} (bootstrap replicates already record it via
+#'   \code{converge} / \code{c_converged} without one).
 #'
 #' @return A list with, among others, \code{par.mat} (estimated parameters),
 #'   \code{log.lik}, \code{AIC}, \code{BIC}, \code{resp} (posterior state
@@ -54,11 +58,12 @@
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
 em_fit <- function(y, x.obj, ini.val, control,
-                   model = c("evzinb", "evinb")) {
+                   model = c("evzinb", "evinb"), full_sample = TRUE) {
   model <- match.arg(model)
   ext <- em_extend_design(x.obj, length(y))
   n <- length(y)
 
+  max_c_iter <- control$max.c.iter %||% 50
   c.range <- em_c_candidates(y, control$c.lim, control$prune.c.range)
 
   control.warmup <- control
@@ -75,7 +80,9 @@ em_fit <- function(y, x.obj, ini.val, control,
   # --- warm-up phase -------------------------------------------------------
   cat("Begin warm-up", "\n", sep = "")
   c.abs.diff <- 100
-  while (c.abs.diff > 0) {
+  n.c.iter.warmup <- 0L
+  while (c.abs.diff > 0 && n.c.iter.warmup < max_c_iter) {
+    n.c.iter.warmup <- n.c.iter.warmup + 1L
     est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control.warmup,
                               fixed_zc = fixed_zc)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
@@ -98,7 +105,9 @@ em_fit <- function(y, x.obj, ini.val, control,
   # --- convergence phase --------------------------------------------------
   cat("End warm-up. Run until convergence", "\n", sep = "")
   c.abs.diff <- 100
-  while (c.abs.diff > 0) {
+  n.c.iter.conv <- 0L
+  while (c.abs.diff > 0 && n.c.iter.conv < max_c_iter) {
+    n.c.iter.conv <- n.c.iter.conv + 1L
     est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = fixed_zc)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
@@ -117,10 +126,50 @@ em_fit <- function(y, x.obj, ini.val, control,
     prel.val$C <- c.pl.new
   }
 
+  # audit0.10 §1.4: the C_EV profile can oscillate between candidate values
+  # forever (a discrete grid + an inner EM that stops at max.diff.par). If the
+  # cap was hit without settling, flag it distinctly from est.obj$converge (the
+  # inner EM's own convergence) via c_converged, and fold it into converge so
+  # existing consumers of that field still see a failed fit.
+  c_converged <- !(c.abs.diff > 0 && n.c.iter.conv >= max_c_iter)
+  if (!c_converged) {
+    last_two <- utils::tail(c_trace, 2)
+    if (full_sample) {
+      warning(
+        "em_fit(): the C_EV profile did not settle within max.c.iter = ",
+        max_c_iter, " iterations (last two values: ",
+        paste(round(last_two, 4), collapse = ", "), "). Consider raising ",
+        "max.c.iter, or check $c_trace for oscillation.",
+        call. = FALSE
+      )
+    }
+  }
+
   final.val <- prel.val
   props.old <- prel.val$Props
 
-  fv <- em_fitted_values(x.obj, prel.val, props.old, c.pl.new, model = model)
+  # audit0.10 §1.11 (D.3): keep computing the point predictions (y.hat.pl_*)
+  # from the pre-recompute props.old, exactly as before -- em_fitted_values()'s
+  # mu.nb.vec / alpha.pl.vec don't depend on props at all, only its y.hat.pl_*
+  # weighting does, and that weighting is out of scope for this item (D.4
+  # covers point predictions separately).
+  fv <- em_fitted_values(x.obj, final.val, props.old, c.pl.new, model = model)
+
+  # par.mat$Props / resp came from step$upd_obj at the START of the last EM
+  # step (em_fit_fixed_c()), i.e. one step behind the returned parameters
+  # (par <- step$par happens after upd_obj is computed). Recompute both at
+  # the actual returned parameters and the final C_EV -- this is what
+  # object$props / object$resp (and the fitted$prob_* / posterior_* vectors
+  # derived from them) end up as -- using the same stable softmax as the
+  # C++ E-step (fill_props_row()) and the R-side E-step responsibilities
+  # formula.
+  final.val$Props <- evinf_stable_props3(
+    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
+    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
+  )
+  final.resp <- evinf_responsibilities(
+    y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props
+  )
 
   par.all <- c(
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
@@ -149,8 +198,9 @@ em_fit <- function(y, x.obj, ini.val, control,
     c_profile        = data.frame(c = c.range, loglik = log.lik.vec),
     c_trace          = c_trace,
     log.lik          = func.val,
-    resp             = est.obj$resp,
-    converge         = est.obj$converge,
+    resp             = final.resp,
+    converge         = est.obj$converge && c_converged,
+    c_converged      = c_converged,
     ini.val          = ini.val,
     x.nb             = x.obj$X.NB,
     x.pl             = x.obj$X.PL,

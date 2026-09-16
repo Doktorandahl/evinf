@@ -41,26 +41,137 @@ test_that("predict.*boot(pred = 'original') uses the full-sample model, not a st
   }
 })
 
-test_that("compare_models() boot_refit_family() refactor is output-identical (issue 4.1)", {
-  # Baseline captured for evzinb(y ~ x1 + x2 + x3, genevzinb2, n_bootstraps = 5,
-  # boot_seed = 123, control = evinf_control(c.lim = c(50, 1000), init.C = 200)).
-  # Regenerated for round 5 Part A (furrr per-element L'Ecuyer streams replace
-  # %dorng%, so the bootstrap resamples - and hence these pins - changed).
-  base_rmsle_nb   <- c(2.7702147669, 2.4477240167, 2.7208083737, 2.5454411241, 2.5069424574)
-  base_rmsle_zinb <- c(2.6426746324, 2.5363944513, 2.6628125688, 2.6642800734, 2.5294352959)
-  base_rmse_nb    <- c(118.2469492256, 103.4495487558, 100.7679581460, 117.0706907652, 98.4691091791)
-  base_rmse_zinb  <- c(111.5976544278, 98.5212097513, 102.5366179051, 116.3133542114, 110.7324410291)
-
+test_that("compare_models() boot_refit_family()'s OOB metrics match a fresh in-session refit on the same boot_ids (audit0.10 §2.2, E.2)", {
+  # Was pinned to hard-coded literals (issue 4.1's refactor-identity check),
+  # which drifted in the 4th significant figure under pscl 1.5.9. Compares
+  # against a fresh call to the same underlying inner_nb()/inner_zinb()
+  # helpers instead, so the test tracks whatever pscl/MASS actually produce
+  # rather than a frozen snapshot -- this still catches a boot_refit_family()
+  # regression (wrong boot_id/spec paired up, wrong ordering) without being
+  # sensitive to point-release numerical drift in either dependency.
   m <- fit_evzinb_fast(n_bootstraps = 5)
   comp <- suppressWarnings(suppressMessages(compare_models(m)))
+
+  dv_f <- all.vars(m$formulas$formula_nb)[1]
+  deparse_rhs <- function(f) {
+    if (is.null(f)) return("1")
+    rhs <- if (length(f) == 3L) f[[3]] else f[[2]]
+    paste(deparse(rhs), collapse = " ")
+  }
+  f_zinb <- stats::as.formula(paste(dv_f, "~", deparse_rhs(m$formulas$formula_nb),
+                                    "|", deparse_rhs(m$formulas$formula_zi)))
+  y_orig <- dplyr::pull(m$data$data[dv_f])
+
+  # init_theta must be *omitted*, not passed as NULL: MASS::glm.nb()'s
+  # init.theta has no default and checks missing(init.theta) internally, so
+  # an explicit NULL takes the wrong branch and glm.nb() errors. This
+  # mirrors boot_refit_one()'s own has_init_theta branching -- compare_models()
+  # was called above with its default init_theta = NULL, i.e. "no init_theta".
+  fresh_nb <- fresh_zinb <- vector("list", length(m$bootstraps))
+  for (k in seq_along(m$bootstraps)) {
+    bid <- m$bootstraps[[k]]$boot_id
+    fresh_nb[[k]]   <- suppressWarnings(evinf:::inner_nb(
+      list(boot_id = bid), m$data$data, m$formulas, y_orig = y_orig))
+    fresh_zinb[[k]] <- suppressWarnings(evinf:::inner_zinb(
+      list(boot_id = bid), m$data$data, m$formulas, f_zinb, y_orig))
+  }
 
   oe_rmsle <- suppressWarnings(oob_evaluation(comp, metric = "rmsle"))
   oe_rmse  <- suppressWarnings(oob_evaluation(comp, metric = "rmse"))
 
-  expect_equal(unname(oe_rmsle$nb),   base_rmsle_nb,   tolerance = 1e-8)
-  expect_equal(unname(oe_rmsle$zinb), base_rmsle_zinb, tolerance = 1e-8)
-  expect_equal(unname(oe_rmse$nb),    base_rmse_nb,    tolerance = 1e-6)
-  expect_equal(unname(oe_rmse$zinb),  base_rmse_zinb,  tolerance = 1e-6)
+  extract <- function(fits, field) {
+    vapply(fits, function(f) {
+      if (inherits(f, "try-error") || is.null(f[[field]])) NA_real_ else f[[field]]
+    }, numeric(1))
+  }
+
+  expect_equal(unname(oe_rmsle$nb),   extract(fresh_nb, "oob_rmsle"))
+  expect_equal(unname(oe_rmsle$zinb), extract(fresh_zinb, "oob_rmsle"))
+  expect_equal(unname(oe_rmse$nb),    extract(fresh_nb, "oob_rmse"))
+  expect_equal(unname(oe_rmse$zinb),  extract(fresh_zinb, "oob_rmse"))
+})
+
+test_that("boot_refit_one() remaps a resample onto data_razor's own rows (audit0.10 §1.5)", {
+  set.seed(1)
+  full_n <- 100
+  keep <- sort(sample(seq_len(full_n), 60))
+  boot_id <- sample(seq_len(full_n), full_n, replace = TRUE)
+  expected_local <- match(boot_id[boot_id %in% keep], keep)
+
+  data_razor <- data.frame(y = seq_along(keep), x1 = rnorm(length(keep)))
+  sp <- list(type = "nb", data = data_razor,
+             formulas = list(formula_nb = y ~ x1),
+             has_init_theta = FALSE, init_theta = NULL,
+             keep = keep, y_orig = data_razor$y)
+
+  testthat::local_mocked_bindings(
+    inner_nb = function(bootstrap, data, formulas, init_theta, y_orig) bootstrap$boot_id,
+    .package = "evinf"
+  )
+  got <- evinf:::boot_refit_one(sp, boot_id)
+  expect_equal(got, expected_local)
+  expect_true(all(got >= 1 & got <= length(keep)))
+  expect_false(anyNA(got))
+})
+
+test_that("compare_models(razorize = TRUE) refits on exactly the retained rows (audit0.10 §1.5)", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  boot_id <- m$bootstraps[[1]]$boot_id
+  y_full <- m$data$data$y
+  cutoff_value <- 20
+  keep <- which(y_full < sort(y_full, decreasing = TRUE)[cutoff_value])
+  data_razor <- m$data$data[keep, ]
+
+  local_id <- match(boot_id[boot_id %in% keep], keep)
+  expected_fit <- suppressWarnings(MASS::glm.nb(y ~ x1 + x2 + x3, data = data_razor[local_id, ]))
+
+  comp <- suppressWarnings(suppressMessages(
+    compare_models(m, nb_comparison = TRUE, zinb_comparison = FALSE,
+                   razorize = TRUE, cutoff_value = cutoff_value, multicore = FALSE)
+  ))
+  got_fit <- comp$nb_razor$bootstraps[[1]]
+
+  expect_false(inherits(got_fit, "try-error"))
+  expect_false(anyNA(coef(got_fit)))
+  expect_equal(unname(coef(got_fit)), unname(coef(expected_fit)), tolerance = 1e-6)
+})
+
+test_that("compare_models(winsorize = TRUE) computes OOB error against the raw outcome (audit0.10 §1.5)", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  comp <- suppressWarnings(suppressMessages(
+    compare_models(m, nb_comparison = TRUE, zinb_comparison = FALSE,
+                   winsorize = TRUE, cutoff_value = 20, multicore = FALSE)
+  ))
+  b <- comp$nb_winsor$bootstraps[[1]]
+  expect_false(inherits(b, "try-error"))
+
+  boot_id <- m$bootstraps[[1]]$boot_id
+  y_raw <- m$data$data$y
+  dv_raw <- y_raw[-boot_id]
+  # The bug computed this against the winsorised outcome; assert the raw and
+  # winsorised outcomes actually differ in the OOB set here, so this test is
+  # not accidentally trivial.
+  y_winsor_val <- sort(y_raw, decreasing = TRUE)[20]
+  expect_true(any(dv_raw > y_winsor_val))
+
+  expected_rmse <- sqrt(mean((dv_raw - b$oob_predictions)^2))
+  expect_equal(b$oob_rmse, expected_rmse, tolerance = 1e-10)
+})
+
+test_that("boot_refit_one()'s try()s are silent on failure (audit0.10 §1.5)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  sp <- list(type = "nb", data = genevzinb2,
+             formulas = list(formula_nb = y ~ nonexistent_column),
+             has_init_theta = FALSE, init_theta = NULL, keep = NULL,
+             y_orig = genevzinb2$y)
+  boot_id <- seq_len(nrow(genevzinb2))
+
+  msgs <- capture.output(
+    fit <- evinf:::boot_refit_one(sp, boot_id),
+    type = "message"
+  )
+  expect_true(inherits(fit, "try-error"))
+  expect_length(msgs, 0)
 })
 
 test_that("compare_models() winsorize + razorize still name all six slots (issue 4.1)", {

@@ -12,7 +12,7 @@ em_c_candidates(y, c.lim, prune.c.range)
 \item{c.lim}{Length-2 numeric giving the lower and upper bound of the search.}
 
 \item{prune.c.range}{\code{FALSE} for no thinning, or a number in
-\code{[0, 1]} giving the proportion of interior candidates to drop (sampled
+\code{[0, 1)} giving the proportion of interior candidates to drop (sampled
 with probability proportional to the gaps between consecutive candidates, so
 the endpoints are always kept).}
 }
@@ -30,6 +30,9 @@ This is the ECME step of the algorithm in Appendix A1 of Randahl and
   support rather than by a smooth optimiser. A warning is emitted when the set
   has more than 100 elements and no pruning was requested, because each extra
   candidate is one extra full-data log-likelihood evaluation per EM iteration.
+  Pruning is reproducible without touching the caller's global RNG state: the
+  thinning draw is seeded from the (unpruned) candidate range itself via the
+  internal \code{evinf_seeded_sample()} helper.
 }
 \seealso{
 \code{\link{evzinb}()}, \code{\link{evinb}()}

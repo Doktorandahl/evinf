@@ -51,6 +51,7 @@ run_evzinb <- function(
   offset_nb <- d_nb$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
+  evinf_check_response(as.numeric(OBS.Y))
 
   # Resolve NULL c.lim / init.C against the data (audit 4.5). This is the single
   # resolution point; lr_test() refits pass a concrete c.lim so no message fires.
@@ -250,7 +251,7 @@ run_evzinb <- function(
 #'   \strong{Deprecated.} These EM tuning arguments still work but should be
 #'   passed through \code{control = evinf_control(...)}; supplying one directly
 #'   overrides the corresponding \code{control} element and emits a warning. See
-#'   \code{\link{evinf_control}} for their meaning.
+#'   \code{\link{evinf_control}} for their meaning. Will be removed in 0.11.0.
 #' @param verbose Logical: should progress of the full run of the model be tracked?
 #'
 #' @section Parallel processing:
@@ -392,12 +393,7 @@ evzinb <- function(
       )
     })
     names(boots) <- paste0("bootstrap_", seq_along(boots))
-    n_c_bnd <- evinf_c_boundary_count(full_run, boots)
-    if (n_c_bnd > 0L) {
-      warning("C_EV reached the boundary of the candidate range in ", n_c_bnd,
-              " of ", length(boots), " bootstrap replicates; consider widening ",
-              "c.lim.", call. = FALSE)
-    }
+    n_c_bnd <- evinf_warn_c_boundary(full_run, boots)
     out <- c(full_run, list(bootstraps = boots, n_c_on_boundary = n_c_bnd))
   } else {
     out <- full_run
@@ -453,7 +449,8 @@ bootrun_evzinb <- function(
   Ini.Val$Alpha.NB <- object$coef$Alpha.NB
   Ini.Val$C <- object$coef$C
   capture.output(
-    evzinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
+    evzinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
+                          full_sample = FALSE)
   )
   evzinb_boot$par.mat$Beta.multinom.ZC <- as.numeric(
     evzinb_boot$par.mat$Beta.multinom.ZC

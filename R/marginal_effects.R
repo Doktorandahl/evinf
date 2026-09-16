@@ -21,10 +21,15 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
 
 .me_colmeans <- function(x) if (is.matrix(x)) colMeans(x) else mean(x)
 
-# sample.int() with an optional seed, leaving the caller's RNG state untouched.
-evinf_seeded_sample <- function(n, size, seed = NULL) {
+# Evaluate `expr` under a temporary seed, leaving the caller's RNG state
+# untouched (audit0.10 §1.9 / §1.14): with `seed = NULL`, `expr` just runs on
+# the ambient RNG stream (nothing to preserve); with a seed given, the
+# caller's `.Random.seed` is saved before `set.seed(seed)` and restored on
+# exit, whether or not `expr` errors. Shared by evinf_seeded_sample()'s
+# pruning draws, residuals(seed=) and simulate(seed=) (R/s3_generics.R).
+evinf_with_seed <- function(seed, expr) {
   if (is.null(seed)) {
-    return(sample.int(n, size))
+    return(expr)
   }
   had <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
   if (had) saved <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
@@ -36,24 +41,37 @@ evinf_seeded_sample <- function(n, size, seed = NULL) {
     }
   }, add = TRUE)
   set.seed(seed)
-  sample.int(n, size)
+  expr
+}
+
+# sample.int() with an optional seed and sampling weights, leaving the
+# caller's RNG state untouched (audit0.10 §1.9: reused by em_c_candidates()'s
+# pruning, which previously used sample() on the global RNG).
+evinf_seeded_sample <- function(n, size, seed = NULL, prob = NULL) {
+  evinf_with_seed(seed, sample.int(n, size, prob = prob))
 }
 
 # AME of one variable for one fit; returns a named vector (length 1 for scalar
 # types, length 3 for "states").
+#
+# range_clamp: NULL, or c(min, max) to clamp the perturbed value to (audit0.10
+# §1.10, for a variable that only enters the model's formulas through
+# poly()/ns()/bs()).
 evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
-                          delta, evzinb) {
+                          delta, evzinb, range_clamp = NULL) {
   col <- newdata[[variable]]
   if (is.numeric(col)) {
+    clamp <- if (is.null(range_clamp)) identity
+             else function(x) pmin(pmax(x, range_clamp[1]), range_clamp[2])
     if (method == "difference") {
       # average change from a `delta`-unit increase in the covariate
-      nd1 <- newdata; nd1[[variable]] <- col + delta
+      nd1 <- newdata; nd1[[variable]] <- clamp(col + delta)
       d <- predict_from_boot(mod, nd1, type, quantile, evzinb) -
         predict_from_boot(mod, newdata, type, quantile, evzinb)
     } else {
       # central finite difference (derivative)
-      ndp <- newdata; ndp[[variable]] <- col + eps
-      ndm <- newdata; ndm[[variable]] <- col - eps
+      ndp <- newdata; ndp[[variable]] <- clamp(col + eps)
+      ndm <- newdata; ndm[[variable]] <- clamp(col - eps)
       d <- (predict_from_boot(mod, ndp, type, quantile, evzinb) -
               predict_from_boot(mod, ndm, type, quantile, evzinb)) / (2 * eps)
     }
@@ -75,6 +93,60 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
   res
 }
 
+# audit0.10 §1.10: classify how `variable` enters the model's formulas, so
+# marginal_effects() can pick a safe perturbation strategy instead of always
+# taking the raw-data-type path.
+#  - "categorical": wrapped in factor()/as.factor()/cut() in every formula
+#    that mentions it (never appears bare) -> evinf_ame_one() gets a factor
+#    column and takes its existing level-vs-reference contrast path.
+#  - "range": wrapped in poly()/ns()/bs() in every formula that mentions it
+#    (never bare, never factor-wrapped) -> keep the numeric derivative path,
+#    but clamp the perturbation to the observed range of the covariate.
+#  - "default": anything else (an ordinary bare numeric/factor covariate).
+#  - "ambiguous": factor-wrapped in one formula component and bare (or
+#    poly/ns/bs-wrapped) in another -- a single perturbed value can't be both
+#    a discrete level and a real number a spline basis expects.
+evinf_classify_variable <- function(variable, formulas) {
+  categorical_fns <- c("factor", "as.factor", "cut")
+  range_fns <- c("poly", "ns", "bs")
+  bare <- FALSE
+  wraps <- character(0)
+
+  walk <- function(e) {
+    if (is.symbol(e)) {
+      if (identical(as.character(e), variable)) bare <<- TRUE
+      return(invisible())
+    }
+    if (!is.call(e)) return(invisible())
+    fn <- if (is.symbol(e[[1]])) as.character(e[[1]]) else NA_character_
+    if (!is.na(fn) && fn %in% c(categorical_fns, range_fns) && length(e) >= 2 &&
+        is.symbol(e[[2]]) && identical(as.character(e[[2]]), variable)) {
+      wraps <<- c(wraps, if (fn %in% categorical_fns) "categorical" else "range")
+      args <- as.list(e)[-1]
+      if (length(args) > 1) for (a in args[-1]) walk(a)
+      return(invisible())
+    }
+    for (a in as.list(e)[-1]) walk(a)
+  }
+
+  for (f in formulas) {
+    if (is.null(f)) next
+    tl <- tryCatch(attr(stats::terms(f), "term.labels"), error = function(e) character(0))
+    for (t in tl) walk(str2lang(t))
+  }
+
+  wraps <- unique(wraps)
+  if ("categorical" %in% wraps && (bare || "range" %in% wraps)) {
+    "ambiguous"
+  } else if ("categorical" %in% wraps) {
+    "categorical"
+  } else if ("range" %in% wraps && !bare) {
+    "range"
+  } else {
+    "default"
+  }
+}
+
 #' Average marginal effects for an evzinb / evinb model
 #'
 #' Average, over the data, of the numerical effect of each covariate on the
@@ -83,7 +155,17 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
 #'
 #' @param object A fitted \code{evzinb} / \code{evinb} model with bootstraps.
 #' @param variables Covariates to compute effects for (default: all raw
-#'   covariates).
+#'   covariates). An unrecognised name errors, listing the available
+#'   covariates. A variable that only ever enters the model's formulas
+#'   wrapped in \code{factor()}/\code{as.factor()}/\code{cut()} is treated as
+#'   categorical (level-vs-reference contrasts over its observed unique
+#'   values) even though it is stored as numeric data; one wrapped only in
+#'   \code{poly()}/\code{ns()}/\code{bs()} keeps the numeric derivative/
+#'   difference path but has its perturbation clamped to the covariate's
+#'   observed range, so the perturbed value is never fed to the spline basis
+#'   outside the range it was built from. A variable used both ways (e.g.
+#'   bare in one formula component and \code{factor()}-wrapped in another)
+#'   errors, since a single perturbed value cannot represent both.
 #' @param type \code{"harmonic"}, \code{"states"} or \code{"quantile"}.
 #' @param quantile Quantile for \code{type = "quantile"}.
 #' @param at Named list of values at which to hold covariates before
@@ -156,7 +238,7 @@ marginal_effects <- function(object, variables = NULL,
                              type = c("harmonic", "states", "quantile"),
                              quantile = NULL, at = list(),
                              method = c("derivative", "difference"),
-                             eps = 1e-4, delta = 1, conf_level = 0.9,
+                             eps = 1e-4, delta = 1, conf_level = 0.95,
                              newdata = NULL, n_max = 500,
                              exclude_degenerate = TRUE,
                              multicore = NULL, ncores = NULL) {
@@ -184,8 +266,48 @@ marginal_effects <- function(object, variables = NULL,
     unique(unlist(lapply(object$formulas, all.vars))),
     all.vars(object$formulas$formula_nb)[1]
   )
-  if (is.null(variables)) variables <- raw_vars
-  variables <- intersect(variables, raw_vars)
+  if (is.null(variables)) {
+    variables <- raw_vars
+  } else {
+    unknown <- setdiff(variables, raw_vars)
+    if (length(unknown)) {
+      stop(sprintf(
+        "marginal_effects(): unknown variable(s): %s. Available covariates: %s.",
+        paste(unknown, collapse = ", "), paste(raw_vars, collapse = ", ")
+      ), call. = FALSE)
+    }
+  }
+
+  # audit0.10 §1.10: a variable that only ever enters the formulas wrapped in
+  # factor()/as.factor()/cut() is coerced to a factor here, so evinf_ame_one()
+  # takes its level-vs-reference contrast path instead of perturbing a raw
+  # numeric code into unseen factor levels. One wrapped in poly()/ns()/bs()
+  # keeps the numeric derivative path but has its perturbation clamped to the
+  # observed range (see ?marginal_effects). A variable used both ways across
+  # formula components is ambiguous and errors clearly instead of guessing.
+  var_class <- stats::setNames(
+    vapply(variables, evinf_classify_variable, character(1), formulas = object$formulas),
+    variables
+  )
+  ambiguous <- names(var_class)[var_class == "ambiguous"]
+  if (length(ambiguous)) {
+    stop(sprintf(paste(
+      "marginal_effects(): %s wrapped in factor()/as.factor()/cut() in one",
+      "model formula and used numerically (bare, or inside poly()/ns()/bs())",
+      "in another: %s. A single perturbed value can't represent both; drop",
+      "%s from `variables` and compute its effect per formula component."
+    ), if (length(ambiguous) > 1) "these variables are" else "this variable is",
+       paste(ambiguous, collapse = ", "),
+       if (length(ambiguous) > 1) "them" else "it"), call. = FALSE)
+  }
+  for (v in variables[var_class == "categorical"]) {
+    nd[[v]] <- factor(nd[[v]])
+  }
+  range_clamp <- stats::setNames(
+    lapply(variables, function(v)
+      if (var_class[[v]] == "range") range(nd[[v]], na.rm = TRUE) else NULL),
+    variables
+  )
 
   boots <- evinf_usable_bootstraps(object, exclude_degenerate)
   qs <- c((1 - conf_level) / 2, 1 - (1 - conf_level) / 2)
@@ -208,7 +330,8 @@ marginal_effects <- function(object, variables = NULL,
   # full-model effect per variable (sequential; one call each)
   est_by_var <- stats::setNames(
     lapply(variables, function(v)
-      evinf_ame_one(object, nd, v, type, quantile, method, eps, delta, evzinb)),
+      evinf_ame_one(object, nd, v, type, quantile, method, eps, delta, evzinb,
+                    range_clamp = range_clamp[[v]])),
     variables
   )
 
@@ -220,16 +343,16 @@ marginal_effects <- function(object, variables = NULL,
       evinf_pmap(
         seq_len(nrow(grid)),
         function(k, grid, variables, boots, nd, type, quantile, method, eps,
-                 delta, evzinb) {
+                 delta, evzinb, range_clamp) {
           v <- variables[grid$vi[k]]
           tryCatch(
             evinf_ame_one(boots[[grid$bi[k]]], nd, v, type, quantile, method,
-                          eps, delta, evzinb),
+                          eps, delta, evzinb, range_clamp = range_clamp[[v]]),
             error = function(e) NULL)
         },
         grid = grid, variables = variables, boots = boots, nd = nd,
         type = type, quantile = quantile, method = method, eps = eps,
-        delta = delta, evzinb = evzinb,
+        delta = delta, evzinb = evzinb, range_clamp = range_clamp,
         seed = boot_seed, label = "marginal_effects bootstrap"
       )
     })

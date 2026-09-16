@@ -16,14 +16,21 @@
 #' @param c.lim \code{NULL} or a numeric vector of length 2. The candidate set for
 #'   \eqn{C_{EV}} is the unique observed response values within this range.
 #'   \code{NULL} (the default) uses a data-driven range (see Details).
-#' @param prune.c.range \code{FALSE}, or a number in \[0, 1]: thin the candidate
+#' @param prune.c.range \code{FALSE}, or a number in \[0, 1): thin the candidate
 #'   set to about \code{length(c.lim) * (1 - prune.c.range)} values.
 #' @param max.upd.par.zc.multinomial,max.upd.par.pl.multinomial,max.upd.par.nb,max.upd.par.pl
 #'   Maximum parameter-change step sizes for the zero-inflation, extreme-value
 #'   inflation, count and Pareto components.
 #' @param no.m.bfgs.steps.multinomial,no.m.bfgs.steps.nb,no.m.bfgs.steps.pl
 #'   Number of BFGS steps per M-step for the multinomial, count and Pareto blocks.
-#' @param pdf.pl.type Pareto density approximation: \code{"approx"} or \code{"exact"}.
+#' @param pdf.pl.type Which Pareto-block derivatives the M-step uses for
+#'   \eqn{\beta_{PL}}: \code{"approx"} (the default) uses the gradient/Hessian
+#'   of the \emph{continuous} Pareto log-density; \code{"exact"} uses the
+#'   gradient/Hessian of the \emph{discretised} Pareto log-pmf that the
+#'   likelihood itself always uses (this only changes the Newton step taken
+#'   each M-step, not what is being maximised). The two typically converge to
+#'   nearly the same estimates; \code{"exact"} can help when \code{"approx"}'s
+#'   steps are poorly scaled for a heavy-tailed fit.
 #' @param eta.int Interval for the eta line search, a numeric vector of length 2.
 #' @param init.Beta.multinom.ZC,init.Beta.multinom.PL,init.Beta.NB,init.Beta.PL
 #'   Optional starting values for the component coefficient vectors (\code{NULL}
@@ -31,6 +38,13 @@
 #' @param init.Alpha.NB Starting value for the negative-binomial dispersion.
 #' @param init.C \code{NULL} or a starting value for \eqn{C_{EV}} within
 #'   \code{c.lim}. \code{NULL} uses the median of the candidate set.
+#' @param max.c.iter Maximum number of outer ECME iterations (each one re-profiles
+#'   \eqn{C_{EV}} over the candidate grid) per phase (warm-up, convergence). Guards
+#'   against the profile oscillating between two candidate values forever. If the
+#'   convergence-phase loop hits this cap, the fit's \code{converge} is set to
+#'   \code{FALSE} (see \code{$c_converged} to tell this apart from the EM inner
+#'   loop not converging) and, for a full-sample fit, a \code{warning()} names the
+#'   last two \eqn{C_{EV}} values visited.
 #' @param alpha_floor,coef_limit Thresholds for flagging a bootstrap replicate
 #'   as \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}), so it
 #'   is excluded from bootstrap summaries by default (see
@@ -79,7 +93,8 @@ evinf_control <- function(
   init.Alpha.NB = 0.01,
   init.C = NULL,
   alpha_floor = 0.001,
-  coef_limit = 50
+  coef_limit = 50,
+  max.c.iter = 50
 ) {
   pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
   control <- list(
@@ -104,7 +119,8 @@ evinf_control <- function(
     init.Alpha.NB = init.Alpha.NB,
     init.C = init.C,
     alpha_floor = alpha_floor,
-    coef_limit = coef_limit
+    coef_limit = coef_limit,
+    max.c.iter = max.c.iter
   )
   validate_evinf_control(control)
 }
@@ -124,12 +140,15 @@ validate_evinf_control <- function(control) {
   if (is.null(control$coef_limit)) {
     control$coef_limit <- 50
   }
+  if (is.null(control$max.c.iter)) {
+    control$max.c.iter <- 50
+  }
   pos_scalar <- c(
     "max.diff.par", "max.no.em.steps", "max.no.em.steps.warmup",
     "max.upd.par.zc.multinomial", "max.upd.par.pl.multinomial",
     "max.upd.par.nb", "max.upd.par.pl", "no.m.bfgs.steps.multinomial",
     "no.m.bfgs.steps.nb", "no.m.bfgs.steps.pl", "init.Alpha.NB", "alpha_floor",
-    "coef_limit"
+    "coef_limit", "max.c.iter"
   )
   for (nm in pos_scalar) {
     v <- control[[nm]]
@@ -137,6 +156,9 @@ validate_evinf_control <- function(control) {
       stop("evinf_control(): `", nm, "` must be a single positive number.",
            call. = FALSE)
     }
+  }
+  if (control$max.c.iter != round(control$max.c.iter)) {
+    stop("evinf_control(): `max.c.iter` must be a positive integer.", call. = FALSE)
   }
 
   if (!is.null(control$c.lim)) {
@@ -150,8 +172,8 @@ validate_evinf_control <- function(control) {
 
   if (!identical(control$prune.c.range, FALSE)) {
     p <- control$prune.c.range
-    if (!is.numeric(p) || length(p) != 1L || is.na(p) || p < 0 || p > 1) {
-      stop("evinf_control(): `prune.c.range` must be FALSE or a number in [0, 1].",
+    if (!is.numeric(p) || length(p) != 1L || is.na(p) || p < 0 || p >= 1) {
+      stop("evinf_control(): `prune.c.range` must be FALSE or a number in [0, 1).",
            call. = FALSE)
     }
   }

@@ -11,6 +11,7 @@ lr_test(
   bootstrap = FALSE,
   multicore = NULL,
   ncores = NULL,
+  exclude_degenerate = TRUE,
   verbose = FALSE
 )
 }
@@ -33,6 +34,10 @@ restored on exit.}
 \item{ncores}{Number of workers when \code{multicore = TRUE}. Default
 (\code{NULL}) is one less than the number of available cores. Ignored when
 \code{multicore} is \code{NULL} or \code{FALSE}.}
+
+\item{exclude_degenerate}{Logical. When \code{bootstrap = TRUE}, also drop
+bootstrap replicates flagged degenerate (see \code{\link{failed_bootstraps}}),
+not just those that errored. Default \code{TRUE}.}
 
 \item{verbose}{Logical. Should the function be verbose?}
 }

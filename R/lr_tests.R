@@ -10,19 +10,18 @@
 #   data     the (possibly resampled) data to fit on
 #   obj      a stand-in carrying only $control and $coef, with the model class
 #   md       the full model data (for resolving reduced design column names)
+#
+# audit0.10 §1.7: passed as control = restricted_control(...) rather than the
+# ~20 individual tuning arguments, so nothing reaches resolve_evinf_control()'s
+# deprecation warning (which fires on exactly those arguments).
 lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
+  ctrl <- restricted_control(obj, reduced, md)
   if (inherits(obj, "evzinb")) {
-    do.call(evinf::evzinb, c(
-      list(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
-           data = data, bootstrap = FALSE, verbose = verbose),
-      restricted_fit_args(obj, reduced, md)
-    ))
+    evinf::evzinb(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
+                 data = data, control = ctrl, bootstrap = FALSE, verbose = verbose)
   } else {
-    do.call(evinf::evinb, c(
-      list(reduced$nb, reduced$evinf, reduced$pareto,
-           data = data, bootstrap = FALSE, verbose = verbose),
-      restricted_fit_args(obj, reduced, md)
-    ))
+    evinf::evinb(reduced$nb, reduced$evinf, reduced$pareto,
+                data = data, control = ctrl, bootstrap = FALSE, verbose = verbose)
   }
 }
 
@@ -33,6 +32,9 @@ lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
 #' @param single Logical. Determining whether variables in 'vars' should be restricted individually (single = TRUE) or all at once (single = FALSE)
 #' @param bootstrap Should LR tests be conducted on each bootstrapped sample or only on the original sample.
 #' @inheritParams evzinb
+#' @param exclude_degenerate Logical. When \code{bootstrap = TRUE}, also drop
+#'   bootstrap replicates flagged degenerate (see \code{\link{failed_bootstraps}}),
+#'   not just those that errored. Default \code{TRUE}.
 #' @param verbose Logical. Should the function be verbose?
 #'
 #' @details The likelihood ratio statistic is \eqn{2(\ell_{full} - \ell_{restricted})}
@@ -54,7 +56,8 @@ lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' lr_test(model,'x1')
 #' }
-lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = NULL, ncores = NULL,verbose = FALSE){
+lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = NULL, ncores = NULL,
+                     exclude_degenerate = TRUE, verbose = FALSE){
 
   model_data <- object$data$data
 
@@ -93,10 +96,16 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
 
     if(bootstrap){
 
+    # Filter to usable replicates first (audit0.10 §1.1): boot_ids and
+    # logliks_boot are then both derived from that same list, with vapply(),
+    # so they always have the same length and order as each other and as the
+    # per-formula reduced-model refits below.
+    boots <- evinf_usable_bootstraps(object, exclude_degenerate)
     n_f <- length(formulas_dfs)
-    n_b <- length(object$bootstraps)
+    n_b <- length(boots)
     grid <- expand.grid(fi = seq_len(n_f), bj = seq_len(n_b))
-    boot_ids <- purrr::map(object$bootstraps, "boot_id")
+    boot_ids <- purrr::map(boots, "boot_id")
+    logliks_boot <- vapply(boots, function(b) b$log.lik, numeric(1))
 
     flat <- evinf_with_plan(multicore, ncores, {
       evinf_pmap(
@@ -120,8 +129,6 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
       vapply(fr, function(r)
         if (inherits(r, "try-error")) NA_real_ else r$log.lik, numeric(1)))
 
-   logliks_boot <- object$bootstraps %>% purrr::map('log.lik') %>% purrr::reduce(c)
-
    statistics_boot <- purrr::map(logliks_boot_reduced, function(llr)
      2 * (logliks_boot - llr))
 
@@ -140,7 +147,12 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
        mean(stats::na.omit(statistics_boot[[i]]) > qchisq(0.95, dfs[i])),
        numeric(1)),
      n_failed_bootstraps = vapply(statistics_boot, function(s)
-       sum(is.na(s)), integer(1)))
+       sum(is.na(s)), integer(1)),
+     # audit0.10 §1.1: how many replicates fed into this row at all, i.e. those
+     # that survived evinf_usable_bootstraps() and had a successful reduced-
+     # model refit (n_failed_bootstraps counts the latter kind of failure).
+     n_bootstraps_used = vapply(statistics_boot, function(s)
+       n_b - sum(is.na(s)), integer(1)))
 
    res_boot <- purrr::map(seq_along(statistics_boot), function(i)
      tibble::tibble(ll_reduced = logliks_boot_reduced[[i]],
@@ -225,16 +237,23 @@ formula_var_remover <- function(formulas, vars, data){
 }
 
 
-#' Control + warm-start arguments for the restricted LR-test refits (audit R0.2)
+#' A copy of the full model's control, warm-started at its estimates (audit0.10 §1.7)
+#'
+#' Returns a modified copy of \code{object$control} with the \code{init.*}
+#' fields (and \code{init.C}) set from the full-model estimate, so the
+#' restricted refit is genuinely nested (same tuning settings, same C_EV
+#' candidate grid) and starts near the constrained optimum. Every other
+#' tuning setting -- including ones added after this object was fitted, e.g.
+#' \code{max.c.iter} -- is carried over unchanged because it is a copy of the
+#' same \code{evinf_control} object, not a hand-picked subset of arguments.
 #'
 #' @param object The fitted evzinb/evinb object.
 #' @param reduced The \code{$formulas} list from \code{formula_var_remover()}.
 #' @param data The full model data (for resolving the reduced design column names).
-#' @return A named list of arguments to pass to \code{evzinb()} / \code{evinb()}.
+#' @return A modified \code{evinf_control} object.
 #' @noRd
-restricted_fit_args <- function(object, reduced, data) {
+restricted_control <- function(object, reduced, data) {
   ctrl <- object$control
-  is_zinb <- inherits(object, 'evzinb')
 
   # Retained coefficients start from the full-model estimate; anything the
   # reduced design somehow adds (it never should) starts at zero.
@@ -248,29 +267,13 @@ restricted_fit_args <- function(object, reduced, data) {
     as.numeric(v)
   }
 
-  args <- list(
-    max.diff.par = ctrl$max.diff.par,
-    max.no.em.steps = ctrl$max.no.em.steps,
-    max.no.em.steps.warmup = ctrl$max.no.em.steps.warmup,
-    c.lim = ctrl$c.lim,
-    prune.c.range = ctrl$prune.c.range,
-    max.upd.par.pl.multinomial = ctrl$max.upd.par.pl.multinomial,
-    max.upd.par.nb = ctrl$max.upd.par.nb,
-    max.upd.par.pl = ctrl$max.upd.par.pl,
-    no.m.bfgs.steps.multinomial = ctrl$no.m.bfgs.steps.multinomial,
-    no.m.bfgs.steps.nb = ctrl$no.m.bfgs.steps.nb,
-    no.m.bfgs.steps.pl = ctrl$no.m.bfgs.steps.pl,
-    pdf.pl.type = ctrl$pdf.pl.type,
-    eta.int = ctrl$eta.int,
-    init.Alpha.NB = as.numeric(object$coef$Alpha.NB),
-    init.C = as.numeric(object$coef$C),
-    init.Beta.NB = beta_start(object$coef$Beta.NB, reduced$nb),
-    init.Beta.multinom.PL = beta_start(object$coef$Beta.multinom.PL, reduced$evinf),
-    init.Beta.PL = beta_start(object$coef$Beta.PL, reduced$pareto)
-  )
-  if (is_zinb) {
-    args$max.upd.par.zc.multinomial <- ctrl$max.upd.par.zc.multinomial
-    args$init.Beta.multinom.ZC <- beta_start(object$coef$Beta.multinom.ZC, reduced$zi)
+  ctrl$init.Alpha.NB <- as.numeric(object$coef$Alpha.NB)
+  ctrl$init.C <- as.numeric(object$coef$C)
+  ctrl$init.Beta.NB <- beta_start(object$coef$Beta.NB, reduced$nb)
+  ctrl$init.Beta.multinom.PL <- beta_start(object$coef$Beta.multinom.PL, reduced$evinf)
+  ctrl$init.Beta.PL <- beta_start(object$coef$Beta.PL, reduced$pareto)
+  if (inherits(object, 'evzinb')) {
+    ctrl$init.Beta.multinom.ZC <- beta_start(object$coef$Beta.multinom.ZC, reduced$zi)
   }
-  args
+  ctrl
 }
