@@ -242,6 +242,17 @@ review follow-ups in `dev/review_round1.md`.
   `print.summary.evzinb()` / `print.summary.evinb()` show this as `"< 1/B"`
   (e.g. `"<0.01"` for 100 usable bootstraps) instead of the default,
   misleadingly precise `"<2e-16"` (audit0.10 §1.11).
+* `update(model, data = new_data)` kept the *old* data's data-driven
+  `control$c.lim` / `control$init.C` (both were written into `object$control`
+  at the original fit), silently reusing a candidate range for \eqn{C_{EV}}
+  chosen for data the model no longer uses. If the original range was itself
+  data-driven (not pinned by the user via `evinf_control(c.lim = )`) and
+  `data` is among the arguments being changed, they are now reset to `NULL`
+  and re-resolved from the new data, with the usual message.
+  `?update.evzinb` also documents that changing `formula_nb.` does not
+  propagate to a component formula that was originally left `NULL` and
+  inherited from it -- that component keeps its own formula regardless
+  (audit0.10 §1.11).
 
 ## Breaking changes / deprecations
 

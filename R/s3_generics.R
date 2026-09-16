@@ -339,10 +339,24 @@ simulate.evinb <- function(object, nsim = 1, seed = NULL, newdata = NULL, ...) {
 #' @param object A fitted model (must carry \code{object$call}).
 #' @param formula_nb.,formula_zi.,formula_evi.,formula_pareto. Optional
 #'   \code{\link[stats]{update.formula}}-style changes per component, e.g.
-#'   \code{formula_pareto. = . ~ . - x3}.
+#'   \code{formula_pareto. = . ~ . - x3}. Each component is updated against
+#'   its \emph{own current} formula (the one the fitted object actually used,
+#'   whether the user supplied it or it was inherited from \code{formula_nb}
+#'   when \code{NULL}). Changing \code{formula_nb.} does not propagate to a
+#'   component formula that was originally left \code{NULL} and inherited
+#'   from it -- that component keeps whatever formula it was fitted with;
+#'   pass that component's own \code{formula_*.} explicitly to change it too.
 #' @param ... Other arguments of \code{\link{evzinb}} / \code{\link{evinb}} to
 #'   change.
 #' @param evaluate If \code{TRUE} (default) re-fit; otherwise return the updated call.
+#'
+#' @details If \code{object}'s candidate range for \eqn{C_{EV}} was itself
+#'   data-driven (\code{control$c.lim} was \code{NULL} at the original fit;
+#'   see \code{object$c_lim_default}), and \code{data} is one of the arguments
+#'   being changed, \code{control$c.lim} and \code{control$init.C} are reset to
+#'   \code{NULL} so they are re-resolved from the new data (with the usual
+#'   message) instead of silently reusing the range chosen for the old data. A
+#'   \code{c.lim} the user pinned explicitly is always kept as-is.
 #' @return The updated fit, or the call.
 #' @export
 update.evzinb <- function(object, formula_nb., formula_zi., formula_evi.,
@@ -391,6 +405,15 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
   }
 
   cl$control <- object$control
+  # audit0.10 §1.9/§1.11: c.lim / init.C were resolved from the OLD data
+  # (evinf_resolve_c()); if the range was itself data-driven (not pinned by
+  # the user) and the data is changing, reset them to NULL so the refit
+  # re-resolves a range for the NEW data instead of silently reusing the old
+  # one. A user-pinned c.lim is always kept.
+  if (isTRUE(object$c_lim_default) && "data" %in% names(extras)) {
+    cl$control$c.lim <- NULL
+    cl$control$init.C <- NULL
+  }
   cl$block <- object$block
 
   chg <- function(component, change) {

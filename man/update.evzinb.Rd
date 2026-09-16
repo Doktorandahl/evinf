@@ -29,7 +29,13 @@
 
 \item{formula_nb., formula_zi., formula_evi., formula_pareto.}{Optional
 \code{\link[stats]{update.formula}}-style changes per component, e.g.
-\code{formula_pareto. = . ~ . - x3}.}
+\code{formula_pareto. = . ~ . - x3}. Each component is updated against
+its \emph{own current} formula (the one the fitted object actually used,
+whether the user supplied it or it was inherited from \code{formula_nb}
+when \code{NULL}). Changing \code{formula_nb.} does not propagate to a
+component formula that was originally left \code{NULL} and inherited
+from it -- that component keeps whatever formula it was fitted with;
+pass that component's own \code{formula_*.} explicitly to change it too.}
 
 \item{...}{Other arguments of \code{\link{evzinb}} / \code{\link{evinb}} to
 change.}
@@ -41,4 +47,13 @@ The updated fit, or the call.
 }
 \description{
 Update and re-fit an evzinb / evinb model
+}
+\details{
+If \code{object}'s candidate range for \eqn{C_{EV}} was itself
+  data-driven (\code{control$c.lim} was \code{NULL} at the original fit;
+  see \code{object$c_lim_default}), and \code{data} is one of the arguments
+  being changed, \code{control$c.lim} and \code{control$init.C} are reset to
+  \code{NULL} so they are re-resolved from the new data (with the usual
+  message) instead of silently reusing the range chosen for the old data. A
+  \code{c.lim} the user pinned explicitly is always kept as-is.
 }
