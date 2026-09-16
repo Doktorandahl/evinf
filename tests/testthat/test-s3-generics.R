@@ -170,6 +170,10 @@ test_that("update()'s formula_nb. change does not propagate to an inherited comp
 
 test_that("modelsummary works with a grouped shape (skip if absent)", {
   skip_if_not_installed("modelsummary")
+  # modelsummary's grouped-shape output path needs broom internally, but
+  # broom is only one of modelsummary's own Suggests, not guaranteed to be
+  # installed alongside it (observed on CI's minimal package set).
+  skip_if_not_installed("broom")
   m <- fit_evzinb_fast(n_bootstraps = 6)
   # As with nnet::multinom, modelsummary needs the y.level grouping in `shape`.
   expect_no_error(
