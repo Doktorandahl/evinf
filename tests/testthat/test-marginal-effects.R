@@ -33,6 +33,52 @@ test_that("marginal_effects() contrasts a factor against its reference level", {
   expect_true(all(is.finite(me$estimate)))
 })
 
+test_that("marginal_effects() errors on an unknown variable (audit0.10 §1.10)", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  expect_error(marginal_effects(m, variables = "x_one"), "unknown variable")
+  expect_error(marginal_effects(m, variables = "x_one"), "x1")
+})
+
+test_that("marginal_effects() contrasts levels for a numeric variable wrapped in factor() (audit0.10 §1.10)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  set.seed(42)
+  d <- genevzinb2
+  d$g_num <- sample(1:3, nrow(d), replace = TRUE)
+  m <- suppressMessages(evinf::evzinb(
+    y ~ factor(g_num) + x1, data = d, control = .fast_control(),
+    bootstrap = TRUE, n_bootstraps = 8, multicore = FALSE,
+    boot_seed = 123, verbose = FALSE
+  ))
+  me <- suppressWarnings(marginal_effects(m, variables = "g_num"))
+  expect_setequal(me$contrast, c("2 - 1", "3 - 1"))
+  expect_true(all(is.finite(me$estimate)))
+})
+
+test_that("marginal_effects() errors when a variable is factor-wrapped in one formula and bare in another (audit0.10 §1.10)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  set.seed(43)
+  d <- genevzinb2
+  d$g_num <- sample(1:3, nrow(d), replace = TRUE)
+  m <- suppressMessages(evinf::evzinb(
+    y ~ factor(g_num) + x1, formula_evi = ~ g_num, data = d, control = .fast_control(),
+    bootstrap = TRUE, n_bootstraps = 5, multicore = FALSE,
+    boot_seed = 123, verbose = FALSE
+  ))
+  expect_error(marginal_effects(m, variables = "g_num"), "factor")
+})
+
+test_that("marginal_effects() keeps the numeric path, clamped to range, for poly()-wrapped variables (audit0.10 §1.10)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  m <- suppressMessages(evinf::evzinb(
+    y ~ poly(x1, 2) + x2, data = genevzinb2, control = .fast_control(),
+    bootstrap = TRUE, n_bootstraps = 5, multicore = FALSE,
+    boot_seed = 123, verbose = FALSE
+  ))
+  me <- suppressWarnings(marginal_effects(m, variables = "x1"))
+  expect_identical(me$contrast, "dydx")
+  expect_true(is.finite(me$estimate))
+})
+
 test_that("marginal_effects() needs bootstraps", {
   m <- fit_evzinb_fast(bootstrap = FALSE)
   expect_error(marginal_effects(m, variables = "x1"), "bootstrap = TRUE")

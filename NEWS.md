@@ -168,6 +168,15 @@ review follow-ups in `dev/review_round1.md`.
   `inner_nb()`/`inner_zinb()`/`boot_refit_one()`/`oob_evaluation()`'s internal
   `try()`s no longer print to the console on a failed replicate (audit0.10
   §1.5).
+* `marginal_effects(variables = )` errors on an unrecognised covariate name
+  (listing the available ones) instead of silently returning a 0-row tibble.
+  A numeric covariate that only enters the model's formulas wrapped in
+  `factor()`/`as.factor()`/`cut()` (e.g. `y ~ factor(g_num)`) is now treated
+  as categorical (level-vs-reference contrasts), instead of being perturbed
+  as a number and producing unseen factor levels; one wrapped only in
+  `poly()`/`ns()`/`bs()` keeps the numeric derivative/difference path with
+  its perturbation clamped to the covariate's observed range. A covariate
+  used both ways across formula components errors clearly (audit0.10 §1.10).
 
 ## Breaking changes / deprecations
 
