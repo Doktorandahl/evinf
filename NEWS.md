@@ -194,6 +194,17 @@ review follow-ups in `dev/review_round1.md`.
   exact tie in the profile no longer returns a length > 1 `c_hat` and every
   candidate being `NaN`/infinite errors clearly instead of silently breaking
   the outer loop (audit0.10 §1.4).
+* The likelihood could underflow to `-Inf` for a large count or a small
+  Pareto shape: the discretised Pareto log-pmf now uses a cancellation-free
+  form (`a*log(C/y) + log(-expm1(a*log(y/(y+1))))` in place of
+  `log((C/y)^a - (C/(y+1))^a)`), the NB/Pareto mixture is combined with a
+  log-sum-exp instead of summing on the natural scale, the NB log-pmf uses
+  `lgamma()` instead of an O(y) loop, and the multinomial state probabilities
+  (in the C++ M-step and in `prob_from_evzinb()` / `prob_from_evinb()`) use a
+  numerically stable softmax. Coefficients move by at most ~2e-10 and
+  log-likelihood by at most ~7e-12 on the identity fixtures -- well under the
+  1e-6 the round's numerical-identity gate would have required flagging
+  (audit0.10 §1.11).
 
 ## Breaking changes / deprecations
 

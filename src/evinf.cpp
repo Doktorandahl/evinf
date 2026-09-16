@@ -14,28 +14,47 @@ double my_abs ( double x ) {
   }
 }
 
+// Numerically stable log(exp(a) + exp(b)) (audit0.10 §1.11). R_NegInf comes
+// from Rmath.h. Both -Inf is the only case that needs guarding directly (it
+// would otherwise produce -Inf - -Inf = NaN below).
+double log_sum_exp2(double a, double b) {
+  double m = std::max(a, b);
+  if (m == R_NegInf) {
+    return R_NegInf;
+  }
+  return m + log(exp(a - m) + exp(b - m));
+}
+
+// Stable 3-category softmax for one observation's state probabilities, with
+// an implicit zero logit for the count (baseline) category (audit0.10 §1.11):
+// subtracting the max logit before exponentiating keeps every exp() argument
+// <= 0, avoiding overflow for a large linear predictor (coef_limit allows up
+// to 50). Mathematically identical to the un-shifted softmax.
+void fill_props_row(arma::mat &props, int i, double eta_z, double eta_pl) {
+  double m = std::max(0.0, std::max(eta_z, eta_pl));
+  double base = exp(-m);
+  double d_z = exp(eta_z - m);
+  double d_pl = exp(eta_pl - m);
+  double denom = base + d_z + d_pl;
+  props(i,0) = d_z / denom;
+  props(i,1) = base / denom;
+  props(i,2) = d_pl / denom;
+}
+
 //[[Rcpp::export]]
 double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
   // int n_beta_nb = beta_nb.size();
-
-  double ell_nb_i = 0;
 
   arma::mat xtb_nb_i = trans(x_nb_ext_i)*beta_nb;
 
   double a = xtb_nb_i.eval()(0,0);
   double mu_i = exp(a + offset_nb_i);
 
-  if(y_i>0){
-    for(int j=0; j<y_i; j++){
-      ell_nb_i = ell_nb_i + log(j + 1/alpha_nb);
-    }
-  }
-
-  if(y_i>0){
-    for(int j=1; j<=y_i; j++){
-      ell_nb_i = ell_nb_i - log(j);
-    }
-  }
+  // audit0.10 §1.11: closed form of the O(y) sums below (a rising-factorial /
+  // Pochhammer identity), sum_{j=0}^{y-1} log(j + 1/alpha) - sum_{j=1}^{y}
+  // log(j) = lgamma(y + 1/alpha) - lgamma(1/alpha) - lgamma(y + 1); valid at
+  // y = 0 too (gives 0, matching the previous loops which never ran there).
+  double ell_nb_i = lgamma(y_i + 1/alpha_nb) - lgamma(1/alpha_nb) - lgamma(y_i + 1);
 
   ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y_i*log(1 + alpha_nb*mu_i) + y_i*log(alpha_nb) + y_i*log(mu_i);
 
@@ -119,10 +138,14 @@ double ell_pl_i_fun(arma::vec beta_pl,double c_pl, arma::vec x_pl_ext_i, double 
   arma::mat xtb_pl_i = trans(x_pl_ext_i)*beta_pl;
   double a = xtb_pl_i.eval()(0,0);
   double exp_xtb_pl_i = exp(a);
-  double cdivy = c_pl/y_i;
-  double cdivyp1 = c_pl/(y_i+1);
   //OBS!! The restriction that y.i>c.pl will be taken care of outside
-  double ell_pl_i = log(pow(cdivy,exp_xtb_pl_i)-pow(cdivyp1,exp_xtb_pl_i));
+  // audit0.10 §1.11: log((C/y)^a - (C/(y+1))^a) in a form that never computes
+  // (C/y)^a directly (which overflows/underflows for large y or extreme a).
+  // Algebraically identical: (C/y)^a - (C/(y+1))^a = (C/y)^a * (1 - (y/(y+1))^a),
+  // so log(diff) = a*log(C/y) + log(1 - exp(a*log(y/(y+1)))), and
+  // 1 - exp(u) = -expm1(u) is accurate for u near 0 (y/(y+1) near 1).
+  double ell_pl_i = exp_xtb_pl_i * log(c_pl / y_i) +
+    log(-expm1(exp_xtb_pl_i * log(y_i / (y_i + 1))));
   return(ell_pl_i);
 }
 
@@ -154,16 +177,10 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
   int n_pl = x_pl_ext.n_cols;
   arma::mat props = zeros<mat>(n,3) ;
 
-  double denominator = 0;
   for(int i=0; i<n; i++){
-
-    double d_z = exp(trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
-    double d_pl = exp(trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
-
-    denominator = 1 + d_z + d_pl;
-    props(i,0) = d_z/denominator;
-    props(i,1) = 1/denominator;
-    props(i,2) = d_pl/denominator;
+    double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
+    double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
+    fill_props_row(props, i, eta_z, eta_pl);
   }
 
   double func_val = 0;
@@ -172,35 +189,26 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
     arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
     double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
     double mu_i = exp(xtb_nb_i + offset_nb(i));
-    double ell_nb_i = 0;
-    if(y(i)>0){
-      for(int j=0; j<y(i); j++){
-        ell_nb_i = ell_nb_i + log(j + 1/alpha_nb);
-      }
-    }
-
-    if(y(i)>0){
-      for(int j=1; j<=y(i); j++){
-        ell_nb_i = ell_nb_i - log(j);
-      }
-    }
-
+    // audit0.10 §1.11: closed form, see ell_nb_i_fun().
+    double ell_nb_i = lgamma(y(i) + 1/alpha_nb) - lgamma(1/alpha_nb) - lgamma(y(i) + 1);
     ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
 
+    // audit0.10 §1.11: combine the mixture terms with a log-sum-exp instead of
+    // log(p1*exp(.) + p2*exp(.)), which underflows exp(.) to exactly 0 (losing
+    // all information) well before the sum itself would over/underflow.
     if(y(i)==0){
-      func_val = func_val + log(props(i,0) + props(i,1)*exp(ell_nb_i));
+      func_val = func_val + log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb_i);
     }else if(y(i)>0 && y(i)<c_pl){
-      func_val = func_val + log(props(i,1)*exp(ell_nb_i));
+      func_val = func_val + log(props(i,1)) + ell_nb_i;
     }else{
-       arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
-       double xtb_pl_i = (trans(x_pl_ext_i)*beta_pl).eval()(0,0);
-
+      arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
+      double xtb_pl_i = (trans(x_pl_ext_i)*beta_pl).eval()(0,0);
       double exp_xtb_pl_i = exp(xtb_pl_i);
-      double cdivy = c_pl/y(i);
-      double cdivyp1 = c_pl/(y(i)+1);
-      double ell_pl_i = log(pow(cdivy,exp_xtb_pl_i) - pow(cdivyp1,exp_xtb_pl_i));
+      // audit0.10 §1.11: stable Pareto log-pmf, see ell_pl_i_fun().
+      double ell_pl_i = exp_xtb_pl_i * log(c_pl / y(i)) +
+        log(-expm1(exp_xtb_pl_i * log(y(i) / (y(i) + 1))));
 
-      func_val = func_val + log(props(i,1)*exp(ell_nb_i) + props(i,2)*exp(ell_pl_i));
+      func_val = func_val + log_sum_exp2(log(props(i,1)) + ell_nb_i, log(props(i,2)) + ell_pl_i);
     }
   }
 
@@ -258,14 +266,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   double denominator = 0;
   for(int i=0; i<n; i++){
-
-    double d_z = exp(trans(gamma_z_old)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
-    double d_pl = exp(trans(gamma_pl_old)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
-
-    denominator = 1 + d_z + d_pl;
-    props(i,0) = d_z/denominator;
-    props(i,1) = 1/denominator;
-    props(i,2) = d_pl/denominator;
+    double eta_z = (trans(gamma_z_old)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
+    double eta_pl = (trans(gamma_pl_old)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
+    fill_props_row(props, i, eta_z, eta_pl);
   }
 
   arma::mat resp = zeros<mat>(n,3);

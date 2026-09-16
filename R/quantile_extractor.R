@@ -118,27 +118,25 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
     )
   }
 
-  pr_zc <- exp(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC) /
-    (1 +
-      exp(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC) +
-      exp(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL))
+  eta_zc <- as.numeric(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC)
+  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
 
-  pr_pareto <- exp(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL) /
-    (1 +
-      exp(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC) +
-      exp(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL))
+  # audit0.10 §1.11: stable softmax -- subtract the row max linear predictor
+  # (including the implicit 0 for the count/baseline category) before
+  # exponentiating, so a large linear predictor (coef_limit allows up to 50)
+  # cannot overflow exp(). pr_count is now computed directly (never by
+  # subtraction), so it is a proper probability by construction and cannot
+  # come out negative.
+  m <- pmax(0, eta_zc, eta_pl)
+  base <- exp(-m)
+  d_z <- exp(eta_zc - m)
+  d_pl <- exp(eta_pl - m)
+  denom <- base + d_z + d_pl
 
-  pr_count <- 1 - pr_zc - pr_pareto
-
-  if (min(pr_count) < -1e-8) {
-    stop('Error in prediction, negative probabilities produced')
-  } else {
-    pr_count[pr_count < 0] <- 0
-  }
   out <- tibble::tibble(
-    pr_zc = as.numeric(pr_zc),
-    pr_count = as.numeric(pr_count),
-    pr_pareto = as.numeric(pr_pareto)
+    pr_zc = d_z / denom,
+    pr_count = base / denom,
+    pr_pareto = d_pl / denom
   )
 
   if (return_data) {
@@ -175,14 +173,16 @@ prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   #      exp(cbind(1,x.multinom.pl)%*%object$coef$Beta.multinom.PL))
   #
 
-  pr_pareto <- exp(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL) /
-    (1 + exp(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL))
-
-  pr_count <- 1 - pr_pareto
+  # audit0.10 §1.11: stable 2-category softmax, see prob_from_evzinb().
+  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
+  m <- pmax(0, eta_pl)
+  base <- exp(-m)
+  d_pl <- exp(eta_pl - m)
+  denom <- base + d_pl
 
   out <- tibble::tibble(
-    pr_count = as.numeric(pr_count),
-    pr_pareto = as.numeric(pr_pareto)
+    pr_count = base / denom,
+    pr_pareto = d_pl / denom
   )
 
   if (return_data) {
