@@ -251,7 +251,7 @@ run_evzinb <- function(
 #'   \strong{Deprecated.} These EM tuning arguments still work but should be
 #'   passed through \code{control = evinf_control(...)}; supplying one directly
 #'   overrides the corresponding \code{control} element and emits a warning. See
-#'   \code{\link{evinf_control}} for their meaning.
+#'   \code{\link{evinf_control}} for their meaning. Will be removed in 0.11.0.
 #' @param verbose Logical: should progress of the full run of the model be tracked?
 #'
 #' @section Parallel processing:

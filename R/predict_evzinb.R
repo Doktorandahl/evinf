@@ -520,14 +520,17 @@ predict.evinb <- function(
 
 #' Random draws from a fitted evzinb model
 #'
-#' `revzinb_fit()` is superseded by [simulate()][simulate.evzinb], which returns a
-#' tidy data frame; it is kept for backwards compatibility.
+#' \strong{Superseded:} kept for backwards compatibility, with no plans for
+#' removal, but new code should use \code{\link[=simulate.evzinb]{simulate()}},
+#' which returns a tidy data frame (and a reproducible \code{"seed"} attribute)
+#' instead of a bare vector/list.
 #'
 #' @param object A fitted EVZINB object
 #' @param newdata Optional newdata
 #' @param n_draws Number of random draws to make
 #'
 #' @return A vector of randomly drawn values from the fitted evzinb if n_draws == 1, or a list of length n_draws with random drawn values if n_draws > 1
+#' @seealso \code{\link{simulate.evzinb}}
 #' @export
 #'
 #' @examples
@@ -576,14 +579,17 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 
 #' Random draws from a fitted evinb model
 #'
-#' `revinb_fit()` is superseded by [simulate()][simulate.evinb], which returns a
-#' tidy data frame; it is kept for backwards compatibility.
+#' \strong{Superseded:} kept for backwards compatibility, with no plans for
+#' removal, but new code should use \code{\link[=simulate.evinb]{simulate()}},
+#' which returns a tidy data frame (and a reproducible \code{"seed"} attribute)
+#' instead of a bare vector/list.
 #'
 #' @param object A fitted EVINB object
 #' @param newdata Optional newdata
 #' @param n_draws Number of random draws to make
 #'
 #' @return A vector of randomly drawn values from the fitted evinb if n_draws == 1, or a list of length n_draws with random drawn values if n_draws > 1
+#' @seealso \code{\link{simulate.evinb}}
 #' @export
 #'
 #' @examples

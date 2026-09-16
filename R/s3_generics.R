@@ -67,7 +67,8 @@ evinf_nobs <- function(object) nrow(object$data$x.nb)
 #' @param object A fitted \code{evzinb} / \code{evinb} model.
 #' @param component One of \code{"all"} (the default), \code{"count"},
 #'   \code{"zero"}, \code{"evi"}, \code{"pareto"}. Deprecated aliases \code{"nb"},
-#'   \code{"zi"}, \code{"evinf"} are accepted.
+#'   \code{"zi"}, \code{"evinf"} are accepted, with a warning; they will be
+#'   removed in 0.11.0.
 #' @param ... Unused.
 #' @return For \code{"all"}, a named numeric vector \code{<component>_<term>},
 #'   \code{alpha_nb}, \code{c_ev}; for a single component the plain named vector.

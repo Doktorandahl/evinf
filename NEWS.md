@@ -343,6 +343,16 @@ review follow-ups in `dev/review_round1.md`.
 * The default `conf_level` for `predict()` and `marginal_effects()` is now
   `0.95` (was `0.9`), matching `confint()` and `tidy()`. Pass
   `conf_level = 0.9` explicitly to keep the old default.
+* **Deprecations planned for removal in 0.11.0:** the pre-0.9.4
+  `component = "nb"/"zi"/"evinf"` aliases (use `"count"`/`"zero"`/`"evi"`);
+  passing the individual EM tuning arguments (`max.diff.par`, `c.lim`,
+  `init.C`, ...) directly to `evzinb()`/`evinb()` instead of through
+  `control = evinf_control(...)`; and the deprecated `pr_zc`/`pr_pareto`
+  column names and `fitted$prob_pareto`/`fitted$posterior_pareto` duplicate
+  fields (use the canonical `pr_zero`/`pr_evi` and
+  `prob_evi`/`posterior_evi`). All of these still work in 0.10.0 and most
+  already warn when used. `revzinb_fit()`/`revinb_fit()` are superseded by
+  `simulate()` but are not deprecated and have no planned removal.
 
 ## Documentation
 

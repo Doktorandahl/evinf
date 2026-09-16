@@ -17,8 +17,10 @@ revinb_fit(object, newdata = NULL, n_draws = 1)
 A vector of randomly drawn values from the fitted evinb if n_draws == 1, or a list of length n_draws with random drawn values if n_draws > 1
 }
 \description{
-`revinb_fit()` is superseded by [simulate()][simulate.evinb], which returns a
-tidy data frame; it is kept for backwards compatibility.
+\strong{Superseded:} kept for backwards compatibility, with no plans for
+removal, but new code should use \code{\link[=simulate.evinb]{simulate()}},
+which returns a tidy data frame (and a reproducible \code{"seed"} attribute)
+instead of a bare vector/list.
 }
 \examples{
 \donttest{
@@ -27,4 +29,7 @@ model <- evinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 5)
 revinb_fit(model)
 }
 
+}
+\seealso{
+\code{\link{simulate.evinb}}
 }
