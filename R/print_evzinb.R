@@ -144,19 +144,25 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
     tab <- x$coefficients[[cn]]
     cat('\n', comp_labels[[cn]], '\n', sep = '')
 
-    m <- as.matrix(tab[, setdiff(names(tab), 'Variable'), drop = FALSE])
+    # audit0.10 §1.2: standard_error = FALSE / approx_t_value = FALSE drop the
+    # `se` / `approx_t` columns, so cs.ind/tst.ind must be derived from which
+    # columns are actually present rather than assumed from ncol(m).
+    orig_names <- setdiff(names(tab), 'Variable')
+    m <- as.matrix(tab[, orig_names, drop = FALSE])
     rownames(m) <- tab$Variable
-    colnames(m) <- vapply(colnames(m), function(nm) switch(nm,
+    colnames(m) <- vapply(orig_names, function(nm) switch(nm,
       Estimate = 'Estimate', se = 'Std. Error', approx_t = 'approx t',
       bootstrap_p = 'Pr(boot)', approx_p = 'Pr(>|t|)', nm), character(1))
 
-    p_col <- which(colnames(m) %in% c('Pr(boot)', 'Pr(>|t|)'))
+    cs_ind <- which(orig_names %in% c('Estimate', 'se'))
+    tst_ind <- which(orig_names == 'approx_t')
+    p_col <- which(orig_names %in% c('bootstrap_p', 'approx_p'))
     stats::printCoefmat(m, digits = digits,
                         signif.stars = signif.stars && length(p_col) > 0,
                         has.Pvalue = length(p_col) > 0,
                         P.values = length(p_col) > 0,
-                        cs.ind = if (ncol(m) >= 2) 1:2 else 1,
-                        tst.ind = integer(0),
+                        cs.ind = cs_ind,
+                        tst.ind = tst_ind,
                         na.print = '')
   }
 

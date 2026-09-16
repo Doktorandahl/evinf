@@ -160,6 +160,11 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
   if (has_boot && (p_value == 'approx' || confint == 'approx')) {
     standard_error <- TRUE
   }
+  if (!standard_error) {
+    # audit0.10 §1.2: `statistic` needs `std.error`, which is only computed
+    # when standard_error is TRUE.
+    approx_t_value <- FALSE
+  }
 
   nobs <- nrow(x$data$x.nb)
   npar <- length(x$par.all)

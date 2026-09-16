@@ -128,6 +128,11 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
   if (has_boot && p_value %in% c('approx', 'both')) {
     standard_error <- TRUE
   }
+  if (!standard_error) {
+    # audit0.10 §1.2: approx_t needs `se`, which is only computed when
+    # standard_error is TRUE.
+    approx_t_value <- FALSE
+  }
 
   nobs <- nrow(object$data$x.nb)
   npar <- length(object$par.all)

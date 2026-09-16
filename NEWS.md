@@ -153,6 +153,11 @@ review follow-ups in `dev/review_round1.md`.
   degenerate. It now filters to the usable replicates first, like every other
   bootstrap summary, and gains `exclude_degenerate = TRUE` (audit0.10 §1.1);
   the results also report `n_bootstraps_used` next to `n_failed_bootstraps`.
+* `summary(standard_error = FALSE)` / `tidy(standard_error = FALSE)` no longer
+  error ("Column 'se'/'std.error' not found") when the model has bootstraps:
+  `approx_t_value` is now silently forced to `FALSE` along with it, and
+  `print.summary.*()` renders correctly with the `se`/`approx_t` columns
+  missing (audit0.10 §1.2).
 
 ## Breaking changes / deprecations
 
