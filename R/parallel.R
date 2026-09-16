@@ -222,3 +222,59 @@ evinf_c_boundary_count <- function(full_run, boots) {
   }, numeric(1))
   sum(c_boot %in% ends, na.rm = TRUE)
 }
+
+# Per-endpoint breakdown behind evinf_warn_c_boundary() (audit0.10 §3.3,
+# F.3): which candidate-range endpoint(s) the bootstrap replicates' C_EV
+# equalled, and how many times each. NULL when there is no data-driven
+# candidate range to hit a boundary of (mirrors evinf_c_boundary_count()'s
+# early returns).
+evinf_c_boundary_detail <- function(full_run, boots) {
+  cl <- full_run$control$c.lim
+  if (is.null(cl)) {
+    return(NULL)
+  }
+  uy <- sort(unique(full_run$data$y))
+  grid <- uy[uy >= cl[1] & uy <= cl[2]]
+  if (!length(grid)) {
+    return(NULL)
+  }
+  ends <- range(grid)
+  c_boot <- vapply(boots, function(b) {
+    if (inherits(b, "try-error")) NA_real_ else b$coef$C
+  }, numeric(1))
+  list(
+    lower = list(value = ends[1], n = sum(c_boot == ends[1], na.rm = TRUE)),
+    upper = list(value = ends[2], n = sum(c_boot == ends[2], na.rm = TRUE))
+  )
+}
+
+# Issue the "C_EV reached the boundary" warning, naming which endpoint(s)
+# were hit and how many times (audit0.10 §3.3, F.3) -- shared by evzinb(),
+# evinb() and add_bootstraps() so the message can't drift between the three
+# call sites. Returns the total boundary count (invisibly), which callers
+# store as object$n_c_on_boundary.
+evinf_warn_c_boundary <- function(full_run, boots) {
+  n_c_bnd <- evinf_c_boundary_count(full_run, boots)
+  if (n_c_bnd == 0L) {
+    return(invisible(n_c_bnd))
+  }
+  detail <- evinf_c_boundary_detail(full_run, boots)
+  if (isTRUE(all.equal(detail$lower$value, detail$upper$value))) {
+    msg <- sprintf("C_EV equalled the candidate boundary (%s) in %d",
+                   format(detail$lower$value), n_c_bnd)
+  } else {
+    parts <- character(0)
+    if (detail$upper$n > 0L) {
+      parts <- c(parts, sprintf("the upper candidate endpoint (%s) in %d",
+                                format(detail$upper$value), detail$upper$n))
+    }
+    if (detail$lower$n > 0L) {
+      parts <- c(parts, sprintf("the lower endpoint (%s) in %d",
+                                format(detail$lower$value), detail$lower$n))
+    }
+    msg <- paste0("C_EV equalled ", paste(parts, collapse = " and "))
+  }
+  warning(msg, " of ", length(boots), " bootstrap replicates; consider ",
+          "widening c.lim.", call. = FALSE)
+  invisible(n_c_bnd)
+}

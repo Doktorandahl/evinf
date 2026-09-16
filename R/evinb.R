@@ -436,12 +436,7 @@ evinb <- function(
       )
     })
     names(boots) <- paste0("bootstrap_", seq_along(boots))
-    n_c_bnd <- evinf_c_boundary_count(full_run, boots)
-    if (n_c_bnd > 0L) {
-      warning("C_EV reached the boundary of the candidate range in ", n_c_bnd,
-              " of ", length(boots), " bootstrap replicates; consider widening ",
-              "c.lim.", call. = FALSE)
-    }
+    n_c_bnd <- evinf_warn_c_boundary(full_run, boots)
     out <- c(full_run, list(bootstraps = boots, n_c_on_boundary = n_c_bnd))
   } else {
     out <- full_run

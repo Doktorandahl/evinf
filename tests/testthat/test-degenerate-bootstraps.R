@@ -76,12 +76,15 @@ test_that("C_EV on a candidate-grid endpoint is counted and warned, not excluded
   # a candidate grid with only two observed values ({170, 173}, ~85th pctile):
   # every replicate's C_EV is then necessarily on an endpoint.
   ctl <- evinf::evinf_control(c.lim = c(170, 173), init.C = 170)
+  # audit0.10 §3.3 (F.3): the warning now names the endpoint(s) hit and the
+  # per-endpoint counts (e.g. "the upper candidate endpoint (173) in 3 and
+  # the lower endpoint (170) in 1"), rather than just a bare total.
   expect_warning(
     m <- suppressMessages(evinf::evzinb(
       y ~ x1 + x2 + x3, data = genevzinb2, control = ctl,
       bootstrap = TRUE, n_bootstraps = 4, boot_seed = 1, multicore = FALSE,
       verbose = FALSE)),
-    "boundary of the candidate range"
+    "C_EV equalled"
   )
   n_ok <- sum(!vapply(m$bootstraps, inherits, logical(1), "try-error"))
   expect_equal(m$n_c_on_boundary, n_ok)
@@ -90,6 +93,35 @@ test_that("C_EV on a candidate-grid endpoint is counted and warned, not excluded
   expect_equal(sum(vapply(m$bootstraps, function(b) isTRUE(b$degenerate),
                           logical(1))), 0L)
   expect_output(print(m), "boundary of the candidate range")
+})
+
+test_that("the boundary warning names both endpoints and their counts when both are hit (audit0.10 §3.3, F.3)", {
+  full_run <- list(control = list(c.lim = c(170, 173)),
+                   data = list(y = c(170, 171, 172, 173)))
+  boots <- list(
+    list(coef = list(C = 173)),
+    list(coef = list(C = 173)),
+    list(coef = list(C = 173)),
+    list(coef = list(C = 170)),
+    list(coef = list(C = 171.5))  # not a boundary value
+  )
+  expect_warning(
+    n <- evinf:::evinf_warn_c_boundary(full_run, boots),
+    "C_EV equalled the upper candidate endpoint \\(173\\) in 3 and the lower endpoint \\(170\\) in 1 of 5 bootstrap replicates"
+  )
+  expect_equal(n, 4L)
+
+  # only one endpoint hit -> only that clause appears
+  boots_lower_only <- list(list(coef = list(C = 170)), list(coef = list(C = 171.5)))
+  expect_warning(
+    evinf:::evinf_warn_c_boundary(full_run, boots_lower_only),
+    "^C_EV equalled the lower endpoint \\(170\\) in 1 of 2 bootstrap replicates"
+  )
+
+  # no boundary hits -> no warning, count 0
+  boots_none <- list(list(coef = list(C = 171.5)))
+  expect_no_warning(n0 <- evinf:::evinf_warn_c_boundary(full_run, boots_none))
+  expect_equal(n0, 0L)
 })
 
 
