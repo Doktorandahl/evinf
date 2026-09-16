@@ -177,6 +177,13 @@ review follow-ups in `dev/review_round1.md`.
   `poly()`/`ns()`/`bs()` keeps the numeric derivative/difference path with
   its perturbation clamped to the covariate's observed range. A covariate
   used both ways across formula components errors clearly (audit0.10 §1.10).
+* A singular M-step Hessian no longer aborts the fit (or, on some BLAS
+  backends, silently returns a wildly ill-conditioned step): the Newton step
+  now uses `arma::solve(..., solve_opts::no_approx)`, which reports failure
+  instead of throwing or returning garbage; on failure it retries once with a
+  small ridge, and if that also fails the affected block keeps its
+  pre-step value for that EM step (audit0.10 §1.3). This is also the usual
+  reason a bootstrap replicate failed.
 
 ## Breaking changes / deprecations
 

@@ -207,6 +207,34 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
   return(func_val);
 }
 
+// Bounded Newton step -H^{-1}*g, robust to a singular Hessian (audit0.10
+// §1.3). H is the Hessian of the (expected complete-data log-likelihood)
+// objective being MAXIMISED, so it is negative (semi-)definite near the
+// optimum; -inv(H)*g is therefore an ascent step. arma::solve(...,
+// solve_opts::no_approx) returns false on failure instead of throwing, so a
+// singular H never raises a C++ exception here. On failure, retry once with
+// a small ridge that pushes H further into negative-definite territory
+// (subtracting a positive multiple of the identity, consistent with H's
+// existing sign convention) rather than flipping it. If that also fails,
+// return a vector of NA_REAL of the same length as g; every caller below
+// then propagates that into the corresponding "_old" parameter via ordinary
+// (NaN-propagating) vector addition, which is exactly what em_step() (R/
+// em_step.R) already checks for to keep that block's old value.
+arma::mat safe_newton_step(const arma::mat &H, const arma::mat &g) {
+  arma::mat step;
+  bool ok = arma::solve(step, H, -g, arma::solve_opts::no_approx);
+  if (!ok) {
+    double scale = std::max(1.0, arma::abs(H).max());
+    arma::mat H_ridge = H - 1e-8 * scale * arma::eye(H.n_rows, H.n_cols);
+    ok = arma::solve(step, H_ridge, -g, arma::solve_opts::no_approx);
+  }
+  if (!ok) {
+    step = arma::mat(g.n_rows, g.n_cols);
+    step.fill(NA_REAL);
+  }
+  return step;
+}
+
 //[[Rcpp::export]]
 List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb){
 
@@ -295,7 +323,16 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       d2Qdtheta2_nb = d2Qdtheta2_nb + d2elldtheta2_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i))*resp(i,1);
     }
 
-    change_nb_bfgs = -inv(d2Qdtheta2_nb)*dQdtheta_nb;
+    change_nb_bfgs = safe_newton_step(d2Qdtheta2_nb, dQdtheta_nb);
+    if (change_nb_bfgs.has_nan()) {
+      // A permanently singular Hessian: propagate NA into beta_nb_old /
+      // alpha_nb_old (so em_step() falls back to the pre-step values) and
+      // stop iterating this block -- further steps from NaN parameters are
+      // wasted work.
+      beta_nb_old = beta_nb_old + change_nb_bfgs.submat(0,0,n_nb-1,0);
+      alpha_nb_old = alpha_nb_old + change_nb_bfgs.submat(n_nb,0,n_nb,0).eval()(0,0);
+      break;
+    }
 
     maxabschange = max(abs(change_nb_bfgs)).eval()(0,0);
     if(maxabschange>max_upd_par){
@@ -321,7 +358,11 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       }
     }
 
-    change_pl_bfgs = -inv(d2Qdbeta2_pl)*dQdbeta_pl;
+    change_pl_bfgs = safe_newton_step(d2Qdbeta2_pl, dQdbeta_pl);
+    if (change_pl_bfgs.has_nan()) {
+      beta_pl_old = beta_pl_old + change_pl_bfgs;
+      break;
+    }
 
     maxabschange = max(abs(change_pl_bfgs)).eval()(0,0);
     if(maxabschange>max_upd_par){
@@ -350,8 +391,11 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       d2Qdgamma2_z = d2Qdgamma2_z + d2Qdgamma2_z_i;
     }
 
-    change_mult_z_bfgs = -inv(d2Qdgamma2_z)*dQdgamma_z;
-
+    change_mult_z_bfgs = safe_newton_step(d2Qdgamma2_z, dQdgamma_z);
+    if (change_mult_z_bfgs.has_nan()) {
+      gamma_z_old = gamma_z_old + change_mult_z_bfgs;
+      break;
+    }
 
     maxabschange = max(abs(change_mult_z_bfgs)).eval()(0,0);
     if(maxabschange>max_upd_par){
@@ -380,7 +424,11 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       d2Qdgamma2_pl = d2Qdgamma2_pl + d2Qdgamma2_pl_i;
     }
 
-    change_mult_pl_bfgs = -inv(d2Qdgamma2_pl)*dQdgamma_pl;
+    change_mult_pl_bfgs = safe_newton_step(d2Qdgamma2_pl, dQdgamma_pl);
+    if (change_mult_pl_bfgs.has_nan()) {
+      gamma_pl_old = gamma_pl_old + change_mult_pl_bfgs;
+      break;
+    }
 
     maxabschange = max(abs(change_mult_pl_bfgs)).eval()(0,0);
     if(maxabschange>max_upd_par){
