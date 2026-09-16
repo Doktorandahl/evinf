@@ -254,12 +254,16 @@ terms.evinb <- function(x, component = "count", ...) {
 #'   \code{"response"} (\eqn{y - } harmonic prediction) or \code{"quantile"}
 #'   (randomized quantile residuals from the mixture CDF).
 #' @param seed Optional RNG seed for the randomized quantile residuals /
-#'   \code{simulate()}.
+#'   \code{simulate()}. If given, the caller's RNG state is restored on exit
+#'   (the seed only affects this call's draws).
 #' @param nsim Number of simulated response vectors.
 #' @param newdata Optional data to simulate for.
 #' @param ... Unused.
 #' @return \code{fitted()} / \code{residuals()} return a numeric vector;
-#'   \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2}, ...
+#'   \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2},
+#'   ..., with a \code{"seed"} attribute following the
+#'   \code{\link[stats]{simulate}} convention (the given \code{seed}, or, if
+#'   none was given, the RNG state before the draws were made).
 #' @name evinf-s3-predict
 #' @export
 fitted.evzinb <- function(object,
@@ -292,42 +296,54 @@ residuals.evzinb <- function(object, type = c("response", "quantile"),
                 mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  u <- stats::runif(length(y), Fy1, Fy)
+  # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG
+  # state -- same preserve-seed helper as evinf_seeded_sample() (B.4/§1.9).
+  u <- evinf_with_seed(seed, stats::runif(length(y), Fy1, Fy))
   stats::qnorm(u)
 }
 #' @rdname evinf-s3-predict
 #' @export
 residuals.evinb <- residuals.evzinb
 
+# The RNG state to record on the "seed" attribute of simulate()'s result,
+# following the stats::simulate() convention (audit0.10 §1.14, D.6): the
+# given seed if one was supplied, otherwise the caller's .Random.seed as it
+# stood immediately before the draw (so it can be restored later to
+# reproduce these draws).
+evinf_pre_draw_rng_state <- function(seed) {
+  if (!is.null(seed)) {
+    return(structure(seed, kind = as.list(RNGkind())))
+  }
+  if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+    stats::runif(1)
+  }
+  get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+}
+
 #' @rdname evinf-s3-predict
 #' @export
 simulate.evzinb <- function(object, nsim = 1, seed = NULL, newdata = NULL, ...) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  draws <- revzinb_fit(object, newdata = newdata, n_draws = nsim)
+  rng_state <- evinf_pre_draw_rng_state(seed)
+  draws <- evinf_with_seed(seed, revzinb_fit(object, newdata = newdata, n_draws = nsim))
   if (nsim == 1L) {
     draws <- list(draws)
   }
   out <- as.data.frame(draws)
   names(out) <- paste0("sim_", seq_len(nsim))
+  attr(out, "seed") <- rng_state
   out
 }
 #' @rdname evinf-s3-predict
 #' @export
 simulate.evinb <- function(object, nsim = 1, seed = NULL, newdata = NULL, ...) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  draws <- revinb_fit(object, newdata = newdata, n_draws = nsim)
+  rng_state <- evinf_pre_draw_rng_state(seed)
+  draws <- evinf_with_seed(seed, revinb_fit(object, newdata = newdata, n_draws = nsim))
   if (nsim == 1L) {
     draws <- list(draws)
   }
   out <- as.data.frame(draws)
   names(out) <- paste0("sim_", seq_len(nsim))
+  attr(out, "seed") <- rng_state
   out
 }
 

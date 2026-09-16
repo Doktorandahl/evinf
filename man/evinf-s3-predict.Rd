@@ -33,7 +33,8 @@
 \item{...}{Unused.}
 
 \item{seed}{Optional RNG seed for the randomized quantile residuals /
-\code{simulate()}.}
+\code{simulate()}. If given, the caller's RNG state is restored on exit
+(the seed only affects this call's draws).}
 
 \item{nsim}{Number of simulated response vectors.}
 
@@ -41,7 +42,10 @@
 }
 \value{
 \code{fitted()} / \code{residuals()} return a numeric vector;
-  \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2}, ...
+  \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2},
+  ..., with a \code{"seed"} attribute following the
+  \code{\link[stats]{simulate}} convention (the given \code{seed}, or, if
+  none was given, the RNG state before the draws were made).
 }
 \description{
 Fitted values, residuals and simulations from an evzinb / evinb model

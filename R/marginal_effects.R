@@ -21,12 +21,15 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
 
 .me_colmeans <- function(x) if (is.matrix(x)) colMeans(x) else mean(x)
 
-# sample.int() with an optional seed and sampling weights, leaving the
-# caller's RNG state untouched (audit0.10 §1.9: reused by em_c_candidates()'s
-# pruning, which previously used sample() on the global RNG).
-evinf_seeded_sample <- function(n, size, seed = NULL, prob = NULL) {
+# Evaluate `expr` under a temporary seed, leaving the caller's RNG state
+# untouched (audit0.10 §1.9 / §1.14): with `seed = NULL`, `expr` just runs on
+# the ambient RNG stream (nothing to preserve); with a seed given, the
+# caller's `.Random.seed` is saved before `set.seed(seed)` and restored on
+# exit, whether or not `expr` errors. Shared by evinf_seeded_sample()'s
+# pruning draws, residuals(seed=) and simulate(seed=) (R/s3_generics.R).
+evinf_with_seed <- function(seed, expr) {
   if (is.null(seed)) {
-    return(sample.int(n, size, prob = prob))
+    return(expr)
   }
   had <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
   if (had) saved <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
@@ -38,7 +41,14 @@ evinf_seeded_sample <- function(n, size, seed = NULL, prob = NULL) {
     }
   }, add = TRUE)
   set.seed(seed)
-  sample.int(n, size, prob = prob)
+  expr
+}
+
+# sample.int() with an optional seed and sampling weights, leaving the
+# caller's RNG state untouched (audit0.10 §1.9: reused by em_c_candidates()'s
+# pruning, which previously used sample() on the global RNG).
+evinf_seeded_sample <- function(n, size, seed = NULL, prob = NULL) {
+  evinf_with_seed(seed, sample.int(n, size, prob = prob))
 }
 
 # AME of one variable for one fit; returns a named vector (length 1 for scalar

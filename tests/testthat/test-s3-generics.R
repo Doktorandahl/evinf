@@ -67,6 +67,32 @@ test_that("simulate() returns a tidy data frame", {
   expect_equal(s, simulate(m, nsim = 3, seed = 1))
 })
 
+test_that("residuals(seed=) and simulate(seed=) restore the caller's RNG state (audit0.10 §1.14, D.6)", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+
+  set.seed(123)
+  before <- .Random.seed
+  invisible(residuals(m, type = "quantile", seed = 1))
+  expect_identical(.Random.seed, before)
+
+  set.seed(123)
+  before2 <- .Random.seed
+  invisible(simulate(m, seed = 1))
+  expect_identical(.Random.seed, before2)
+})
+
+test_that("simulate() attaches a 'seed' attribute following stats::simulate's convention (audit0.10 §1.14, D.6)", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+
+  s <- simulate(m, seed = 1)
+  expect_equal(attr(s, "seed"), structure(1, kind = as.list(RNGkind())))
+
+  set.seed(99)
+  before <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  s2 <- simulate(m)
+  expect_equal(attr(s2, "seed"), before)
+})
+
 test_that("update() edits per-component formulas and other arguments", {
   m <- fit_evzinb_fast(n_bootstraps = 3)
   m2 <- suppressWarnings(suppressMessages(
