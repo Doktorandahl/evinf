@@ -3,12 +3,15 @@
 # Per-bootstrap fit statistics for the evinf model (constant npar, so AIC/BIC are
 # recomputed from the trace log-likelihood rather than trusting a bootstrap
 # object's own AIC, which for evinb still counts the fixed ZI coefficients).
-evinf_boot_fit_stats <- function(comp) {
+# audit0.10 §1.6: excluded replicates are set to NULL, not dropped, so the
+# position still lines up with the compared models' bootstrap lists.
+evinf_boot_fit_stats <- function(comp, exclude_degenerate = TRUE) {
   ev <- comp$model
   npar <- length(ev$par.all)
   nobs <- nrow(ev$data$x.nb)
   lapply(ev$bootstraps, function(b) {
-    if (inherits(b, "try-error")) {
+    if (inherits(b, "try-error") ||
+        (isTRUE(exclude_degenerate) && isTRUE(b$degenerate))) {
       return(NULL)
     }
     ll <- b$log.lik
@@ -34,14 +37,20 @@ compared_boot_fit_stats <- function(slot) {
 #'
 #' For each compared model (\code{nb}, \code{zinb}, and any winsorized /
 #' razorized variants) and each metric, computes the paired bootstrap difference
-#' \code{compared - evinf} (so a negative median favours the extreme-value
-#' model), the proportion of bootstraps in which the evinf model is better, and
-#' the number of bootstrap pairs where both fits succeeded.
+#' \code{evinf - compared} (so a negative median favours the extreme-value
+#' model, matching Table B3 of the ISQ appendix), the proportion of bootstraps
+#' in which the evinf model is better, and the number of bootstrap pairs where
+#' both fits succeeded.
 #'
 #' @param comp An \code{evzinbcomp} object from \code{\link{compare_models}()}.
 #' @param metrics Which metrics: any of \code{"aic"}, \code{"bic"}, \code{"rmse"},
 #'   \code{"rmsle"}. RMSE / RMSLE come from the out-of-bag predictions and need
 #'   \code{\link{oob_evaluation}()} on the evinf model.
+#' @param exclude_degenerate Drop bootstrap replicates of the evinf model
+#'   flagged degenerate (default \code{TRUE}); see the \code{alpha_floor}
+#'   argument of \code{\link{evinf_control}}. Excluded replicates are treated as
+#'   missing rather than dropped, so the pairing with the compared models'
+#'   replicates is preserved.
 #' @param ... Unused.
 #'
 #' @return A tibble of class \code{evinf_compare_fit} with columns \code{model},
@@ -55,18 +64,21 @@ compared_boot_fit_stats <- function(slot) {
 #' model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 10)
 #' compare_fit(compare_models(model))
 #' }
-compare_fit <- function(comp, metrics = c("aic", "bic", "rmse", "rmsle"), ...) {
+compare_fit <- function(comp, metrics = c("aic", "bic", "rmse", "rmsle"),
+                        exclude_degenerate = TRUE, ...) {
   if (!inherits(comp, "evzinbcomp")) {
     stop("`comp` must be an evzinbcomp object from compare_models().", call. = FALSE)
   }
   metrics <- match.arg(metrics, c("aic", "bic", "rmse", "rmsle"), several.ok = TRUE)
   metric_key <- c(aic = "AIC", bic = "BIC", rmse = "rmse", rmsle = "rmsle")
 
-  ev_stats <- evinf_boot_fit_stats(comp)
+  ev_stats <- evinf_boot_fit_stats(comp, exclude_degenerate)
   need_oob <- any(c("rmse", "rmsle") %in% metrics)
   if (need_oob) {
-    ev_rmse <- suppressWarnings(oob_evaluation(comp$model, metric = "rmse"))
-    ev_rmsle <- suppressWarnings(oob_evaluation(comp$model, metric = "rmsle"))
+    ev_rmse <- suppressWarnings(oob_evaluation(comp$model, metric = "rmse",
+                                               exclude_degenerate = exclude_degenerate))
+    ev_rmsle <- suppressWarnings(oob_evaluation(comp$model, metric = "rmsle",
+                                                exclude_degenerate = exclude_degenerate))
     for (k in seq_along(ev_stats)) {
       if (!is.null(ev_stats[[k]])) {
         ev_stats[[k]]["rmse"] <- ev_rmse[k]
@@ -81,15 +93,17 @@ compare_fit <- function(comp, metrics = c("aic", "bic", "rmse", "rmsle"), ...) {
     cmp_stats <- compared_boot_fit_stats(comp[[slot]])
     for (m in metrics) {
       key <- metric_key[[m]]
+      # audit0.10 §1.6: evinf - compared (not compared - evinf), so a negative
+      # median favours evinf -- matching the print header and plot label.
       diffs <- vapply(seq_along(ev_stats), function(k) {
         a <- ev_stats[[k]]; b <- cmp_stats[[k]]
-        if (is.null(a) || is.null(b)) NA_real_ else unname(b[key] - a[key])
+        if (is.null(a) || is.null(b)) NA_real_ else unname(a[key] - b[key])
       }, numeric(1))
       diffs <- diffs[is.finite(diffs)]
       rows[[length(rows) + 1L]] <- tibble::tibble(
         model = slot, metric = m,
         median_difference = if (length(diffs)) stats::median(diffs) else NA_real_,
-        prop_evinf_better = if (length(diffs)) mean(diffs > 0) else NA_real_,
+        prop_evinf_better = if (length(diffs)) mean(diffs < 0) else NA_real_,
         n_pairs = length(diffs)
       )
     }
@@ -101,7 +115,7 @@ compare_fit <- function(comp, metrics = c("aic", "bic", "rmse", "rmsle"), ...) {
 
 #' @export
 print.evinf_compare_fit <- function(x, ...) {
-  cat("Paired bootstrap fit comparison (compared - evinf)\n")
+  cat("Paired bootstrap fit comparison (evinf - compared)\n")
   cat("  negative median favours the extreme-value model\n\n")
   df <- as.data.frame(x)
   df$median_difference <- signif(df$median_difference, 4)
@@ -110,12 +124,14 @@ print.evinf_compare_fit <- function(x, ...) {
   invisible(x)
 }
 
-# Long tibble of every per-bootstrap paired difference (compared - evinf).
-evinf_compare_fit_long <- function(comp, metrics) {
-  ev_stats <- evinf_boot_fit_stats(comp)
+# Long tibble of every per-bootstrap paired difference (evinf - compared).
+evinf_compare_fit_long <- function(comp, metrics, exclude_degenerate = TRUE) {
+  ev_stats <- evinf_boot_fit_stats(comp, exclude_degenerate)
   if (any(c("rmse", "rmsle") %in% metrics)) {
-    r <- suppressWarnings(oob_evaluation(comp$model, metric = "rmse"))
-    rl <- suppressWarnings(oob_evaluation(comp$model, metric = "rmsle"))
+    r <- suppressWarnings(oob_evaluation(comp$model, metric = "rmse",
+                                         exclude_degenerate = exclude_degenerate))
+    rl <- suppressWarnings(oob_evaluation(comp$model, metric = "rmsle",
+                                          exclude_degenerate = exclude_degenerate))
     for (k in seq_along(ev_stats)) if (!is.null(ev_stats[[k]])) {
       ev_stats[[k]]["rmse"] <- r[k]; ev_stats[[k]]["rmsle"] <- rl[k]
     }
@@ -127,7 +143,7 @@ evinf_compare_fit_long <- function(comp, metrics) {
     dplyr::bind_rows(lapply(metrics, function(m) {
       d <- vapply(seq_along(ev_stats), function(k) {
         a <- ev_stats[[k]]; b <- cmp[[k]]
-        if (is.null(a) || is.null(b)) NA_real_ else unname(b[key[[m]]] - a[key[[m]]])
+        if (is.null(a) || is.null(b)) NA_real_ else unname(a[key[[m]]] - b[key[[m]]])
       }, numeric(1))
       tibble::tibble(model = slot, metric = m, difference = d[is.finite(d)])
     }))
@@ -138,16 +154,17 @@ evinf_compare_fit_long <- function(comp, metrics) {
 #' @param x An \code{evzinbcomp} object.
 #' @param metrics Metrics to show.
 #' @export
-plot.evzinbcomp <- function(x, metrics = c("aic", "bic", "rmse", "rmsle"), ...) {
+plot.evzinbcomp <- function(x, metrics = c("aic", "bic", "rmse", "rmsle"),
+                            exclude_degenerate = TRUE, ...) {
   rlang::check_installed("ggplot2", "for plot.evzinbcomp()")
   metrics <- match.arg(metrics, c("aic", "bic", "rmse", "rmsle"), several.ok = TRUE)
-  long <- evinf_compare_fit_long(x, metrics)
+  long <- evinf_compare_fit_long(x, metrics, exclude_degenerate)
   ggplot2::ggplot(long, ggplot2::aes(.data$difference)) +
     ggplot2::geom_density(fill = "grey80", colour = NA) +
     ggplot2::geom_vline(xintercept = 0, linetype = "dashed") +
     ggplot2::facet_grid(rows = ggplot2::vars(.data$model),
                         cols = ggplot2::vars(.data$metric), scales = "free") +
-    ggplot2::labs(x = "compared - evinf  (negative favours evinf)",
+    ggplot2::labs(x = "evinf - compared  (negative favours evinf)",
                   y = "bootstrap density") +
     ggplot2::theme_minimal()
 }

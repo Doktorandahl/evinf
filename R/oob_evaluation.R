@@ -5,6 +5,11 @@
 #'   \code{evzinbcomp} object from \code{\link{compare_models}()}.
 #' @param predict_type What type of prediction should be made? Harmonic mean, or exp(log(prediction))?
 #' @param metric What metric should be used for the out of bag evaluation? Default options include rmsle, rmse, mse, and mae. Can also take a user supplied function of the form function(y_pred,y_true) which returns a single value
+#' @param exclude_degenerate For a single evinf model (or its \code{$model} slot
+#'   inside an \code{evzinbcomp}), return \code{NA} for bootstrap replicates
+#'   flagged degenerate (default \code{TRUE}) instead of their out-of-bag error,
+#'   so positions still line up with the compared models' replicates; see the
+#'   \code{alpha_floor} argument of \code{\link{evinf_control}}.
 #'
 #' @return For a single model, a vector of length \code{n_bootstraps}. For an
 #'   \code{evzinbcomp} object, a tibble with one column per compared model
@@ -18,7 +23,8 @@
 #' oob_evaluation(model)
 #' }
 oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
-                           metric = c('rmsle','rmse','mse','mae')){
+                           metric = c('rmsle','rmse','mse','mae'),
+                           exclude_degenerate = TRUE){
 
   if (inherits(object, "evzinbcomp")) {
     predict_type <- match.arg(predict_type, c('harmonic', 'explog'))
@@ -26,7 +32,7 @@ oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
     slots <- setdiff(names(object), c('model', 'evzinb'))
     out <- tibble::tibble(
       evinf = oob_evaluation(object$model, predict_type = predict_type,
-                             metric = metric)
+                             metric = metric, exclude_degenerate = exclude_degenerate)
     )
     for (s in slots) {
       out[[s]] <- switch(metric,
@@ -55,9 +61,13 @@ oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
   }
   predict_type <- match.arg(predict_type, c('harmonic','explog'))
   
-  evals <- purrr::map(object$bootstraps, function(b)
+  evals <- purrr::map(object$bootstraps, function(b) {
+    if (isTRUE(exclude_degenerate) && !inherits(b, "try-error") && isTRUE(b$degenerate)) {
+      return(NA_real_)
+    }
     try(oob_inner(b, object$data, predict_type, ev_metric,
-                  model_type = class(object)), silent = TRUE))
+                  model_type = class(object)), silent = TRUE)
+  })
 
   evals <- purrr::map(evals, err2na)
   evals <- purrr::reduce(evals, c)

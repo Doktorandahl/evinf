@@ -54,9 +54,10 @@ review follow-ups in `dev/review_round1.md`.
   a bootstrap ribbon and quantile lines), `"coefficients"` (bootstrap
   coefficient densities), `"ppc"` (observed-vs-expected binned frequencies) and
   `"ppc_quantiles"` (observed vs. simulated tail quantiles with a 5-95\% band).
-* `compare_fit()` summarises the paired bootstrap differences (`compared -
-  evinf`) in AIC, BIC and out-of-bag RMSE / RMSLE for an `evzinbcomp` object,
-  with the proportion of bootstraps favouring the extreme-value model;
+* `compare_fit()` summarises the paired bootstrap differences (`evinf -
+  compared`, negative favours the extreme-value model) in AIC, BIC and
+  out-of-bag RMSE / RMSLE for an `evzinbcomp` object, with the proportion of
+  bootstraps favouring the extreme-value model;
   `plot()`, `tidy()` and `glance()` methods for `evzinbcomp` and an
   `oob_evaluation()` method that tabulates the out-of-bag error per model.
 * `marginal_effects()` computes average marginal effects (central difference for
@@ -285,6 +286,14 @@ review follow-ups in `dev/review_round1.md`.
   `match.arg()` now rejects it.
 * The three internal `marginal.effect.*` helpers (never exported, superseded by
   `marginal_effects()`) were removed.
+* **`compare_fit()` sign convention.** The paired bootstrap difference is now
+  `evinf - compared` (was `compared - evinf`); `prop_evinf_better` is now
+  `mean(diffs < 0)`. The print header and the `plot()` x-axis label already
+  said "negative favours evinf" — it was the computation that disagreed with
+  them (a probe on `genevzinb2` showed a *positive* median with
+  `prop_evinf_better = 1` for a model that clearly wins on AIC). `compare_fit()`
+  / `plot.evzinbcomp()` also gain `exclude_degenerate = TRUE`, and
+  `oob_evaluation()` now honours it for a single evinf model.
 
 ## Documentation
 
