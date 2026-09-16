@@ -33,6 +33,9 @@ lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
 #' @param single Logical. Determining whether variables in 'vars' should be restricted individually (single = TRUE) or all at once (single = FALSE)
 #' @param bootstrap Should LR tests be conducted on each bootstrapped sample or only on the original sample.
 #' @inheritParams evzinb
+#' @param exclude_degenerate Logical. When \code{bootstrap = TRUE}, also drop
+#'   bootstrap replicates flagged degenerate (see \code{\link{failed_bootstraps}}),
+#'   not just those that errored. Default \code{TRUE}.
 #' @param verbose Logical. Should the function be verbose?
 #'
 #' @details The likelihood ratio statistic is \eqn{2(\ell_{full} - \ell_{restricted})}
@@ -54,7 +57,8 @@ lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' lr_test(model,'x1')
 #' }
-lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = NULL, ncores = NULL,verbose = FALSE){
+lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = NULL, ncores = NULL,
+                     exclude_degenerate = TRUE, verbose = FALSE){
 
   model_data <- object$data$data
 
@@ -93,10 +97,16 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
 
     if(bootstrap){
 
+    # Filter to usable replicates first (audit0.10 §1.1): boot_ids and
+    # logliks_boot are then both derived from that same list, with vapply(),
+    # so they always have the same length and order as each other and as the
+    # per-formula reduced-model refits below.
+    boots <- evinf_usable_bootstraps(object, exclude_degenerate)
     n_f <- length(formulas_dfs)
-    n_b <- length(object$bootstraps)
+    n_b <- length(boots)
     grid <- expand.grid(fi = seq_len(n_f), bj = seq_len(n_b))
-    boot_ids <- purrr::map(object$bootstraps, "boot_id")
+    boot_ids <- purrr::map(boots, "boot_id")
+    logliks_boot <- vapply(boots, function(b) b$log.lik, numeric(1))
 
     flat <- evinf_with_plan(multicore, ncores, {
       evinf_pmap(
@@ -120,8 +130,6 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
       vapply(fr, function(r)
         if (inherits(r, "try-error")) NA_real_ else r$log.lik, numeric(1)))
 
-   logliks_boot <- object$bootstraps %>% purrr::map('log.lik') %>% purrr::reduce(c)
-
    statistics_boot <- purrr::map(logliks_boot_reduced, function(llr)
      2 * (logliks_boot - llr))
 
@@ -140,7 +148,12 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
        mean(stats::na.omit(statistics_boot[[i]]) > qchisq(0.95, dfs[i])),
        numeric(1)),
      n_failed_bootstraps = vapply(statistics_boot, function(s)
-       sum(is.na(s)), integer(1)))
+       sum(is.na(s)), integer(1)),
+     # audit0.10 §1.1: how many replicates fed into this row at all, i.e. those
+     # that survived evinf_usable_bootstraps() and had a successful reduced-
+     # model refit (n_failed_bootstraps counts the latter kind of failure).
+     n_bootstraps_used = vapply(statistics_boot, function(s)
+       n_b - sum(is.na(s)), integer(1)))
 
    res_boot <- purrr::map(seq_along(statistics_boot), function(i)
      tibble::tibble(ll_reduced = logliks_boot_reduced[[i]],

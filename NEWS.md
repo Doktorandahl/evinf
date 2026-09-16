@@ -148,6 +148,11 @@ review follow-ups in `dev/review_round1.md`.
 * `predict()` on the `zinb` slot of a `compare_models()` result with
   `type = "counts"` (or `type = "all"`, or `type = "counts", confint = TRUE`)
   no longer errors with "$ operator is invalid for atomic vectors".
+* `lr_test(bootstrap = TRUE)` no longer errors ("Tibble columns must have
+  compatible sizes") when any bootstrap replicate failed or was flagged
+  degenerate. It now filters to the usable replicates first, like every other
+  bootstrap summary, and gains `exclude_degenerate = TRUE` (audit0.10 §1.1);
+  the results also report `n_bootstraps_used` next to `n_failed_bootstraps`.
 
 ## Breaking changes / deprecations
 
