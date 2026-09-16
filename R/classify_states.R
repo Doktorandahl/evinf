@@ -1,20 +1,17 @@
 # audit 4.10: posterior-state tools.
 
-# Discretised Pareto pmf on the integers >= C: P(Y = y) = (C/y)^a - (C/(y+1))^a.
-evinf_pareto_pmf <- function(y, C, a) {
-  out <- (C / y)^a - (C / (y + 1))^a
-  out[y < C] <- 0
-  out[!is.finite(out)] <- 0
-  out
-}
-
 # Component responsibilities (posterior state probabilities) from eq. 8 of the
 # ISQ appendix: resp_k proportional to prior_k * density_k(y).
 # prior is an n x 3 matrix of prior state probabilities (zero, count, evi).
+#
+# The evi-state density uses the discretised Pareto pmf dpareto_disc() (audit0.10
+# §1.12, D.4) -- the same distribution used by the likelihood, CDF, quantiles,
+# residuals and simulation -- rather than a second, independently maintained
+# copy of the same formula.
 evinf_responsibilities <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior) {
   d_zero <- as.numeric(y == 0)
   d_count <- stats::dnbinom(y, mu = mu_nb, size = 1 / alpha_nb)
-  d_evi <- evinf_pareto_pmf(y, C, pl_alpha)
+  d_evi <- dpareto_disc(y, C, pl_alpha)
 
   num <- cbind(prior[, 1] * d_zero,
                prior[, 2] * d_count,

@@ -288,9 +288,13 @@ review follow-ups in `dev/review_round1.md`.
   depend on the number of workers). Pin results you need to reproduce.
 * `future` and `furrr` are new hard dependencies; `foreach`, `doParallel`,
   `doRNG` and **`mistr`** are dropped.
-* The extreme-value component of the mixture is now a single, package-wide
-  **discretised Pareto** (`R/dist_pareto.R`): pmf
-  \eqn{(C/y)^\alpha - (C/(y+1))^\alpha} for integer \eqn{y \ge C}. Previously
+* The likelihood, CDF, quantile prediction, residuals, `simulate()` and the
+  posterior state probabilities now all share a single **discretised Pareto**
+  (`R/dist_pareto.R`): pmf \eqn{(C/y)^\alpha - (C/(y+1))^\alpha} for integer
+  \eqn{y \ge C}. The `'harmonic'`/`'explog'` point predictions still use the
+  continuous-Pareto harmonic/geometric-mean formulas as a closed-form
+  approximation (documented in `?predict.evzinb`), so they are the one place
+  that is not computed from the discretised distribution. Previously
   `predict(type = "quantile")` / `quantiles_from_*()` /
   `marginal_effects(type = "quantile")` built the mixture with `mistr` and
   inverted it there. The new path bisects the same mixture CDF used by

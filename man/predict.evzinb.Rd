@@ -58,6 +58,16 @@ A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_al
 \description{
 Predictions from evzinb object
 }
+\details{
+The likelihood, CDF, quantile prediction, residuals and
+  \code{simulate()} all use the discretised Pareto distribution (the
+  integer-valued distribution the model is actually fit on). The
+  \code{'harmonic'} and \code{'explog'} point predictions instead use the
+  harmonic and geometric means of the *continuous* Pareto distribution as a
+  closed-form approximation to the corresponding discretised-Pareto moments;
+  this keeps existing point predictions unchanged but means they are not
+  computed from exactly the same distribution as the rest of the model.
+}
 \section{Parallel processing}{
 
 Bootstrap fits (and the per-bootstrap work in \code{\link{add_bootstraps}},

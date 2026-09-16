@@ -74,6 +74,15 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
 
 #' Predictions from evzinb object
 #'
+#' @details The likelihood, CDF, quantile prediction, residuals and
+#'   \code{simulate()} all use the discretised Pareto distribution (the
+#'   integer-valued distribution the model is actually fit on). The
+#'   \code{'harmonic'} and \code{'explog'} point predictions instead use the
+#'   harmonic and geometric means of the *continuous* Pareto distribution as a
+#'   closed-form approximation to the corresponding discretised-Pareto moments;
+#'   this keeps existing point predictions unchanged but means they are not
+#'   computed from exactly the same distribution as the rest of the model.
+#'
 #' @param object An evzinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
 #' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state,'zi' for the predicted probability of the zero state, 'all' for all predicted values, and 'quantile' for quantile prediction.
@@ -511,6 +520,15 @@ predict.evzinb <- function(
 }
 
 #' Predictions from evinb object
+#'
+#' @details The likelihood, CDF, quantile prediction, residuals and
+#'   \code{simulate()} all use the discretised Pareto distribution (the
+#'   integer-valued distribution the model is actually fit on). The
+#'   \code{'harmonic'} and \code{'explog'} point predictions instead use the
+#'   harmonic and geometric means of the *continuous* Pareto distribution as a
+#'   closed-form approximation to the corresponding discretised-Pareto moments;
+#'   this keeps existing point predictions unchanged but means they are not
+#'   computed from exactly the same distribution as the rest of the model.
 #'
 #' @param object An evinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
