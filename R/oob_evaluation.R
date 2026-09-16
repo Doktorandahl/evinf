@@ -57,7 +57,7 @@ oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
   
   evals <- purrr::map(object$bootstraps, function(b)
     try(oob_inner(b, object$data, predict_type, ev_metric,
-                  model_type = class(object))))
+                  model_type = class(object)), silent = TRUE))
 
   evals <- purrr::map(evals, err2na)
   evals <- purrr::reduce(evals, c)

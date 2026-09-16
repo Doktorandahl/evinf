@@ -158,6 +158,16 @@ review follow-ups in `dev/review_round1.md`.
   `approx_t_value` is now silently forced to `FALSE` along with it, and
   `print.summary.*()` renders correctly with the `se`/`approx_t` columns
   missing (audit0.10 §1.2).
+* `compare_models(razorize = TRUE)` refits NB/ZINB bootstraps on the wrong
+  rows whenever the razorised data had fewer rows than the full data (which
+  it always does): the bootstrap resample indices were used as-is against the
+  smaller `data_razor`, mixing in unrelated or out-of-range rows. Resamples
+  are now mapped onto `data_razor`'s own rows before refitting. Winsorised
+  out-of-bag error is now computed against the raw (unwinsorised) outcome,
+  not the winsorised one, so it is comparable to the EVZINB/EVINB OOB error.
+  `inner_nb()`/`inner_zinb()`/`boot_refit_one()`/`oob_evaluation()`'s internal
+  `try()`s no longer print to the console on a failed replicate (audit0.10
+  §1.5).
 
 ## Breaking changes / deprecations
 
