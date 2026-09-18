@@ -157,7 +157,14 @@ test_that("object$props / object$resp are computed at the final parameters, not 
 test_that("em_profile_c() returns a single c_hat on an exact tie (audit0.10 §1.4)", {
   f <- make_xo()
   par <- em_ini(f$np, rep(0, f$np))
-  testthat::local_mocked_bindings(log_lik_fun = function(...) -50, .package = "evinf")
+  # round8 A.1: em_profile_c() now calls log_lik_profile_fun() once over the
+  # whole candidate grid instead of vapply()-ing log_lik_fun() -- mock the
+  # new function, still pinning the which.max() tie-break from audit0.10 §1.4.
+  testthat::local_mocked_bindings(
+    log_lik_profile_fun = function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl,
+                                   c_candidates, ...) rep(-50, length(c_candidates)),
+    .package = "evinf"
+  )
 
   prof <- evinf:::em_profile_c(f$y, f$xo, par, c_candidates = c(100, 200, 300))
   expect_length(prof$c_hat, 1L)

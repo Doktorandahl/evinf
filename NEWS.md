@@ -448,6 +448,14 @@ review follow-ups in `dev/review_round1.md`.
   the bundled data carry no conflict identifier.
 * `?marginal_effects` / `?tidy.evzinb` / `?gof_map_evinf` gain guidance on
   harmonic-mean effect intervals and on the `modelsummary` `shape` argument.
+* Internal (audit §5.4, round8 A.1): `em_profile_c()` used to call
+  `log_lik_fun()` once per `C_EV` candidate, redoing the state-probability
+  and count-log-likelihood computation (which doesn't depend on `C`) every
+  time. New C++ `log_lik_profile_fun()` computes that shared work once and
+  profiles the whole candidate grid in one call; `em_profile_c()`'s return
+  shape, `which.max()` behaviour and all-infinite error are unchanged.
+  Verified to `1e-10` against the old per-candidate calls, and the selected
+  `c_hat` is unchanged (not just close) on every identity fixture.
 
 
 # evinf 0.9.4

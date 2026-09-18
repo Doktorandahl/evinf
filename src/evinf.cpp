@@ -268,6 +268,81 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
   return(func_val);
 }
 
+// round8 A.1 (audit §5.4): em_profile_c() used to call log_lik_fun() once per
+// C_EV candidate, and every call redid the O(n) work above (state
+// probabilities, the whole NB log-likelihood) even though neither depends on
+// C. Here that work happens once; only the branch selection and, for
+// y >= c, the Pareto term are evaluated per candidate. No monotone-tail
+// incremental accumulation (sorting y once and updating as c rises) -- the
+// benchmark (A.4) didn't call for it; if it ever does, that's its own commit.
+//[[Rcpp::export]]
+arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
+                              arma::vec beta_nb, double alpha_nb, arma::vec beta_pl,
+                              arma::vec c_candidates,
+                              arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext,
+                              arma::mat x_nb_ext, arma::mat x_pl_ext,
+                              arma::vec y, arma::vec offset_nb){
+
+  int n = x_mult_z_ext.n_rows;
+  int n_mult_z = x_mult_z_ext.n_cols;
+  int n_mult_pl = x_mult_pl_ext.n_cols;
+  int n_nb = x_nb_ext.n_cols;
+  int n_pl = x_pl_ext.n_cols;
+  int n_c = c_candidates.n_elem;
+
+  arma::mat props = zeros<mat>(n,3);
+  arma::vec ell_nb = zeros<vec>(n);
+  arma::vec alpha_pl_vec = zeros<vec>(n);
+
+  double r_nb = 1 / alpha_nb;
+
+  // Steps 1-3: state probabilities, the count log-likelihood (ell_nb_i, see
+  // ell_nb_i_fun()) and the Pareto shape (alpha_pl_vec) -- none of these
+  // depend on C, so each is computed once per observation.
+  for (int i = 0; i < n; i++) {
+    double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
+    double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
+    fill_props_row(props, i, eta_z, eta_pl);
+
+    arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
+    double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
+    double mu_i = exp(xtb_nb_i + offset_nb(i));
+    double ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
+    ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
+    ell_nb(i) = ell_nb_i;
+
+    arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
+    double xtb_pl_i = (trans(x_pl_ext_i)*beta_pl).eval()(0,0);
+    alpha_pl_vec(i) = exp(xtb_pl_i);
+  }
+
+  arma::vec loglik = zeros<vec>(n_c);
+
+  // Step 4-5: per candidate, branch on y_i == 0 / y_i < c / y_i >= c exactly
+  // as log_lik_fun() does, reusing props/ell_nb/alpha_pl_vec from above; only
+  // the Pareto term (y_i >= c) is evaluated fresh per candidate, combined via
+  // the same log_sum_exp2() as log_lik_fun().
+  for (int g = 0; g < n_c; g++) {
+    double c_pl = c_candidates(g);
+    double func_val = 0;
+    for (int i = 0; i < n; i++) {
+      if (y(i) == 0) {
+        func_val += log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb(i));
+      } else if (y(i) > 0 && y(i) < c_pl) {
+        func_val += log(props(i,1)) + ell_nb(i);
+      } else {
+        double a = alpha_pl_vec(i);
+        double ell_pl_i = a * log(c_pl / y(i)) +
+          log(-expm1(a * log(y(i) / (y(i) + 1))));
+        func_val += log_sum_exp2(log(props(i,1)) + ell_nb(i), log(props(i,2)) + ell_pl_i);
+      }
+    }
+    loglik(g) = func_val;
+  }
+
+  return loglik;
+}
+
 // Bounded Newton step -H^{-1}*g, robust to a singular Hessian (audit0.10
 // §1.3). H is the Hessian of the (expected complete-data log-likelihood)
 // objective being MAXIMISED, so it is negative (semi-)definite near the
