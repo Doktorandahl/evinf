@@ -308,6 +308,9 @@ review follow-ups in `dev/review_round1.md`.
   guard explicitly and fail the same way a caught `MASS::glm.nb()` /
   `pscl::zeroinfl()` error already does, so every existing
   `inherits(b, "try-error")` check picks it up (review §7, round8 0.7).
+* CI: added an `ubuntu-latest` / `oldrel-1` job to `R-CMD-check.yaml` -- the
+  job that would have caught round8 0.1's ggplot2-version failure (round7
+  prompt E.4, review §2, round8 0.8).
 
 ## Breaking changes / deprecations
 
