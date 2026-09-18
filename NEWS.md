@@ -301,6 +301,13 @@ review follow-ups in `dev/review_round1.md`.
   and its `warning()` only ever covered the convergence-phase loop. Recorded
   now as `$c_warmup_capped`, with its own `warning()` for a full-sample fit;
   it does not affect `$converge` (review §7, round8 0.6).
+* `inner_nb()` / `inner_zinb()` (the per-bootstrap refits behind
+  `compare_models()`) computed out-of-bag error against `data[-boot_id, ]`,
+  which silently returns zero rows rather than all of them when `boot_id` is
+  empty -- a resample where razorising leaves no drawn row behind. Both now
+  guard explicitly and fail the same way a caught `MASS::glm.nb()` /
+  `pscl::zeroinfl()` error already does, so every existing
+  `inherits(b, "try-error")` check picks it up (review §7, round8 0.7).
 
 ## Breaking changes / deprecations
 

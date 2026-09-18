@@ -174,6 +174,27 @@ test_that("boot_refit_one()'s try()s are silent on failure (audit0.10 §1.5)", {
   expect_length(msgs, 0)
 })
 
+test_that("inner_nb()/inner_zinb() fail cleanly on an empty boot_id (round8 0.7, review §7)", {
+  # data[-integer(0), ] returns zero rows, not all of them -- a resample where
+  # every drawn row failed to survive razorising. Guard against it explicitly
+  # rather than silently comparing OOB error on 0 rows.
+  data(genevzinb2, package = "evinf", envir = environment())
+  b_empty <- list(boot_id = integer(0))
+
+  r_nb <- evinf:::inner_nb(b_empty, genevzinb2,
+                           formulas = list(formula_nb = y ~ x1),
+                           init_theta = NULL, y_orig = genevzinb2$y)
+  expect_true(inherits(r_nb, "try-error"))
+  expect_match(conditionMessage(attr(r_nb, "condition")), "boot_id is empty")
+
+  f_zinb <- y ~ x1 | x1
+  r_zinb <- evinf:::inner_zinb(b_empty, genevzinb2,
+                               formulas = list(formula_nb = y ~ x1),
+                               f_zinb = f_zinb, y_orig = genevzinb2$y)
+  expect_true(inherits(r_zinb, "try-error"))
+  expect_match(conditionMessage(attr(r_zinb, "condition")), "boot_id is empty")
+})
+
 test_that("compare_models() winsorize + razorize still name all six slots (issue 4.1)", {
   m <- fit_evzinb_fast(n_bootstraps = 5)
   comp <- suppressWarnings(suppressMessages(
