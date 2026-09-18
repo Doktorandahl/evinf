@@ -37,7 +37,9 @@ replicates is preserved.}
 \value{
 A tibble of class \code{evinf_compare_fit} with columns \code{model},
   \code{metric}, \code{median_difference}, \code{prop_evinf_better},
-  \code{n_pairs}.
+  \code{n_pairs}. \code{median_difference} / \code{prop_evinf_better} are
+  \code{NA} for the \code{aic} / \code{bic} rows of a \code{*_razor} or
+  \code{*_winsor} slot (see Details); \code{n_pairs} is left as computed.
 }
 \description{
 For each compared model (\code{nb}, \code{zinb}, and any winsorized /
@@ -46,6 +48,15 @@ razorized variants) and each metric, computes the paired bootstrap difference
 model, matching Table B3 of the ISQ appendix), the proportion of bootstraps
 in which the evinf model is better, and the number of bootstrap pairs where
 both fits succeeded.
+}
+\details{
+The \code{aic} / \code{bic} rows are \code{NA} for a \code{*_razor} or
+\code{*_winsor} slot (round8 0.5): a razorised fit is estimated on fewer
+observations than the evinf model, and a winsorised fit is estimated on a
+different outcome, so their AIC/BIC are not on the same scale as the evinf
+model's and a difference between them is not meaningful. The RMSE / RMSLE
+rows for those slots remain comparable, because out-of-bag error is always
+computed against the raw (un-winsorised, un-razorised) outcome.
 }
 \examples{
 \donttest{
