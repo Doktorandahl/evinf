@@ -87,9 +87,11 @@ test_that("design matrix rejects non-finite columns (R0.8)", {
 
 test_that("fitted-value computation is unchanged by vectorisation (4.13)", {
   m <- fit_evzinb_fast(bootstrap = FALSE)
-  # values captured from the pre-vectorisation loop
+  # values captured from the pre-vectorisation loop; refreshed for round8 0.3
+  # (review §4), which recomputes y.hat.pl_* from the final-parameter props
+  # instead of the one-step-stale props.old -- log.lik is untouched.
   expect_equal(unname(head(m$fitted$y.hat.pl_median, 3)),
-               c(42.1708, 64.5629, 324.8574), tolerance = 1e-3)
+               c(42.2297, 63.9899, 320.8950), tolerance = 1e-3)
   expect_equal(m$log.lik, -251.2682021, tolerance = 1e-6)
 })
 

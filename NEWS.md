@@ -274,6 +274,14 @@ review follow-ups in `dev/review_round1.md`.
   giving `0/0`. The `NaN` failed safe -- the M-step just stopped updating the
   Pareto block silently -- but is now fixed by factoring the same term out of
   the numerator (review §3, round8 0.2).
+* `object$fitted$y.hat.pl_*` (the state-probability-weighted point
+  predictions) were computed from the E-step's one-step-stale prior state
+  probabilities, while `object$props` / `object$resp` (and the
+  `fitted$prob_*` / `posterior_*` vectors derived from them) already used the
+  final, recomputed ones -- so `fitted$y.hat.pl_E.inv.y` and
+  `predict(type = "harmonic")` disagreed by a small but nonzero amount
+  (`cor() = 0.9999999`, not 1). Both are now computed from the same final
+  props (review §4, round8 0.3).
 
 ## Breaking changes / deprecations
 

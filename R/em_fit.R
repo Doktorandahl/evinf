@@ -146,14 +146,6 @@ em_fit <- function(y, x.obj, ini.val, control,
   }
 
   final.val <- prel.val
-  props.old <- prel.val$Props
-
-  # audit0.10 §1.11 (D.3): keep computing the point predictions (y.hat.pl_*)
-  # from the pre-recompute props.old, exactly as before -- em_fitted_values()'s
-  # mu.nb.vec / alpha.pl.vec don't depend on props at all, only its y.hat.pl_*
-  # weighting does, and that weighting is out of scope for this item (D.4
-  # covers point predictions separately).
-  fv <- em_fitted_values(x.obj, final.val, props.old, c.pl.new, model = model)
 
   # par.mat$Props / resp came from step$upd_obj at the START of the last EM
   # step (em_fit_fixed_c()), i.e. one step behind the returned parameters
@@ -167,6 +159,15 @@ em_fit <- function(y, x.obj, ini.val, control,
     as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
     as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
   )
+
+  # round8 0.3 (review §4): em_fitted_values() used to run on props.old (the
+  # one-step-stale E-step prior), so object$fitted$y.hat.pl_* disagreed with
+  # object$fitted$prob_* / predict(type = "harmonic") -- both should reflect
+  # the same, final-parameter props. final.val$Props above doesn't depend on
+  # fv, so this is a reorder, not a second pass: compute it first and feed it
+  # into em_fitted_values() instead of props.old.
+  fv <- em_fitted_values(x.obj, final.val, final.val$Props, c.pl.new, model = model)
+
   final.resp <- evinf_responsibilities(
     y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props
   )
