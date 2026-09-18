@@ -266,6 +266,14 @@ review follow-ups in `dev/review_round1.md`.
   call sites in `plot.evzinb()` / `plot.evinb()` now pick `transform =` or the
   older `trans =` based on the installed ggplot2 version, and the `(>= 3.5.0)`
   floor on `ggplot2` in `Suggests` is removed (round8 0.1).
+* `pdf.pl.type = "exact"`'s gradient/Hessian went to `NaN` for a sharply
+  peaked Pareto block (large `alpha * |log(C/y)|`, e.g. `C = 100`, `y = 1e4`,
+  `alpha ~ 403`) because `pareto_exact_derivs_fun()` formed `(C/y)^alpha` and
+  `(C/(y+1))^alpha` separately in its numerator even though the denominator
+  already used a cancellation-free form; both underflow to exactly 0 there,
+  giving `0/0`. The `NaN` failed safe -- the M-step just stopped updating the
+  Pareto block silently -- but is now fixed by factoring the same term out of
+  the numerator (review §3, round8 0.2).
 
 ## Breaking changes / deprecations
 

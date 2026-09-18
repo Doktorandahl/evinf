@@ -172,7 +172,13 @@ arma::mat d2elldbeta2_pl_i_fun_approx(arma::vec beta_pl,double c_pl, arma::vec x
 // L1 = log(C/y), L2 = log(C/(y+1)), l = log(u - v):
 //   dl/dalpha    = (u*L1 - v*L2) / (u - v)
 //   d2l/dalpha2  = (u*L1^2 - v*L2^2) / (u - v) - (dl/dalpha)^2
-// u - v is computed in the same cancellation-free form as ell_pl_i_fun().
+// round8 0.2 (review §3): forming u and v separately here (even though the
+// denominator already used the cancellation-free product below) underflowed
+// both to exactly 0 for a sharply peaked block -- large alpha * |L1| -- giving
+// 0/0 = NaN despite the log-likelihood itself (ell_pl_i_fun()) staying finite.
+// Factor u out of the numerator the same way: with r = v/u = exp(alpha*(L2-L1))
+// in (0, 1), (u*L1 - v*L2)/(u - v) = (L1 - r*L2)/(1 - r), and 1 - r is
+// -expm1(alpha*(L2-L1)) for the same reason ell_pl_i_fun() uses it.
 struct pareto_exact_derivs {
   double alpha_i, dl_dalpha, d2l_dalpha2;
 };
@@ -182,11 +188,10 @@ pareto_exact_derivs pareto_exact_derivs_fun(arma::vec beta_pl, double c_pl,
   double alpha_i = exp(lp);
   double L1 = log(c_pl / y_i);
   double L2 = log(c_pl / (y_i + 1));
-  double u = exp(alpha_i * L1);
-  double v = exp(alpha_i * L2);
-  double diff = u * (-expm1(alpha_i * (L2 - L1)));
-  double dl_dalpha = (u * L1 - v * L2) / diff;
-  double d2l_dalpha2 = (u * L1 * L1 - v * L2 * L2) / diff - dl_dalpha * dl_dalpha;
+  double r = exp(alpha_i * (L2 - L1));
+  double one_minus_r = -expm1(alpha_i * (L2 - L1));
+  double dl_dalpha = (L1 - r * L2) / one_minus_r;
+  double d2l_dalpha2 = (L1 * L1 - r * L2 * L2) / one_minus_r - dl_dalpha * dl_dalpha;
   pareto_exact_derivs out = {alpha_i, dl_dalpha, d2l_dalpha2};
   return out;
 }
