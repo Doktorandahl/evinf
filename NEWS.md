@@ -282,6 +282,13 @@ review follow-ups in `dev/review_round1.md`.
   `predict(type = "harmonic")` disagreed by a small but nonzero amount
   (`cor() = 0.9999999`, not 1). Both are now computed from the same final
   props (review §4, round8 0.3).
+* `oob_evaluation()` on an `evzinbcomp` object masked a degenerate evinf
+  bootstrap replicate's out-of-bag error to `NA` in the `evinf` column only,
+  leaving the compared `nb` / `zinb` columns unmasked at that row -- so a
+  column-wise `na.rm = TRUE` summary (as the vignette's model-evaluation
+  section does) compared medians computed over different replicate sets.
+  Every column is now masked at the union of `NA` positions, and the row
+  mask is exposed as `attr(out, "excluded")` (review §5, round8 0.4).
 
 ## Breaking changes / deprecations
 

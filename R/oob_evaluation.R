@@ -13,7 +13,14 @@
 #'
 #' @return For a single model, a vector of length \code{n_bootstraps}. For an
 #'   \code{evzinbcomp} object, a tibble with one column per compared model
-#'   (\code{evinf}, \code{nb}, \code{zinb}, ...) and one row per bootstrap.
+#'   (\code{evinf}, \code{nb}, \code{zinb}, ...) and one row per bootstrap. A
+#'   replicate that is \code{NA} in any column (a degenerate evinf replicate,
+#'   or a compared model's fit that errored) is \code{NA} in \emph{every}
+#'   column, so a column-wise \code{na.rm = TRUE} summary (e.g.
+#'   \code{summarize(oob, across(everything(), median, na.rm = TRUE))})
+#'   compares the same set of replicates across models rather than silently
+#'   different ones; the row mask itself is available as
+#'   \code{attr(out, "excluded")} (round8 0.4, review §5).
 #' @export
 #'
 #' @examples
@@ -45,6 +52,17 @@ oob_evaluation <- function(object,predict_type = c('harmonic','explog'),
         rep(NA_real_, length(object[[s]]$bootstraps))
       )
     }
+    # round8 0.4 (review §5): a degenerate evinf replicate (or a compared
+    # model's fit that errored) previously left only that one column NA at
+    # the position, so a column-wise na.rm = TRUE summary compared different
+    # replicate sets across models. Mask every column at the union of NA
+    # positions instead, so the comparison stays paired, and expose the mask
+    # so a caller can see which replicates were dropped and why.
+    excluded <- Reduce(`|`, lapply(out, is.na))
+    if (any(excluded)) {
+      out[excluded, ] <- NA_real_
+    }
+    attr(out, "excluded") <- excluded
     return(out)
   }
 

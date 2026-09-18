@@ -48,6 +48,26 @@ test_that("oob_evaluation() on an evzinbcomp gives one column per model", {
   expect_equal(nrow(oe), 8)
 })
 
+test_that("oob_evaluation() on an evzinbcomp masks every column at the same positions (round8 0.4, review §5)", {
+  comp <- make_comp()
+  # Force one evinf bootstrap replicate to look degenerate (without needing a
+  # genuinely degenerate fit) so its oob error comes back NA -- the nb/zinb
+  # columns must then be NA at that same position too.
+  comp$model$bootstraps[[1]]$degenerate <- TRUE
+
+  oe <- suppressWarnings(oob_evaluation(comp, metric = "rmse"))
+  expect_true(all(is.na(oe[1, ])))
+
+  n_nonmissing <- vapply(oe, function(col) sum(!is.na(col)), integer(1))
+  expect_length(unique(n_nonmissing), 1L)
+
+  excluded <- attr(oe, "excluded")
+  expect_true(is.logical(excluded))
+  expect_length(excluded, nrow(oe))
+  expect_true(excluded[1])
+  expect_identical(which(excluded), which(apply(is.na(oe), 1, any)))
+})
+
 test_that("tidy() / glance() on an evzinbcomp stack the models with a model column", {
   comp <- make_comp()
   td <- suppressWarnings(generics::tidy(comp))
