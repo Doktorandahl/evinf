@@ -54,6 +54,48 @@ test_that("the closed-form and looped NB log-pmf agree", {
   }
 })
 
+test_that("the closed-form NB log-pmf stays accurate at large y (round8 0.9)", {
+  # review §7 / round8 0.9: for a large y with a small 1/alpha, the closed
+  # form's three lgamma() terms partially cancel. Checked against a
+  # Kahan-summed version of the naive loop (plain summation of ~1e6 terms is
+  # itself not a trustworthy reference at this scale -- it drifts by ~1e-8 on
+  # its own); switched the count-likelihood closed form from
+  # lgamma(y+r) - lgamma(r) - lgamma(y+1) to the algebraically identical
+  # -log(y+r) - lbeta(y+1, r), which was at least as accurate in every case
+  # checked (max relative error ~1.5e-10 for lgamma, ~1e-10 for lbeta at
+  # y = 1e6, alpha = 5).
+  skip_on_cran()
+
+  kahan_sum <- function(x) {
+    s <- 0; c <- 0
+    for (v in x) {
+      y <- v - c; t <- s + y; c <- (t - s) - y; s <- t
+    }
+    s
+  }
+  naive_count_term_kahan <- function(alpha, y) {
+    r <- 1 / alpha
+    if (y == 0) return(0)
+    kahan_sum(log(seq(0, y - 1) + r)) - kahan_sum(log(seq_len(y)))
+  }
+
+  x <- c(1, 0.3); beta <- c(0.1, -0.2)
+  for (alpha in c(5, 50)) {
+    for (y in c(1e5, 1e6)) {
+      mu <- exp(sum(x * beta))
+      count_term_ref <- naive_count_term_kahan(alpha, y)
+      full_ref <- count_term_ref - (1 / alpha) * log(1 + alpha * mu) -
+        y * log(1 + alpha * mu) + y * log(alpha) + y * log(mu)
+      expect_equal(
+        evinf:::ell_nb_i_fun(beta, alpha, x, y),
+        full_ref,
+        tolerance = 1e-9,
+        info = sprintf("alpha=%s y=%s", alpha, y)
+      )
+    }
+  }
+})
+
 test_that("a large-count model fits without -Inf (audit0.10 §1.11)", {
   data(genevzinb2, package = "evinf", envir = environment())
   d <- genevzinb2

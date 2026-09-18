@@ -311,6 +311,14 @@ review follow-ups in `dev/review_round1.md`.
 * CI: added an `ubuntu-latest` / `oldrel-1` job to `R-CMD-check.yaml` -- the
   job that would have caught round8 0.1's ggplot2-version failure (round7
   prompt E.4, review §2, round8 0.8).
+* The count-likelihood closed form `lgamma(y + 1/alpha) - lgamma(1/alpha) -
+  lgamma(y + 1)` (round 7) partially cancels for a large `y` with a small
+  `1/alpha` -- checked against a Kahan-summed reference loop (plain
+  summation of the pre-round-7 loop is not itself a trustworthy reference at
+  this scale) at up to ~1.5e-10 relative error for `y` up to 1e6 and `alpha`
+  down to `1e-3`. Switched to the algebraically identical, cancellation-free
+  `-log(y + 1/alpha) - lbeta(y + 1, 1/alpha)`, which was at least as
+  accurate in every case checked (review §7, round8 0.9).
 
 ## Breaking changes / deprecations
 

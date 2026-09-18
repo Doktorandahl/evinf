@@ -54,7 +54,15 @@ double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, in
   // Pochhammer identity), sum_{j=0}^{y-1} log(j + 1/alpha) - sum_{j=1}^{y}
   // log(j) = lgamma(y + 1/alpha) - lgamma(1/alpha) - lgamma(y + 1); valid at
   // y = 0 too (gives 0, matching the previous loops which never ran there).
-  double ell_nb_i = lgamma(y_i + 1/alpha_nb) - lgamma(1/alpha_nb) - lgamma(y_i + 1);
+  // round8 0.9: for a large y with a small 1/alpha the three lgamma() terms
+  // above partially cancel (max relative error ~1.5e-10 at y=1e6, alpha=5,
+  // against a Kahan-summed reference loop -- the naive-summation loop drifts
+  // by ~1e-8 there on its own and is not a reliable reference at that scale).
+  // -log(y + 1/alpha) - lbeta(y + 1, 1/alpha) is algebraically identical (via
+  // Gamma(y+1+r) = (y+r)*Gamma(y+r)) but R::lbeta() avoids the cancellation,
+  // and was at least as accurate as the lgamma form in every case checked.
+  double r = 1 / alpha_nb;
+  double ell_nb_i = -log(y_i + r) - R::lbeta(y_i + 1, r);
 
   ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y_i*log(1 + alpha_nb*mu_i) + y_i*log(alpha_nb) + y_i*log(mu_i);
 
@@ -233,8 +241,9 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
     arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
     double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
     double mu_i = exp(xtb_nb_i + offset_nb(i));
-    // audit0.10 §1.11: closed form, see ell_nb_i_fun().
-    double ell_nb_i = lgamma(y(i) + 1/alpha_nb) - lgamma(1/alpha_nb) - lgamma(y(i) + 1);
+    // audit0.10 §1.11 / round8 0.9: closed form, see ell_nb_i_fun().
+    double r_nb = 1 / alpha_nb;
+    double ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
     ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
 
     // audit0.10 §1.11: combine the mixture terms with a log-sum-exp instead of
