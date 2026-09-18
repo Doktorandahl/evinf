@@ -261,6 +261,11 @@ review follow-ups in `dev/review_round1.md`.
   E-step. Point predictions (`predict(type = "harmonic")` etc.) are
   unaffected -- only these diagnostic quantities change, by up to ~0.008 on
   the bundled example data (audit0.10 §1.11).
+* `plot()` on a fitted model errored on ggplot2 < 3.5.0 (`scale_*_continuous()`
+  didn't gain the `transform =` argument until 3.5.0). The four log1p-scale
+  call sites in `plot.evzinb()` / `plot.evinb()` now pick `transform =` or the
+  older `trans =` based on the installed ggplot2 version, and the `(>= 3.5.0)`
+  floor on `ggplot2` in `Suggests` is removed (round8 0.1).
 
 ## Breaking changes / deprecations
 

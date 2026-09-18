@@ -50,6 +50,20 @@ test_that("predict_grid() rejects an unknown variable", {
   expect_error(predict_grid(m, "not_a_var", type = "harmonic"), "must be one of")
 })
 
+test_that("evinf_scale_log1p() picks transform= or trans= by ggplot2 version (round8 0.1)", {
+  skip_if_not_installed("ggplot2")
+
+  new <- evinf:::evinf_scale_log1p("x", ggplot2_version = package_version("3.5.0"))
+  expect_s3_class(new, "ScaleContinuousPosition")
+  expect_identical(new$trans$name, "log1p")
+
+  old <- evinf:::evinf_scale_log1p("y", ggplot2_version = package_version("3.4.4"))
+  expect_s3_class(old, "ScaleContinuousPosition")
+  expect_identical(old$trans$name, "log1p")
+
+  expect_error(evinf:::evinf_scale_log1p("z"), "should be one of")
+})
+
 test_that("each plot type returns a ggplot", {
   skip_if_not_installed("ggplot2")
   m <- fit_evzinb_fast(n_bootstraps = 5)
