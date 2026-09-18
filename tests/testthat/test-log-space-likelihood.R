@@ -110,3 +110,42 @@ test_that("a large-count model fits without -Inf (audit0.10 §1.11)", {
   )))
   expect_true(is.finite(m$log.lik))
 })
+
+test_that("the closed-form and looped NB score/Hessian (alpha component) agree (round8 A.2)", {
+  # audit §5.4 / round8 A.2: delldtheta_nb_i_fun()'s and
+  # d2elldtheta2_nb_i_fun()'s O(y) loops for the dispersion derivatives are
+  # replaced by digamma/trigamma closed forms (for y > 30 in the Hessian --
+  # see src/evinf.cpp for why the closed form cancels catastrophically below
+  # that, at a small alpha). Grid matches the prompt: y in
+  # {0, 1, 5, 100, 1e4, 1e5} x alpha in {1e-3, 0.01, 0.5, 1, 5, 50}.
+  old_grad_term <- function(y, alpha) if (y == 0) 0 else sum(1 / (seq(0, y - 1) + 1 / alpha))
+  old_hess_term <- function(y, alpha) {
+    if (y == 0) return(0)
+    sum((seq(0, y - 1) / (1 + alpha * seq(0, y - 1)))^2)
+  }
+
+  x <- c(1, 0.3, -0.2); beta <- c(0.1, -0.2, 0.05)
+  mu <- exp(sum(x * beta))
+  n <- length(x)
+
+  for (alpha in c(1e-3, 0.01, 0.5, 1, 5, 50)) {
+    for (y in c(0, 1, 5, 100, 1e4, 1e5)) {
+      g <- evinf:::delldtheta_nb_i_fun(beta, alpha, x, y)
+      h <- evinf:::d2elldtheta2_nb_i_fun(beta, alpha, x, y)
+
+      expected_g <- if (y == 0) {
+        log(1 + alpha * mu) / alpha^2 - mu / (alpha * (1 + alpha * mu))
+      } else {
+        (log(1 + alpha * mu) - old_grad_term(y, alpha)) / alpha^2 +
+          (y - mu) / (alpha * (1 + alpha * mu))
+      }
+      expected_h <- -old_hess_term(y, alpha) -
+        2 / alpha^3 * log(1 + alpha * mu) + (2 / alpha^2) * mu / (1 + alpha * mu) +
+        (y + 1 / alpha) * mu^2 / (1 + alpha * mu)^2
+
+      info <- sprintf("y=%s alpha=%s", y, alpha)
+      expect_equal(g[length(g)], expected_g, tolerance = 1e-9, info = info)
+      expect_equal(h[n + 1, n + 1], expected_h, tolerance = 1e-9, info = info)
+    }
+  }
+})

@@ -456,6 +456,16 @@ review follow-ups in `dev/review_round1.md`.
   shape, `which.max()` behaviour and all-infinite error are unchanged.
   Verified to `1e-10` against the old per-candidate calls, and the selected
   `c_hat` is unchanged (not just close) on every identity fixture.
+* Internal (audit §5.4, round8 A.2): the two remaining O(y) loops in
+  `delldtheta_nb_i_fun()` / `d2elldtheta2_nb_i_fun()` (the NB dispersion
+  score and Hessian) are closed forms via `digamma()`/`trigamma()`. The
+  Hessian's closed form cancels catastrophically for a small `y` *and* a
+  small `alpha` (e.g. loses ~9 significant digits at `y = 5`,
+  `alpha = 1e-3`), so it's used only for `y > 30`; the loop (already
+  trivially cheap there) is kept below that. Verified to `1e-9` against the
+  old loops over `y` in `{0, 1, 5, 100, 1e4, 1e5}` x `alpha` in
+  `{1e-3, 0.01, 0.5, 1, 5, 50}`; the M-step gradient/Hessian are unchanged
+  on the identity fixtures.
 
 
 # evinf 0.9.4

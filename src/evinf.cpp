@@ -84,10 +84,14 @@ arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb
     delldalpha_nb_i = log(1 + alpha_nb*mu_i)/(alpha_nb*alpha_nb) - mu_i/(alpha_nb*(1+alpha_nb*mu_i));
   }else{
 
-    delldalpha_nb_i = log(1 + alpha_nb*mu_i);
-    for(int j=0; j<y_i; j++){
-      delldalpha_nb_i = delldalpha_nb_i - 1/(j+1/alpha_nb);
-    }
+    // round8 A.2 (audit §5.4): sum_{j=0}^{y-1} 1/(j + 1/alpha) is the
+    // digamma difference digamma(y + r) - digamma(r) with r = 1/alpha
+    // (verified numerically against the loop over y in {0,1,5,100,1e4,1e5}
+    // x alpha in {1e-3,0.01,0.5,1,5,50}, max relative error < 1e-9).
+    double r_nb = 1 / alpha_nb;
+    double sum_inv_j_plus_r = R::digamma(y_i + r_nb) - R::digamma(r_nb);
+
+    delldalpha_nb_i = log(1 + alpha_nb*mu_i) - sum_inv_j_plus_r;
     delldalpha_nb_i = delldalpha_nb_i/(alpha_nb*alpha_nb);
 
     delldalpha_nb_i = delldalpha_nb_i + (y_i-mu_i)/(alpha_nb*(1+alpha_nb*mu_i));
@@ -126,8 +130,34 @@ arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_
   arma::vec d2elldalphadbeta_nb_i = b2*x_nb_ext_i;
 
   if(y_i>0){
-    for(int j=0; j<y_i; j++){
-      d2elldalpha2_nb_i = d2elldalpha2_nb_i - (j/(1+alpha_nb*j))*(j/(1+alpha_nb*j));
+    // round8 A.2: this loop is sum_{j=0}^{y-1} (j / (1 + alpha*j))^2, which
+    // is NOT sum 1/(j+r)^2 (r = 1/alpha). Writing j/(1+alpha*j) =
+    // 1/alpha - 1/(alpha^2*(j+r)) (check: alpha*(1+alpha*j) = alpha^2*(j+r))
+    // and squaring gives, after summing over j,
+    //   sum_j (j/(1+alpha*j))^2 = y/alpha^2
+    //     - (2/alpha^3) * (digamma(y+r) - digamma(r))
+    //     + (1/alpha^4) * (trigamma(r) - trigamma(y+r))
+    // (the 2/alpha^3 and 1/alpha^4 factors are the chain rule through
+    // r = 1/alpha, dr/dalpha = -1/alpha^2, applied twice). Verified
+    // numerically against the loop, but this closed form cancels
+    // catastrophically for a small y *and* a small alpha (large r) -- e.g.
+    // y=5, alpha=1e-3 loses ~9 significant digits, failing the 1e-10 target
+    // -- because the true value is then a small difference of O(1/alpha^4)
+    // terms. The loop is trivially cheap at small y regardless of alpha, so
+    // just keep it exact there; only y > 30 (where the closed form is
+    // accurate to beyond 1e-10 even at alpha = 1e-3) uses the closed form.
+    // This still removes the loop for the large-y regime that motivated it.
+    if (y_i <= 30) {
+      for (int j = 0; j < y_i; j++) {
+        d2elldalpha2_nb_i = d2elldalpha2_nb_i - (j/(1+alpha_nb*j))*(j/(1+alpha_nb*j));
+      }
+    } else {
+      double r_nb2 = 1 / alpha_nb;
+      double loop_term =
+        y_i / (alpha_nb*alpha_nb)
+        - (2 / (alpha_nb*alpha_nb*alpha_nb)) * (R::digamma(y_i + r_nb2) - R::digamma(r_nb2))
+        + (1 / (alpha_nb*alpha_nb*alpha_nb*alpha_nb)) * (R::trigamma(r_nb2) - R::trigamma(y_i + r_nb2));
+      d2elldalpha2_nb_i = d2elldalpha2_nb_i - loop_term;
     }
   }
 
