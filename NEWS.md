@@ -466,6 +466,20 @@ review follow-ups in `dev/review_round1.md`.
   old loops over `y` in `{0, 1, 5, 100, 1e4, 1e5}` x `alpha` in
   `{1e-3, 0.01, 0.5, 1, 5, 50}`; the M-step gradient/Hessian are unchanged
   on the identity fixtures.
+* Internal (audit §5.4, round8 A.3): `log_lik_fun()` and
+  `update_bfgs_fun()`'s per-observation loops rebuilt a linear predictor
+  (`trans(X.submat(i, ...))`) and, for the four M-step BFGS blocks,
+  allocated a fresh gradient/Hessian block via a per-row function call --
+  on every row, every BFGS sub-iteration, and `log_lik_fun()` alone is
+  called dozens of times per `em_step()` (once per evaluation of each of
+  the four `stats::optimise()` line searches in `R/em_step.R`). Replaced
+  with precomputed linear predictors (one matrix-vector product per block)
+  and gradient/Hessian accumulation as `X' w` / `X' diag(w) X`. A full
+  `hks` fit went from 1.1x faster (A.1 + A.2 alone) to 8.4x faster; see
+  `A.4`'s benchmark table. Verified against the pre-A.3 code on 5 cases
+  (`genevzinb2` and `hks`, both Pareto types, plus an `evinb` fit) at
+  machine precision (max abs diff ~2e-12); the identity fixtures are
+  unchanged at `1e-8`, with `c_hat` exactly (not just closely) unchanged.
 
 
 # evinf 0.9.4
