@@ -296,6 +296,11 @@ review follow-ups in `dev/review_round1.md`.
   raw outcome). Those two metrics now come back `NA` for those slots, with a
   one-line footnote from `print()` when any are present (review §6, round8
   0.5).
+* The warm-up phase's C_EV profile could hit `max.c.iter` without settling,
+  same as the convergence phase, but nothing recorded it -- `$c_converged`
+  and its `warning()` only ever covered the convergence-phase loop. Recorded
+  now as `$c_warmup_capped`, with its own `warning()` for a full-sample fit;
+  it does not affect `$converge` (review §7, round8 0.6).
 
 ## Breaking changes / deprecations
 

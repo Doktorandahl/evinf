@@ -69,13 +69,58 @@ test_that("em_fit() stops with converge = FALSE when the C_EV profile oscillates
   }
   testthat::local_mocked_bindings(em_profile_c = fake_profile, .package = "evinf")
 
-  r <- NULL
-  expect_warning(
-    r <- quiet_em_fit(f$y, f$xo, em_ini(f$np, rep(0, f$np)), ctl, model = "evzinb"),
-    "did not settle within max.c.iter"
+  # Both phases oscillate here, so both the convergence-phase warning and the
+  # round8 0.6 warm-up-phase warning fire; collect them explicitly instead of
+  # letting expect_warning() only check the first and leak the second.
+  collected <- character(0)
+  r <- withCallingHandlers(
+    quiet_em_fit(f$y, f$xo, em_ini(f$np, rep(0, f$np)), ctl, model = "evzinb"),
+    warning = function(w) {
+      collected <<- c(collected, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
   )
+  expect_true(any(grepl("^em_fit\\(\\): the C_EV profile did not settle", collected)))
+  expect_true(any(grepl("warm-up C_EV profile did not settle", collected)))
   expect_false(r$converge)
   expect_false(r$c_converged)
+  expect_true(r$c_warmup_capped)
+})
+
+test_that("em_fit() records a warm-up-only C_EV cap separately from convergence (round8 0.6, review §7)", {
+  f <- make_xo()
+  ctl <- evinf::evinf_control(c.lim = c(50, 1000), init.C = 200, max.c.iter = 3)
+
+  call_state <- new.env()
+  call_state$n <- 0L
+  fake_profile <- function(y, x_obj, par, c_candidates) {
+    call_state$n <- call_state$n + 1L
+    # Oscillate for exactly the warm-up phase's calls (max.c.iter = 3), then
+    # settle immediately once the convergence phase starts.
+    c_hat <- if (call_state$n <= 3L) {
+      if (call_state$n %% 2 == 1) 100 else 200
+    } else {
+      par$C
+    }
+    list(profile = data.frame(c = c_candidates, loglik = rep(-100, length(c_candidates))),
+         c_hat = c_hat, loglik_max = -100)
+  }
+  testthat::local_mocked_bindings(em_profile_c = fake_profile, .package = "evinf")
+
+  collected <- character(0)
+  r <- withCallingHandlers(
+    quiet_em_fit(f$y, f$xo, em_ini(f$np, rep(0, f$np)), ctl, model = "evzinb"),
+    warning = function(w) {
+      collected <<- c(collected, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+
+  expect_true(r$c_warmup_capped)
+  expect_true(r$c_converged)
+  expect_true(r$converge)
+  expect_true(any(grepl("warm-up C_EV profile did not settle", collected)))
+  expect_false(any(grepl("^em_fit\\(\\): the C_EV profile did not settle", collected)))
 })
 
 test_that("object$props / object$resp are computed at the final parameters, not one EM step behind (audit0.10 §1.11, D.3)", {
