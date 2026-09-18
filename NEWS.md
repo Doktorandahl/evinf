@@ -289,6 +289,13 @@ review follow-ups in `dev/review_round1.md`.
   section does) compared medians computed over different replicate sets.
   Every column is now masked at the union of `NA` positions, and the row
   mask is exposed as `attr(out, "excluded")` (review §5, round8 0.4).
+* `compare_fit()`'s `aic` / `bic` rows for a `*_razor` or `*_winsor` slot are
+  not comparable to the evinf model's -- a razorised fit is estimated on
+  fewer observations, and a winsorised fit on a different outcome -- even
+  though the `rmse` / `rmsle` rows now are (OOB error is always against the
+  raw outcome). Those two metrics now come back `NA` for those slots, with a
+  one-line footnote from `print()` when any are present (review §6, round8
+  0.5).
 
 ## Breaking changes / deprecations
 
