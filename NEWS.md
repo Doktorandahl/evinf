@@ -336,8 +336,23 @@ review follow-ups in `dev/review_round1.md`.
   `min_alpha_pl` (the true, unclamped value) and `print()` adds a note when it
   falls below the floor, so a collapsed extreme-value shape stays visible
   without digging (review §2, round9 0.1).
-
-## Breaking changes / deprecations
+* The round8 A.2 closed form for the NB dispersion Hessian's alpha-alpha
+  entry switched to its O(y) loop fallback only for `y <= 30`, but the
+  cancellation it guards against is governed by the product `alpha_nb * y`,
+  not `y` alone -- the near-Poisson regime (small `alpha_nb`) is exactly
+  where this mattered and exactly where the round8 grid (`alpha >= 1e-3`)
+  never checked. A fresh grid down to `alpha = 1e-6` found the closed form
+  18% off a loop reference at `y = 31, alpha = 1e-6` (`alpha_nb * y =
+  3.1e-5`), 0.47% off at `y = 50`, and still 0.27% off at `y = 100` --
+  errors a `y > 30` guard let straight through. The guard now switches on
+  `alpha_nb * y > 0.1`, which keeps a comfortable margin above where the
+  closed form's relative error crosses `1e-9` (observed worst case ~1e-11
+  once `alpha_nb * y` clears that cutoff); a large `y` together with a
+  vanishingly small `alpha_nb` still takes the O(y) loop rather than the
+  (still available, but not implemented here) small-product series
+  expansion -- accepted per the round9 brief, since the loop is only slow,
+  not wrong. This matters directly for the round9 0.11.0 Poisson count
+  family (`alpha_nb -> 0` is its limit) (review §4, round9 0.4).
 
 * `glance()$n_bootstraps` no longer counts every bootstrap replicate --- it
   counts the **usable** ones (neither errored nor degenerate). The three
@@ -476,11 +491,12 @@ review follow-ups in `dev/review_round1.md`.
 * Internal (audit §5.4, round8 A.2): the two remaining O(y) loops in
   `delldtheta_nb_i_fun()` / `d2elldtheta2_nb_i_fun()` (the NB dispersion
   score and Hessian) are closed forms via `digamma()`/`trigamma()`. The
-  Hessian's closed form cancels catastrophically for a small `y` *and* a
-  small `alpha` (e.g. loses ~9 significant digits at `y = 5`,
-  `alpha = 1e-3`), so it's used only for `y > 30`; the loop (already
-  trivially cheap there) is kept below that. Verified to `1e-9` against the
-  old loops over `y` in `{0, 1, 5, 100, 1e4, 1e5}` x `alpha` in
+  Hessian's closed form cancels catastrophically for a small `alpha * y`
+  (not just a small `y`), so it's used only above a cutoff on that product,
+  with the loop (already trivially cheap in that regime) kept below it --
+  see round9 0.4 below, which corrected the cutoff variable this bullet
+  originally (and wrongly) described as `y > 30`. Verified to `1e-9` against
+  the old loops over `y` in `{0, 1, 5, 100, 1e4, 1e5}` x `alpha` in
   `{1e-3, 0.01, 0.5, 1, 5, 50}`; the M-step gradient/Hessian are unchanged
   on the identity fixtures.
 * Internal (audit §5.4, round8 A.3): `log_lik_fun()` and
