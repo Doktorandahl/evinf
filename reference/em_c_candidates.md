@@ -22,7 +22,7 @@ em_c_candidates(y, c.lim, prune.c.range)
 
 - prune.c.range:
 
-  `FALSE` for no thinning, or a number in `[0, 1]` giving the proportion
+  `FALSE` for no thinning, or a number in `[0, 1)` giving the proportion
   of interior candidates to drop (sampled with probability proportional
   to the gaps between consecutive candidates, so the endpoints are
   always kept).
@@ -38,7 +38,10 @@ Vegelius (2024): \\C\_{EV}\\ is updated by a grid search over the
 observed support rather than by a smooth optimiser. A warning is emitted
 when the set has more than 100 elements and no pruning was requested,
 because each extra candidate is one extra full-data log-likelihood
-evaluation per EM iteration.
+evaluation per EM iteration. Pruning is reproducible without touching
+the caller's global RNG state: the thinning draw is seeded from the
+(unpruned) candidate range itself via the internal
+`evinf_seeded_sample()` helper.
 
 ## See also
 

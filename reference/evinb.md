@@ -115,7 +115,8 @@ evinb(
 
   **Deprecated.** Pass these through `control = evinf_control(...)`;
   supplying one directly overrides the corresponding `control` element
-  and emits a warning. See [`evinf_control`](evinf_control.md).
+  and emits a warning. See [`evinf_control`](evinf_control.md). Will be
+  removed in 0.11.0.
 
 - verbose:
 
@@ -172,7 +173,6 @@ a single fixed plan.
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 # }
 
 if (FALSE) { # \dontrun{

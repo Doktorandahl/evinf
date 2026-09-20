@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Fitted values, residuals and simulations from an evzinb / evinb model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/s3_generics.R" class="external-link"><code>R/s3_generics.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/s3_generics.R" class="external-link"><code>R/s3_generics.R</code></a></small>
       <div class="d-none name"><code>evinf-s3-predict.Rd</code></div>
     </div>
 
@@ -79,7 +79,8 @@
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
 <dd><p>Optional RNG seed for the randomized quantile residuals /
-<code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code>.</p></dd>
+<code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code>. If given, the caller's RNG state is restored on exit
+(the seed only affects this call's draws).</p></dd>
 
 
 <dt id="arg-nsim">nsim<a class="anchor" aria-label="anchor" href="#arg-nsim"></a></dt>
@@ -93,7 +94,10 @@
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code> / <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code> return a numeric vector;
-  <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> a data frame with columns <code>sim_1</code>, <code>sim_2</code>, ...</p>
+  <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> a data frame with columns <code>sim_1</code>, <code>sim_2</code>,
+  ..., with a <code>"seed"</code> attribute following the
+  <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></code> convention (the given <code>seed</code>, or, if
+  none was given, the RNG state before the draws were made).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -98,9 +98,10 @@ and the review follow-ups in `dev/review_round1.md`.
   `"ppc_quantiles"` (observed vs. simulated tail quantiles with a 5-95%
   band).
 - [`compare_fit()`](../reference/compare_fit.md) summarises the paired
-  bootstrap differences (`compared - evinf`) in AIC, BIC and out-of-bag
-  RMSE / RMSLE for an `evzinbcomp` object, with the proportion of
-  bootstraps favouring the extreme-value model;
+  bootstrap differences (`evinf - compared`, negative favours the
+  extreme-value model) in AIC, BIC and out-of-bag RMSE / RMSLE for an
+  `evzinbcomp` object, with the proportion of bootstraps favouring the
+  extreme-value model;
   [`plot()`](https://rdrr.io/r/graphics/plot.default.html),
   [`tidy()`](https://generics.r-lib.org/reference/tidy.html) and
   [`glance()`](https://generics.r-lib.org/reference/glance.html) methods
@@ -218,6 +219,211 @@ and the review follow-ups in `dev/review_round1.md`.
   `type = "counts"` (or `type = "all"`, or
   `type = "counts", confint = TRUE`) no longer errors with “\$ operator
   is invalid for atomic vectors”.
+- `lr_test(bootstrap = TRUE)` no longer errors (“Tibble columns must
+  have compatible sizes”) when any bootstrap replicate failed or was
+  flagged degenerate. It now filters to the usable replicates first,
+  like every other bootstrap summary, and gains
+  `exclude_degenerate = TRUE` (audit0.10 §1.1); the results also report
+  `n_bootstraps_used` next to `n_failed_bootstraps`.
+- `summary(standard_error = FALSE)` / `tidy(standard_error = FALSE)` no
+  longer error (“Column ‘se’/‘std.error’ not found”) when the model has
+  bootstraps: `approx_t_value` is now silently forced to `FALSE` along
+  with it, and `print.summary.*()` renders correctly with the
+  `se`/`approx_t` columns missing (audit0.10 §1.2).
+- `compare_models(razorize = TRUE)` refits NB/ZINB bootstraps on the
+  wrong rows whenever the razorised data had fewer rows than the full
+  data (which it always does): the bootstrap resample indices were used
+  as-is against the smaller `data_razor`, mixing in unrelated or
+  out-of-range rows. Resamples are now mapped onto `data_razor`’s own
+  rows before refitting. Winsorised out-of-bag error is now computed
+  against the raw (unwinsorised) outcome, not the winsorised one, so it
+  is comparable to the EVZINB/EVINB OOB error.
+  `inner_nb()`/`inner_zinb()`/`boot_refit_one()`/[`oob_evaluation()`](../reference/oob_evaluation.md)’s
+  internal [`try()`](https://rdrr.io/r/base/try.html)s no longer print
+  to the console on a failed replicate (audit0.10 §1.5).
+- `marginal_effects(variables = )` errors on an unrecognised covariate
+  name (listing the available ones) instead of silently returning a
+  0-row tibble. A numeric covariate that only enters the model’s
+  formulas wrapped in
+  [`factor()`](https://rdrr.io/r/base/factor.html)/[`as.factor()`](https://rdrr.io/r/base/factor.html)/[`cut()`](https://rdrr.io/r/base/cut.html)
+  (e.g. `y ~ factor(g_num)`) is now treated as categorical
+  (level-vs-reference contrasts), instead of being perturbed as a number
+  and producing unseen factor levels; one wrapped only in
+  [`poly()`](https://rdrr.io/r/stats/poly.html)/`ns()`/`bs()` keeps the
+  numeric derivative/difference path with its perturbation clamped to
+  the covariate’s observed range. A covariate used both ways across
+  formula components errors clearly (audit0.10 §1.10).
+- A singular M-step Hessian no longer aborts the fit (or, on some BLAS
+  backends, silently returns a wildly ill-conditioned step): the Newton
+  step now uses `arma::solve(..., solve_opts::no_approx)`, which reports
+  failure instead of throwing or returning garbage; on failure it
+  retries once with a small ridge, and if that also fails the affected
+  block keeps its pre-step value for that EM step (audit0.10 §1.3). This
+  is also the usual reason a bootstrap replicate failed.
+- The EM outer loop (the C_EV profile update) could in principle run
+  forever if the profile oscillated between two candidate values.
+  [`evinf_control()`](../reference/evinf_control.md) gains `max.c.iter`
+  (default 50), capping each phase separately; hitting the cap in the
+  convergence phase sets `converge = FALSE` (see the new `$c_converged`
+  / [`glance()`](https://generics.r-lib.org/reference/glance.html)
+  column to tell this apart from the inner EM not converging) and, for a
+  full-sample fit, a [`warning()`](https://rdrr.io/r/base/warning.html)
+  names the last two C_EV values visited.
+  [`em_profile_c()`](../reference/em_profile_c.md) also now uses
+  [`which.max()`](https://rdrr.io/r/base/which.min.html), so an exact
+  tie in the profile no longer returns a length \> 1 `c_hat` and every
+  candidate being `NaN`/infinite errors clearly instead of silently
+  breaking the outer loop (audit0.10 §1.4).
+- The likelihood could underflow to `-Inf` for a large count or a small
+  Pareto shape: the discretised Pareto log-pmf now uses a
+  cancellation-free form (`a*log(C/y) + log(-expm1(a*log(y/(y+1))))` in
+  place of `log((C/y)^a - (C/(y+1))^a)`), the NB/Pareto mixture is
+  combined with a log-sum-exp instead of summing on the natural scale,
+  the NB log-pmf uses [`lgamma()`](https://rdrr.io/r/base/Special.html)
+  instead of an O(y) loop, and the multinomial state probabilities (in
+  the C++ M-step and in `prob_from_evzinb()` / `prob_from_evinb()`) use
+  a numerically stable softmax. Coefficients move by at most ~2e-10 and
+  log-likelihood by at most ~7e-12 on the identity fixtures – well under
+  the 1e-6 the round’s numerical-identity gate would have required
+  flagging (audit0.10 §1.11).
+- [`evzinb()`](../reference/evzinb.md) /
+  [`evinb()`](../reference/evinb.md) now validate the response after
+  [`na.omit()`](https://rdrr.io/r/stats/na.fail.html): a negative,
+  non-finite or non-integer value errors, naming the count and the
+  problem, instead of being silently misread (a non-integer count is
+  effectively ceiling()’d by the NB part of the C++ code but used
+  exactly by the Pareto part; a negative one produced a cryptic
+  “argument is of length zero” several layers down).
+  `evinf_control(prune.c.range = )` now requires `[0, 1)` (was `[0, 1]`;
+  `1` passed validation but crashed with “invalid ‘size’ argument”);
+  [`em_c_candidates()`](../reference/em_c_candidates.md) clamps its
+  internal sample size to `>= 0`, skips pruning entirely below 3
+  candidates, and no longer risks
+  [`sample()`](https://rdrr.io/r/base/sample.html)’s length-1-population
+  trap (`sample(2, ...)` samples from `1:2`, not the single candidate
+  `2`) on a 3-value grid. Pruning’s random draw is now reproducible
+  without touching the caller’s `.Random.seed`, via a generalised
+  `evinf_seeded_sample()` (audit0.10 §1.9).
+- [`lr_test()`](../reference/lr_test.md) no longer emits
+  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)’s
+  deprecation warning on every restricted refit (once per model, or once
+  per model x bootstrap with `bootstrap = TRUE`). The restricted refits
+  now pass a modified copy of the full model’s `control` object (its
+  `init.*` fields set from the full-model estimate) instead of ~20
+  individual tuning arguments, which also means a setting added to
+  [`evinf_control()`](../reference/evinf_control.md) after the model was
+  fitted (e.g. `max.c.iter`) is carried over automatically instead of
+  needing to be added to a hand-picked argument list (audit0.10 §1.7).
+- `evinf_control(pdf.pl.type = "exact")` was accepted and stored but had
+  no effect: the M-step always used the continuous-Pareto
+  gradient/Hessian for the Pareto block, giving bit-identical estimates
+  to `"approx"`. `"exact"` now uses the analytic gradient/Hessian of the
+  *discretised* Pareto log-pmf (the pmf the likelihood itself always
+  uses) in the Newton step, computed in the same cancellation-free form
+  as the likelihood (audit0.10 §1.11). The default stays `"approx"`, and
+  default estimates are unchanged. See
+  [`?evinf_control`](../reference/evinf_control.md) for what each option
+  does (audit0.10 §1.8).
+- A bootstrapped p-value of exactly `0` (no draw crossed the estimate)
+  is now floored at `1 / B`, where `B` is the number of usable bootstrap
+  replicates – the true p-value could be anywhere in `[0, 1/B)`, so
+  reporting exactly `0` overstates the precision `B` draws can deliver.
+  [`print.summary.evzinb()`](../reference/print.summary.evzinb.md) /
+  [`print.summary.evinb()`](../reference/print.summary.evzinb.md) show
+  this as `"< 1/B"` (e.g. `"<0.01"` for 100 usable bootstraps) instead
+  of the default, misleadingly precise `"<2e-16"` (audit0.10 §1.11).
+- `update(model, data = new_data)` kept the *old* data’s data-driven
+  `control$c.lim` / `control$init.C` (both were written into
+  `object$control` at the original fit), silently reusing a candidate
+  range for chosen for data the model no longer uses. If the original
+  range was itself data-driven (not pinned by the user via
+  `evinf_control(c.lim = )`) and `data` is among the arguments being
+  changed, they are now reset to `NULL` and re-resolved from the new
+  data, with the usual message.
+  [`?update.evzinb`](../reference/update.evzinb.md) also documents that
+  changing `formula_nb.` does not propagate to a component formula that
+  was originally left `NULL` and inherited from it – that component
+  keeps its own formula regardless (audit0.10 §1.11).
+- `object$props` / `object$resp` (and the `fitted$prob_*` /
+  `posterior_*` vectors derived from them) came from the E-step at the
+  *start* of the last EM step, one step behind the returned
+  coefficients. They are now recomputed at the actual returned
+  parameters and final C_EV before [`evzinb()`](../reference/evzinb.md)
+  / [`evinb()`](../reference/evinb.md) return, using the same stable
+  softmax as the C++ E-step. Point predictions
+  (`predict(type = "harmonic")` etc.) are unaffected – only these
+  diagnostic quantities change, by up to ~0.008 on the bundled example
+  data (audit0.10 §1.11).
+- [`plot()`](https://rdrr.io/r/graphics/plot.default.html) on a fitted
+  model errored on ggplot2 \< 3.5.0 (`scale_*_continuous()` didn’t gain
+  the `transform =` argument until 3.5.0). The four log1p-scale call
+  sites in [`plot.evzinb()`](../reference/plot.evzinb.md) /
+  [`plot.evinb()`](../reference/plot.evzinb.md) now pick `transform =`
+  or the older `trans =` based on the installed ggplot2 version, and the
+  `(>= 3.5.0)` floor on `ggplot2` in `Suggests` is removed (round8 0.1).
+- `pdf.pl.type = "exact"`’s gradient/Hessian went to `NaN` for a sharply
+  peaked Pareto block (large `alpha * |log(C/y)|`, e.g. `C = 100`,
+  `y = 1e4`, `alpha ~ 403`) because `pareto_exact_derivs_fun()` formed
+  `(C/y)^alpha` and `(C/(y+1))^alpha` separately in its numerator even
+  though the denominator already used a cancellation-free form; both
+  underflow to exactly 0 there, giving `0/0`. The `NaN` failed safe –
+  the M-step just stopped updating the Pareto block silently – but is
+  now fixed by factoring the same term out of the numerator (review §3,
+  round8 0.2).
+- `object$fitted$y.hat.pl_*` (the state-probability-weighted point
+  predictions) were computed from the E-step’s one-step-stale prior
+  state probabilities, while `object$props` / `object$resp` (and the
+  `fitted$prob_*` / `posterior_*` vectors derived from them) already
+  used the final, recomputed ones – so `fitted$y.hat.pl_E.inv.y` and
+  `predict(type = "harmonic")` disagreed by a small but nonzero amount
+  (`cor() = 0.9999999`, not 1). Both are now computed from the same
+  final props (review §4, round8 0.3).
+- [`oob_evaluation()`](../reference/oob_evaluation.md) on an
+  `evzinbcomp` object masked a degenerate evinf bootstrap replicate’s
+  out-of-bag error to `NA` in the `evinf` column only, leaving the
+  compared `nb` / `zinb` columns unmasked at that row – so a column-wise
+  `na.rm = TRUE` summary (as the vignette’s model-evaluation section
+  does) compared medians computed over different replicate sets. Every
+  column is now masked at the union of `NA` positions, and the row mask
+  is exposed as `attr(out, "excluded")` (review §5, round8 0.4).
+- [`compare_fit()`](../reference/compare_fit.md)’s `aic` / `bic` rows
+  for a `*_razor` or `*_winsor` slot are not comparable to the evinf
+  model’s – a razorised fit is estimated on fewer observations, and a
+  winsorised fit on a different outcome – even though the `rmse` /
+  `rmsle` rows now are (OOB error is always against the raw outcome).
+  Those two metrics now come back `NA` for those slots, with a one-line
+  footnote from [`print()`](https://rdrr.io/r/base/print.html) when any
+  are present (review §6, round8 0.5).
+- The warm-up phase’s C_EV profile could hit `max.c.iter` without
+  settling, same as the convergence phase, but nothing recorded it –
+  `$c_converged` and its
+  [`warning()`](https://rdrr.io/r/base/warning.html) only ever covered
+  the convergence-phase loop. Recorded now as `$c_warmup_capped`, with
+  its own [`warning()`](https://rdrr.io/r/base/warning.html) for a
+  full-sample fit; it does not affect `$converge` (review §7, round8
+  0.6).
+- `inner_nb()` / `inner_zinb()` (the per-bootstrap refits behind
+  [`compare_models()`](../reference/compare_models.md)) computed
+  out-of-bag error against `data[-boot_id, ]`, which silently returns
+  zero rows rather than all of them when `boot_id` is empty – a resample
+  where razorising leaves no drawn row behind. Both now guard explicitly
+  and fail the same way a caught
+  [`MASS::glm.nb()`](https://rdrr.io/pkg/MASS/man/glm.nb.html) /
+  [`pscl::zeroinfl()`](https://rdrr.io/pkg/pscl/man/zeroinfl.html) error
+  already does, so every existing `inherits(b, "try-error")` check picks
+  it up (review §7, round8 0.7).
+- CI: added an `ubuntu-latest` / `oldrel-1` job to `R-CMD-check.yaml` –
+  the job that would have caught round8 0.1’s ggplot2-version failure
+  (round7 prompt E.4, review §2, round8 0.8).
+- The count-likelihood closed form
+  `lgamma(y + 1/alpha) - lgamma(1/alpha) - lgamma(y + 1)` (round 7)
+  partially cancels for a large `y` with a small `1/alpha` – checked
+  against a Kahan-summed reference loop (plain summation of the
+  pre-round-7 loop is not itself a trustworthy reference at this scale)
+  at up to ~1.5e-10 relative error for `y` up to 1e6 and `alpha` down to
+  `1e-3`. Switched to the algebraically identical, cancellation-free
+  `-log(y + 1/alpha) - lbeta(y + 1, 1/alpha)`, which was at least as
+  accurate in every case checked (review §7, round8 0.9).
 
 ### Breaking changes / deprecations
 
@@ -255,18 +461,25 @@ and the review follow-ups in `dev/review_round1.md`.
   need to reproduce.
 - `future` and `furrr` are new hard dependencies; `foreach`,
   `doParallel`, `doRNG` and **`mistr`** are dropped.
-- The extreme-value component of the mixture is now a single,
-  package-wide **discretised Pareto** (`R/dist_pareto.R`): pmf for
-  integer . Previously `predict(type = "quantile")` /
-  `quantiles_from_*()` / `marginal_effects(type = "quantile")` built the
-  mixture with `mistr` and inverted it there. The new path bisects the
-  same mixture CDF used by `residuals(type = "quantile")` and the
-  likelihood, so it also **corrects the negative-binomial dispersion**
-  those quantiles used (they parametrised the NB by `Alpha.NB` rather
-  than the canonical `size = 1 / Alpha.NB`). For an `evzinb` fit, where
-  `Alpha.NB` is near 1, predicted quantiles move by at most a count or
-  two; for an `evinb` fit with a strongly over-dispersed count component
-  the old quantiles could be off by a large factor.
+- The likelihood, CDF, quantile prediction, residuals,
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html) and the
+  posterior state probabilities now all share a single **discretised
+  Pareto** (`R/dist_pareto.R`): pmf for integer . The
+  `'harmonic'`/`'explog'` point predictions still use the
+  continuous-Pareto harmonic/geometric-mean formulas as a closed-form
+  approximation (documented in
+  [`?predict.evzinb`](../reference/predict.evzinb.md)), so they are the
+  one place that is not computed from the discretised distribution.
+  Previously `predict(type = "quantile")` / `quantiles_from_*()` /
+  `marginal_effects(type = "quantile")` built the mixture with `mistr`
+  and inverted it there. The new path bisects the same mixture CDF used
+  by `residuals(type = "quantile")` and the likelihood, so it also
+  **corrects the negative-binomial dispersion** those quantiles used
+  (they parametrised the NB by `Alpha.NB` rather than the canonical
+  `size = 1 / Alpha.NB`). For an `evzinb` fit, where `Alpha.NB` is near
+  1, predicted quantiles move by at most a count or two; for an `evinb`
+  fit with a strongly over-dispersed count component the old quantiles
+  could be off by a large factor.
   [`simulate()`](https://rdrr.io/r/stats/simulate.html) /
   [`revzinb_fit()`](../reference/revzinb_fit.md) /
   [`revinb_fit()`](../reference/revinb_fit.md) draw the extreme-value
@@ -303,6 +516,40 @@ and the review follow-ups in `dev/review_round1.md`.
   superseded by
   [`marginal_effects()`](../reference/marginal_effects.md)) were
   removed.
+- **[`compare_fit()`](../reference/compare_fit.md) sign convention.**
+  The paired bootstrap difference is now `evinf - compared` (was
+  `compared - evinf`); `prop_evinf_better` is now `mean(diffs < 0)`. The
+  print header and the
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) x-axis label
+  already said “negative favours evinf” — it was the computation that
+  disagreed with them (a probe on `genevzinb2` showed a *positive*
+  median with `prop_evinf_better = 1` for a model that clearly wins on
+  AIC). [`compare_fit()`](../reference/compare_fit.md) /
+  [`plot.evzinbcomp()`](../reference/compare_fit.md) also gain
+  `exclude_degenerate = TRUE`, and
+  [`oob_evaluation()`](../reference/oob_evaluation.md) now honours it
+  for a single evinf model.
+- The default `conf_level` for
+  [`predict()`](https://rdrr.io/r/stats/predict.html) and
+  [`marginal_effects()`](../reference/marginal_effects.md) is now `0.95`
+  (was `0.9`), matching
+  [`confint()`](https://rdrr.io/r/stats/confint.html) and
+  [`tidy()`](https://generics.r-lib.org/reference/tidy.html). Pass
+  `conf_level = 0.9` explicitly to keep the old default.
+- **Deprecations planned for removal in 0.11.0:** the pre-0.9.4
+  `component = "nb"/"zi"/"evinf"` aliases (use
+  `"count"`/`"zero"`/`"evi"`); passing the individual EM tuning
+  arguments (`max.diff.par`, `c.lim`, `init.C`, …) directly to
+  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
+  instead of through `control = evinf_control(...)`; and the deprecated
+  `pr_zc`/`pr_pareto` column names and
+  `fitted$prob_pareto`/`fitted$posterior_pareto` duplicate fields (use
+  the canonical `pr_zero`/`pr_evi` and `prob_evi`/`posterior_evi`). All
+  of these still work in 0.10.0 and most already warn when used.
+  [`revzinb_fit()`](../reference/revzinb_fit.md)/[`revinb_fit()`](../reference/revinb_fit.md)
+  are superseded by
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html) but are not
+  deprecated and have no planned removal.
 
 ### Documentation
 
@@ -352,6 +599,44 @@ and the review follow-ups in `dev/review_round1.md`.
   [`?gof_map_evinf`](../reference/gof_map_evinf.md) gain guidance on
   harmonic-mean effect intervals and on the `modelsummary` `shape`
   argument.
+- Internal (audit §5.4, round8 A.1):
+  [`em_profile_c()`](../reference/em_profile_c.md) used to call
+  `log_lik_fun()` once per `C_EV` candidate, redoing the
+  state-probability and count-log-likelihood computation (which doesn’t
+  depend on `C`) every time. New C++ `log_lik_profile_fun()` computes
+  that shared work once and profiles the whole candidate grid in one
+  call; [`em_profile_c()`](../reference/em_profile_c.md)’s return shape,
+  [`which.max()`](https://rdrr.io/r/base/which.min.html) behaviour and
+  all-infinite error are unchanged. Verified to `1e-10` against the old
+  per-candidate calls, and the selected `c_hat` is unchanged (not just
+  close) on every identity fixture.
+- Internal (audit §5.4, round8 A.2): the two remaining O(y) loops in
+  `delldtheta_nb_i_fun()` / `d2elldtheta2_nb_i_fun()` (the NB dispersion
+  score and Hessian) are closed forms via
+  [`digamma()`](https://rdrr.io/r/base/Special.html)/[`trigamma()`](https://rdrr.io/r/base/Special.html).
+  The Hessian’s closed form cancels catastrophically for a small `y`
+  *and* a small `alpha` (e.g. loses ~9 significant digits at `y = 5`,
+  `alpha = 1e-3`), so it’s used only for `y > 30`; the loop (already
+  trivially cheap there) is kept below that. Verified to `1e-9` against
+  the old loops over `y` in `{0, 1, 5, 100, 1e4, 1e5}` x `alpha` in
+  `{1e-3, 0.01, 0.5, 1, 5, 50}`; the M-step gradient/Hessian are
+  unchanged on the identity fixtures.
+- Internal (audit §5.4, round8 A.3): `log_lik_fun()` and
+  `update_bfgs_fun()`’s per-observation loops rebuilt a linear predictor
+  (`trans(X.submat(i, ...))`) and, for the four M-step BFGS blocks,
+  allocated a fresh gradient/Hessian block via a per-row function call –
+  on every row, every BFGS sub-iteration, and `log_lik_fun()` alone is
+  called dozens of times per [`em_step()`](../reference/em_step.md)
+  (once per evaluation of each of the four
+  [`stats::optimise()`](https://rdrr.io/r/stats/optimize.html) line
+  searches in `R/em_step.R`). Replaced with precomputed linear
+  predictors (one matrix-vector product per block) and gradient/Hessian
+  accumulation as `X' w` / `X' diag(w) X`. A full `hks` fit went from
+  1.1x faster (A.1 + A.2 alone) to 8.4x faster; see `A.4`’s benchmark
+  table. Verified against the pre-A.3 code on 5 cases (`genevzinb2` and
+  `hks`, both Pareto types, plus an `evinb` fit) at machine precision
+  (max abs diff ~2e-12); the identity fixtures are unchanged at `1e-8`,
+  with `c_hat` exactly (not just closely) unchanged.
 
 ## evinf 0.9.4
 

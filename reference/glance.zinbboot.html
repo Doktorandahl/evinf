@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>zinbboot and nbboot glance functions</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/glance_boots.R" class="external-link"><code>R/glance_boots.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/glance_boots.R" class="external-link"><code>R/glance_boots.R</code></a></small>
       <div class="d-none name"><code>glance.zinbboot.Rd</code></div>
     </div>
 
@@ -74,10 +74,7 @@
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
 <span class="r-in"><span><span class="va">zinb_comp</span> <span class="op">&lt;-</span> <span class="fu"><a href="compare_models.html">compare_models</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in -bootstrap$boot_id : invalid argument to unary operator</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in -bootstrap$boot_id : invalid argument to unary operator</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>glm.fit: algorithm did not converge</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>iteration limit reached</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>NaNs produced</span>
@@ -136,14 +133,14 @@
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 9</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    nobs  npar alpha   aic   bic logLik converged n_bootstraps</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>            <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>   100     9  2.25  550.  574.  -<span style="color: #BB0000;">266.</span> TRUE                 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>   100     9  2.25  550.  574.  -<span style="color: #BB0000;">266.</span> TRUE                 5</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 1 more variable: n_failed_bootstraps &lt;int&gt;</span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="va">zinb_comp</span> <span class="op">&lt;-</span> <span class="fu"><a href="compare_models.html">compare_models</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>iteration limit reached</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>NaNs produced</span>

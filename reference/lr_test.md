@@ -12,6 +12,7 @@ lr_test(
   bootstrap = FALSE,
   multicore = NULL,
   ncores = NULL,
+  exclude_degenerate = TRUE,
   verbose = FALSE
 )
 ```
@@ -57,6 +58,12 @@ lr_test(
   Number of workers when `multicore = TRUE`. Default (`NULL`) is one
   less than the number of available cores. Ignored when `multicore` is
   `NULL` or `FALSE`.
+
+- exclude_degenerate:
+
+  Logical. When `bootstrap = TRUE`, also drop bootstrap replicates
+  flagged degenerate (see [`failed_bootstraps`](failed_bootstraps.md)),
+  not just those that errored. Default `TRUE`.
 
 - verbose:
 
@@ -123,9 +130,7 @@ a single fixed plan.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 lr_test(model,'x1')
-#> Warning: The following arguments of evzinb() are deprecated; pass them through `control = evinf_control()`: max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range, max.upd.par.zc.multinomial, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.ZC, init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C.
 #> # A tibble: 1 × 6
 #>   vars  loglik_full loglik_restricted    df statistic      prob
 #>   <chr>       <dbl>             <dbl> <int>     <dbl>     <dbl>

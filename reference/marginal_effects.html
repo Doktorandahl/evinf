@@ -33,7 +33,7 @@ recomputing the effect on every bootstrap fit."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Average marginal effects for an evzinb / evinb model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/marginal_effects.R" class="external-link"><code>R/marginal_effects.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/marginal_effects.R" class="external-link"><code>R/marginal_effects.R</code></a></small>
       <div class="d-none name"><code>marginal_effects.Rd</code></div>
     </div>
 
@@ -54,7 +54,7 @@ recomputing the effect on every bootstrap fit.</p>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"derivative"</span>, <span class="st">"difference"</span><span class="op">)</span>,</span>
 <span>  eps <span class="op">=</span> <span class="fl">1e-04</span>,</span>
 <span>  delta <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  conf_level <span class="op">=</span> <span class="fl">0.9</span>,</span>
+<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_max <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  exclude_degenerate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -73,7 +73,17 @@ recomputing the effect on every bootstrap fit.</p>
 
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
 <dd><p>Covariates to compute effects for (default: all raw
-covariates).</p></dd>
+covariates). An unrecognised name errors, listing the available
+covariates. A variable that only ever enters the model's formulas
+wrapped in <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor()</a></code>/<code><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor()</a></code>/<code><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut()</a></code> is treated as
+categorical (level-vs-reference contrasts over its observed unique
+values) even though it is stored as numeric data; one wrapped only in
+<code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code>/<code>ns()</code>/<code>bs()</code> keeps the numeric derivative/
+difference path but has its perturbation clamped to the covariate's
+observed range, so the perturbed value is never fed to the spline basis
+outside the range it was built from. A variable used both ways (e.g.
+bare in one formula component and <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor()</a></code>-wrapped in another)
+errors, since a single perturbed value cannot represent both.</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
@@ -221,16 +231,12 @@ fixed plan.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span>, data <span class="op">=</span> <span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV reached the boundary of the candidate range in 1 of 10 bootstrap replicates; consider widening c.lim.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 10 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu">marginal_effects</span><span class="op">(</span><span class="va">model</span>, variables <span class="op">=</span> <span class="st">"x1"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 7</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   variable contrast type     estimate std.error conf.low conf.high</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> x1       dydx     harmonic     140.     <span style="text-decoration: underline;">1</span>645.     101.     <span style="text-decoration: underline;">2</span>969.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> x1       dydx     harmonic     140.     <span style="text-decoration: underline;">1</span>645.     97.6     <span style="text-decoration: underline;">3</span>209.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

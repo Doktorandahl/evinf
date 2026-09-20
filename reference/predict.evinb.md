@@ -14,7 +14,7 @@ predict(
   pred = c("original", "bootstrap_median", "bootstrap_mean"),
   quantile = NULL,
   confint = FALSE,
-  conf_level = 0.9,
+  conf_level = 0.95,
   multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
@@ -98,6 +98,18 @@ A vector of predicted values for type 'harmonic', 'explog', 'counts',
 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of
 predicted values for type 'states' and 'all' or if confint=T
 
+## Details
+
+The likelihood, CDF, quantile prediction, residuals and
+[`simulate()`](https://rdrr.io/r/stats/simulate.html) all use the
+discretised Pareto distribution (the integer-valued distribution the
+model is actually fit on). The `'harmonic'` and `'explog'` point
+predictions instead use the harmonic and geometric means of the
+\*continuous\* Pareto distribution as a closed-form approximation to the
+corresponding discretised-Pareto moments; this keeps existing point
+predictions unchanged but means they are not computed from exactly the
+same distribution as the rest of the model.
+
 ## Parallel processing
 
 Bootstrap fits (and the per-bootstrap work in
@@ -145,7 +157,6 @@ a single fixed plan.
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 predict(model)
 #>   [1]   53.549686   60.127971  410.351359   12.431620   39.194583   34.139420
 #>   [7]  148.622606   99.329017   36.948813   40.651211    5.503769    1.450365

@@ -14,7 +14,7 @@ predict(
   pred = c("original", "bootstrap_median", "bootstrap_mean"),
   quantile = NULL,
   confint = FALSE,
-  conf_level = 0.9,
+  conf_level = 0.95,
   multicore = NULL,
   ncores = NULL,
   return_bootstraps = FALSE,
@@ -99,6 +99,18 @@ A vector of predicted values for type 'harmonic', 'explog', 'counts',
 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' or a tibble
 of predicted values for type 'states' and 'all' or if confint=T
 
+## Details
+
+The likelihood, CDF, quantile prediction, residuals and
+[`simulate()`](https://rdrr.io/r/stats/simulate.html) all use the
+discretised Pareto distribution (the integer-valued distribution the
+model is actually fit on). The `'harmonic'` and `'explog'` point
+predictions instead use the harmonic and geometric means of the
+\*continuous\* Pareto distribution as a closed-form approximation to the
+corresponding discretised-Pareto moments; this keeps existing point
+predictions unchanged but means they are not computed from exactly the
+same distribution as the rest of the model.
+
 ## Parallel processing
 
 Bootstrap fits (and the per-bootstrap work in
@@ -145,28 +157,27 @@ a single fixed plan.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 predict(model)
-#>   [1]   52.3536772   57.1668382  376.9452697   11.1639895   38.8170530
-#>   [6]   35.9055805  126.3183705   90.7615232   37.3853032   34.0306144
-#>  [11]    3.8757346    0.7290348  211.7443387   12.7340813   32.1514187
-#>  [16]   14.0972436  391.8414874   25.8481012  220.0886407    3.4952654
+#>   [1]   52.3536769   57.1668382  376.9452700   11.1639892   38.8170530
+#>   [6]   35.9055806  126.3183686   90.7615235   37.3853032   34.0306144
+#>  [11]    3.8757346    0.7290348  211.7443392   12.7340813   32.1514187
+#>  [16]   14.0972436  391.8414207   25.8481012  220.0886236    3.4952654
 #>  [21]    9.8384299    5.9820263   12.6066990   12.1342843    0.7762911
-#>  [26]   76.3148529   14.1944890   18.5612434    9.6734937   28.8526824
-#>  [31]   16.5098346   22.4290441   38.6944355   41.3541611    7.8551612
-#>  [36]  114.3658307    3.1848768   22.0641626   10.4536677   71.7961912
-#>  [41] 1339.4850139    3.5523495   10.0391498   19.7056931   28.4332808
-#>  [46]  102.5571593   57.4677194   38.7979658  100.6043585    2.7228403
-#>  [51]   20.6829272   41.1815094   15.9032426   55.6687632   95.2497310
-#>  [56]   11.9472583    1.1241349  164.7064469   89.6777187   21.1429787
-#>  [61]   18.3951387   52.2695259    3.2066429  119.4794326   66.6140903
-#>  [66]   26.6852148   10.1881158   29.5384885  188.2644691   68.4199362
-#>  [71]    1.8008339   20.0119216   45.7608923  122.9404738    2.6452961
-#>  [76]   17.6827618   24.1374749    4.8513850   12.8528147   53.8795843
-#>  [81]   33.1428460   14.5640965    7.6367303   16.1336634    7.4460040
-#>  [86]   26.0772201    2.8713642  113.1886228    2.0980822   24.7794615
-#>  [91]   11.0102490   64.8139950  752.3961899   74.1029727   38.7799201
-#>  [96]   21.6369011  132.7022844    9.7755182   19.1935263   38.9803140
+#>  [26]   76.3148527   14.1944891   18.5612434    9.6734937   28.8526825
+#>  [31]   16.5098346   22.4290441   38.6944355   41.3541612    7.8551612
+#>  [36]  114.3658284    3.1848768   22.0641625   10.4536677   71.7961908
+#>  [41] 1339.4846943    3.5523495   10.0391497   19.7056928   28.4332799
+#>  [46]  102.5571596   57.4677195   38.7979659  100.6043594    2.7228403
+#>  [51]   20.6829272   41.1815094   15.9032426   55.6687633   95.2497253
+#>  [56]   11.9472583    1.1241349  164.7064471   89.6777188   21.1429787
+#>  [61]   18.3951387   52.2695260    3.2066429  119.4794261   66.6140901
+#>  [66]   26.6852148   10.1881157   29.5384885  188.2644628   68.4199363
+#>  [71]    1.8008339   20.0119216   45.7608924  122.9404740    2.6452961
+#>  [76]   17.6827614   24.1374749    4.8513851   12.8528147   53.8795835
+#>  [81]   33.1428461   14.5640965    7.6367303   16.1336634    7.4460037
+#>  [86]   26.0772200    2.8713642  113.1886229    2.0980822   24.7794616
+#>  [91]   11.0102490   64.8139950  752.3960508   74.1029728   38.7799201
+#>  [96]   21.6369011  132.7022803    9.7755182   19.1935263   38.9803139
 predict(model, type='all', quantile = 0.9) # all available predicted values
 #> # A tibble: 100 × 10
 #>    harmonic explog   q90 pr_zero pr_count pr_evi pr_zc pr_pareto  count

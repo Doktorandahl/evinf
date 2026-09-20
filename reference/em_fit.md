@@ -11,7 +11,14 @@ a "convergence" phase that runs to `control$max.diff.par`.
 ## Usage
 
 ``` r
-em_fit(y, x.obj, ini.val, control, model = c("evzinb", "evinb"))
+em_fit(
+  y,
+  x.obj,
+  ini.val,
+  control,
+  model = c("evzinb", "evinb"),
+  full_sample = TRUE
+)
 ```
 
 ## Arguments
@@ -42,10 +49,20 @@ em_fit(y, x.obj, ini.val, control, model = c("evzinb", "evinb"))
   `ini.val$Beta.multinom.ZC` in the convergence phase and in every
   \\C\_{EV}\\ profile).
 
+- full_sample:
+
+  `TRUE` for the full-sample fit, `FALSE` for a bootstrap replicate.
+  Controls only whether a `max.c.iter` cap-out emits a
+  [`warning()`](https://rdrr.io/r/base/warning.html) (bootstrap
+  replicates already record it via `converge` / `c_converged` without
+  one).
+
 ## Value
 
 A list with, among others, `par.mat` (estimated parameters), `log.lik`,
 `AIC`, `BIC`, `resp` (posterior state probabilities), `converge`,
+`c_converged` (did the convergence-phase C_EV profile settle within
+`max.c.iter`), `c_warmup_capped` (the same, for the warm-up phase),
 `c_profile`, `c_trace`, `log.lik.vec.all`, `loglik_recomputed`, the
 fitted-value vectors (`mu.nb.vec`, `alpha.pl.vec`, `y.hat.pl*`, ...) and
 the design matrices. The exact set and names are consumed by

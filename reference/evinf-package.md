@@ -16,7 +16,7 @@ Useful links:
 
 ## Author
 
-**Maintainer**: David Randahl <david.randahl@pcr.uu.se>
+**Maintainer**: David Randahl <david.randahl@fhs.se>
 
 Authors:
 

@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Update and re-fit an evzinb / evinb model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/s3_generics.R" class="external-link"><code>R/s3_generics.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/s3_generics.R" class="external-link"><code>R/s3_generics.R</code></a></small>
       <div class="d-none name"><code>update.evzinb.Rd</code></div>
     </div>
 
@@ -72,7 +72,13 @@
 <dt id="arg-formula-nb-formula-zi-formula-evi-formula-pareto-">formula_nb., formula_zi., formula_evi., formula_pareto.<a class="anchor" aria-label="anchor" href="#arg-formula-nb-formula-zi-formula-evi-formula-pareto-"></a></dt>
 <dd><p>Optional
 <code><a href="https://rdrr.io/r/stats/update.formula.html" class="external-link">update.formula</a></code>-style changes per component, e.g.
-<code>formula_pareto. = . ~ . - x3</code>.</p></dd>
+<code>formula_pareto. = . ~ . - x3</code>. Each component is updated against
+its <em>own current</em> formula (the one the fitted object actually used,
+whether the user supplied it or it was inherited from <code>formula_nb</code>
+when <code>NULL</code>). Changing <code>formula_nb.</code> does not propagate to a
+component formula that was originally left <code>NULL</code> and inherited
+from it – that component keeps whatever formula it was fitted with;
+pass that component's own <code>formula_*.</code> explicitly to change it too.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -87,6 +93,16 @@ change.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The updated fit, or the call.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>If <code>object</code>'s candidate range for \(C_{EV}\) was itself
+  data-driven (<code>control$c.lim</code> was <code>NULL</code> at the original fit;
+  see <code>object$c_lim_default</code>), and <code>data</code> is one of the arguments
+  being changed, <code>control$c.lim</code> and <code>control$init.C</code> are reset to
+  <code>NULL</code> so they are re-resolved from the new data (with the usual
+  message) instead of silently reusing the range chosen for the old data. A
+  <code>c.lim</code> the user pinned explicitly is always kept as-is.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

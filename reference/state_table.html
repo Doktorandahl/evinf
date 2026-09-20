@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Cross-tabulate prior vs posterior state classification</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/classify_states.R" class="external-link"><code>R/classify_states.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/classify_states.R" class="external-link"><code>R/classify_states.R</code></a></small>
       <div class="d-none name"><code>state_table.Rd</code></div>
     </div>
 
@@ -62,7 +62,6 @@
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span>, data <span class="op">=</span> <span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
 <span class="r-in"><span><span class="fu">state_table</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Prior x posterior state classification (counts)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        posterior</span>

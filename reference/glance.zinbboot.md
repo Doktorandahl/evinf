@@ -38,10 +38,7 @@ full-sample model converged and the number of (failed) bootstraps.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 zinb_comp <- compare_models(model)
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
@@ -100,14 +97,14 @@ glance(zinb_comp$zinb)
 #> # A tibble: 1 × 9
 #>    nobs  npar alpha   aic   bic logLik converged n_bootstraps
 #>   <int> <dbl> <dbl> <dbl> <dbl>  <dbl> <lgl>            <int>
-#> 1   100     9  2.25  550.  574.  -266. TRUE                 4
+#> 1   100     9  2.25  550.  574.  -266. TRUE                 5
 #> # ℹ 1 more variable: n_failed_bootstraps <int>
 # }
 # \donttest{
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 zinb_comp <- compare_models(model)
 #> Warning: iteration limit reached
 #> Warning: NaNs produced

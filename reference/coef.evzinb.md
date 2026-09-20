@@ -21,7 +21,8 @@ coef(object, component = "all", ...)
 - component:
 
   One of `"all"` (the default), `"count"`, `"zero"`, `"evi"`,
-  `"pareto"`. Deprecated aliases `"nb"`, `"zi"`, `"evinf"` are accepted.
+  `"pareto"`. Deprecated aliases `"nb"`, `"zi"`, `"evinf"` are accepted,
+  with a warning; they will be removed in 0.11.0.
 
 - ...:
 

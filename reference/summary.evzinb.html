@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>EVZINB summary function</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/summary_evzinb.R" class="external-link"><code>R/summary_evzinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/summary_evzinb.R" class="external-link"><code>R/summary_evzinb.R</code></a></small>
       <div class="d-none name"><code>summary.evzinb.Rd</code></div>
     </div>
 
@@ -104,6 +104,13 @@
   and bootstrapped proportions) are unavailable; the summary then reports the
   point estimates only, <code>n_failed_bootstraps</code> is <code>NA</code>, and a message
   is emitted. Requesting bootstrapped coefficients for such a model is an error.</p>
+<p>A bootstrapped p-value is never reported below <code>1 / B</code>, where
+  <code>B</code> is the number of usable bootstrap replicates: with no draw
+  crossing the estimate, the true p-value could be anywhere in
+  <code>[0, 1/B)</code>, so it is floored at <code>1/B</code> rather than reported as
+  exactly <code>0</code>. <code><a href="print.summary.evzinb.html">print.summary.evzinb()</a></code> / <code><a href="print.summary.evzinb.html">print.summary.evinb()</a></code>
+  show this as <code>"&lt; 1/B"</code> (e.g. <code>"&lt;0.01"</code> for 100 usable
+  bootstraps) rather than the default, misleadingly precise <code>"&lt;2e-16"</code>.</p>
     </div>
 
     <div class="section level2">
@@ -112,54 +119,45 @@
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> EVZINB model summary</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ====================</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Count component (negative binomial)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   3.1305     0.4151    7.541   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x1            0.8432     0.4614    1.828   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x2            0.5987     0.3929    1.524   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x3            0.2411     0.1893    1.274      0.5    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   3.1305     0.3708    8.442     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1            0.8432     0.4595    1.835     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2            0.5987     0.3678    1.628     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3            0.2411     0.4552    0.530      0.4</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Zero-inflation component</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   0.5109     0.4517    1.131      0.5    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x1           -0.6738     0.2344   -2.874   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x2            0.6071     0.3814    1.592   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x3           -0.4197     0.2767   -1.517   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   0.5109     0.5085    1.005      0.4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1           -0.6738     0.4244   -1.587     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2            0.6071     0.3350    1.812     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3           -0.4197     0.3242   -1.295      0.4</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Extreme-value inflation component</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  -1.7286     0.6390  -2.7051   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x1            0.7356     0.6055   1.2149   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x2           -0.4289     0.5719  -0.7499   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x3            0.1662     0.1819   0.9136   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  -1.7286     3.7981   -0.455     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1            0.7356     3.8051    0.193     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2           -0.4289     2.2152   -0.194     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3            0.1662     0.6213    0.268     &lt;0.2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Pareto (extreme value) component</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   2.7136     0.1481   18.327   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x1           -2.2778     0.3571   -6.378   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x2            1.4488     0.2457    5.898   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> x3            1.5035     0.6040    2.489   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)    2.714      3.584    0.757     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1            -2.278      3.831   -0.595     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2             1.449      1.771    0.818     &lt;0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3             1.503      2.696    0.558     &lt;0.2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ----------------------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> alpha_NB: 1.431   C_EV: 184</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations at or above C_EV: 10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Mean state proportions:  zero = 0.575   count = 0.340   evi = 0.084</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Mean state proportions:  zero = 0.575   count = 0.341   evi = 0.084</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 100   Parameters: 18   df: 82</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> logLik: -254   AIC: 544.1   BIC: 591   Converged: TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Bootstraps: failed = 1, degenerate = 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Bootstraps: failed = 0, degenerate = 0</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

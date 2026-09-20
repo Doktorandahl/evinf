@@ -8,7 +8,8 @@ Out of bag predictive performance of EVZINB and EVINB models
 oob_evaluation(
   object,
   predict_type = c("harmonic", "explog"),
-  metric = c("rmsle", "rmse", "mse", "mae")
+  metric = c("rmsle", "rmse", "mse", "mae"),
+  exclude_degenerate = TRUE
 )
 ```
 
@@ -31,11 +32,26 @@ oob_evaluation(
   supplied function of the form function(y_pred,y_true) which returns a
   single value
 
+- exclude_degenerate:
+
+  For a single evinf model (or its `$model` slot inside an
+  `evzinbcomp`), return `NA` for bootstrap replicates flagged degenerate
+  (default `TRUE`) instead of their out-of-bag error, so positions still
+  line up with the compared models' replicates; see the `alpha_floor`
+  argument of [`evinf_control`](evinf_control.md).
+
 ## Value
 
 For a single model, a vector of length `n_bootstraps`. For an
 `evzinbcomp` object, a tibble with one column per compared model
-(`evinf`, `nb`, `zinb`, ...) and one row per bootstrap.
+(`evinf`, `nb`, `zinb`, ...) and one row per bootstrap. A replicate that
+is `NA` in any column (a degenerate evinf replicate, or a compared
+model's fit that errored) is `NA` in *every* column, so a column-wise
+`na.rm = TRUE` summary (e.g.
+`summarize(oob, across(everything(), median, na.rm = TRUE))`) compares
+the same set of replicates across models rather than silently different
+ones; the row mask itself is available as `attr(out, "excluded")`
+(round8 0.4, review §5).
 
 ## Examples
 
@@ -44,9 +60,7 @@ For a single model, a vector of length `n_bootstraps`. For an
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 oob_evaluation(model)
-#> Error in bootstrap$boot_id : $ operator is invalid for atomic vectors
-#> [1] 3.053584 8.654060       NA 3.339729 4.003586
+#> [1] 3.053584       NA       NA       NA 4.003586
 # }
 ```

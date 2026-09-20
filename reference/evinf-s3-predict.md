@@ -45,7 +45,9 @@ simulate(object, nsim = 1, seed = NULL, newdata = NULL, ...)
 - seed:
 
   Optional RNG seed for the randomized quantile residuals /
-  [`simulate()`](https://rdrr.io/r/stats/simulate.html).
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html). If given, the
+  caller's RNG state is restored on exit (the seed only affects this
+  call's draws).
 
 - nsim:
 
@@ -60,4 +62,7 @@ simulate(object, nsim = 1, seed = NULL, newdata = NULL, ...)
 [`fitted()`](https://rdrr.io/r/stats/fitted.values.html) /
 [`residuals()`](https://rdrr.io/r/stats/residuals.html) return a numeric
 vector; [`simulate()`](https://rdrr.io/r/stats/simulate.html) a data
-frame with columns `sim_1`, `sim_2`, ...
+frame with columns `sim_1`, `sim_2`, ..., with a `"seed"` attribute
+following the [`simulate`](https://rdrr.io/r/stats/simulate.html)
+convention (the given `seed`, or, if none was given, the RNG state
+before the draws were made).

@@ -16,7 +16,7 @@ marginal_effects(
   method = c("derivative", "difference"),
   eps = 1e-04,
   delta = 1,
-  conf_level = 0.9,
+  conf_level = 0.95,
   newdata = NULL,
   n_max = 500,
   exclude_degenerate = TRUE,
@@ -33,7 +33,20 @@ marginal_effects(
 
 - variables:
 
-  Covariates to compute effects for (default: all raw covariates).
+  Covariates to compute effects for (default: all raw covariates). An
+  unrecognised name errors, listing the available covariates. A variable
+  that only ever enters the model's formulas wrapped in
+  [`factor()`](https://rdrr.io/r/base/factor.html)/[`as.factor()`](https://rdrr.io/r/base/factor.html)/[`cut()`](https://rdrr.io/r/base/cut.html)
+  is treated as categorical (level-vs-reference contrasts over its
+  observed unique values) even though it is stored as numeric data; one
+  wrapped only in
+  [`poly()`](https://rdrr.io/r/stats/poly.html)/`ns()`/`bs()` keeps the
+  numeric derivative/ difference path but has its perturbation clamped
+  to the covariate's observed range, so the perturbed value is never fed
+  to the spline basis outside the range it was built from. A variable
+  used both ways (e.g. bare in one formula component and
+  [`factor()`](https://rdrr.io/r/base/factor.html)-wrapped in another)
+  errors, since a single perturbed value cannot represent both.
 
 - type:
 
@@ -184,15 +197,11 @@ a single fixed plan.
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 10)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Warning: C_EV reached the boundary of the candidate range in 1 of 10 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 10 bootstrap replicates; consider widening c.lim.
 marginal_effects(model, variables = "x1")
 #> # A tibble: 1 × 7
 #>   variable contrast type     estimate std.error conf.low conf.high
 #>   <chr>    <chr>    <chr>       <dbl>     <dbl>    <dbl>     <dbl>
-#> 1 x1       dydx     harmonic     140.     1645.     101.     2969.
+#> 1 x1       dydx     harmonic     140.     1645.     97.6     3209.
 # }
 ```

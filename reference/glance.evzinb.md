@@ -23,8 +23,10 @@ glance(x, ...)
 
 A one-row tibble of goodness-of-fit statistics: number of observations
 and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
-algorithm converged, the number of EM steps, the number of observations
-at or above C_EV, and, for a bootstrapped model, the bootstrap replicate
+algorithm converged (`converged`) and whether the C_EV profile settled
+within `max.c.iter` (`c_converged`; `NA` for a model fitted before this
+field existed), the number of EM steps, the number of observations at or
+above C_EV, and, for a bootstrapped model, the bootstrap replicate
 counts (`NA` otherwise): `n_bootstraps` (usable), `n_failed_bootstraps`,
 `n_degenerate_bootstraps` — these three partition the number of
 replicates requested (see [`evinf_control`](evinf_control.md) for
@@ -43,14 +45,14 @@ degenerate).
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Warning: C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 glance(model)
-#> # A tibble: 1 × 14
-#>    nobs  npar alpha parameter   aic   bic logLik converged n_above_c n_em_steps
-#>   <int> <int> <dbl>     <dbl> <dbl> <dbl>  <dbl> <lgl>         <int>      <int>
-#> 1   100    18  1.43       184  544.  591.  -254. TRUE             10         16
-#> # ℹ 4 more variables: n_bootstraps <int>, n_failed_bootstraps <int>,
-#> #   n_degenerate_bootstraps <int>, n_c_on_boundary <int>
+#> # A tibble: 1 × 15
+#>    nobs  npar alpha parameter   aic   bic logLik converged c_converged n_above_c
+#>   <int> <int> <dbl>     <dbl> <dbl> <dbl>  <dbl> <lgl>     <lgl>           <int>
+#> 1   100    18  1.43       184  544.  591.  -254. TRUE      TRUE               10
+#> # ℹ 5 more variables: n_em_steps <int>, n_bootstraps <int>,
+#> #   n_failed_bootstraps <int>, n_degenerate_bootstraps <int>,
+#> #   n_c_on_boundary <int>
 # }
 ```

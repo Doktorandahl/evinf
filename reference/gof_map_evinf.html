@@ -35,7 +35,7 @@ simply gof_map_evinf()."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Goodness-of-fit map for <code>modelsummary</code></h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/gof_map_evinf.R" class="external-link"><code>R/gof_map_evinf.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/gof_map_evinf.R" class="external-link"><code>R/gof_map_evinf.R</code></a></small>
       <div class="d-none name"><code>gof_map_evinf.Rd</code></div>
     </div>
 
@@ -68,7 +68,8 @@ by a custom <code><a href="https://generics.r-lib.org/reference/glance.html" cla
   <code>fmt</code> (default number of decimals). Rows: observations, parameters,
   alpha_NB, C_EV, observations at or above C_EV, log-likelihood, AIC, BIC,
   the usable / failed / degenerate bootstrap counts, the number of bootstrap
-  replicates with C_EV on the candidate-grid boundary, and convergence.</p>
+  replicates with C_EV on the candidate-grid boundary, and convergence (both
+  of the EM loop and of the C_EV profile).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -83,24 +84,6 @@ by a custom <code><a href="https://generics.r-lib.org/reference/glance.html" cla
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">gof_map_evinf</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 13 × 3</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    raw                     clean                   fmt</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                 <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> nobs                    Observations              0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> npar                    Parameters                0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> alpha                   alpha_nb                  2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> parameter               C_EV                      0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> n_above_c               Obs. above C_EV           0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> logLik                  logLik                    2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> aic                     AIC                       1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> bic                     BIC                       1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> n_bootstraps            Usable bootstraps         0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> n_failed_bootstraps     Failed bootstraps         0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">11</span> n_degenerate_bootstraps Degenerate bootstraps     0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">12</span> n_c_on_boundary         C_EV on boundary          0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">13</span> converged               Converged                 0</span>
-<span class="r-in"><span><span class="fu">gof_map_evinf</span><span class="op">(</span>extra <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>raw <span class="op">=</span> <span class="st">"n_em_steps"</span>, clean <span class="op">=</span> <span class="st">"EM steps"</span>,</span></span>
-<span class="r-in"><span>                                 fmt <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 14 × 3</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    raw                     clean                   fmt</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                 <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
@@ -117,23 +100,137 @@ by a custom <code><a href="https://generics.r-lib.org/reference/glance.html" cla
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">11</span> n_degenerate_bootstraps Degenerate bootstraps     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">12</span> n_c_on_boundary         C_EV on boundary          0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">13</span> converged               Converged                 0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">14</span> n_em_steps              EM steps                  0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">14</span> c_converged             C_EV profile settled      0</span>
+<span class="r-in"><span><span class="fu">gof_map_evinf</span><span class="op">(</span>extra <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>raw <span class="op">=</span> <span class="st">"n_em_steps"</span>, clean <span class="op">=</span> <span class="st">"EM steps"</span>,</span></span>
+<span class="r-in"><span>                                 fmt <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 15 × 3</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    raw                     clean                   fmt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                 <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> nobs                    Observations              0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> npar                    Parameters                0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> alpha                   alpha_nb                  2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> parameter               C_EV                      0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> n_above_c               Obs. above C_EV           0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> logLik                  logLik                    2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> aic                     AIC                       1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> bic                     BIC                       1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> n_bootstraps            Usable bootstraps         0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> n_failed_bootstraps     Failed bootstraps         0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">11</span> n_degenerate_bootstraps Degenerate bootstraps     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">12</span> n_c_on_boundary         C_EV on boundary          0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">13</span> converged               Converged                 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">14</span> c_converged             C_EV profile settled      0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">15</span> n_em_steps              EM steps                  0</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span>, data <span class="op">=</span> <span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"modelsummary"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"modelsummary"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">&amp;&amp;</span></span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"broom"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>    <span class="va">model</span>,</span></span>
 <span class="r-in"><span>    shape <span class="op">=</span> <span class="va">term</span> <span class="op">+</span> <span class="va">y.level</span> <span class="op">~</span> <span class="va">model</span>,</span></span>
 <span class="r-in"><span>    gof_map <span class="op">=</span> <span class="fu">gof_map_evinf</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> Package `broom` required for this function to work.</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span>   Please install it by running `install.packages("broom")`.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | y.level | (1)     |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +=======================+=========+=========+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | (Intercept)           | zero    | 0.511   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.459) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | -1.729  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (1.607) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 3.131   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.153) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | 2.714   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.194) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | x1                    | zero    | -0.674  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.390) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | 0.736   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (1.463) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 0.843   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.752) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | -2.278  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.011) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | x2                    | zero    | 0.607   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.663) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | -0.429  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (1.625) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 0.599   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.212) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | 1.449   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.097) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | x3                    | zero    | -0.420  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.270) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | 0.166   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.897) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 0.241   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.209) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | 1.503   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.233) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Observations          |         | 100     |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Parameters            |         | 18      |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | alpha_nb              |         | 1.43    |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | C_EV                  |         | 184     |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Obs. above C_EV       |         | 10      |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | logLik                |         | -254.03 |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | AIC                   |         | 544.1   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | BIC                   |         | 591.0   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Usable bootstraps     |         | 2       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Failed bootstraps     |         | 0       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Degenerate bootstraps |         | 3       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | C_EV on boundary      |         | 1       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Converged             |         | TRUE    |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | C_EV profile settled  |         | TRUE    |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+ </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

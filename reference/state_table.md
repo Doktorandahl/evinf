@@ -26,7 +26,6 @@ An object of class `evinf_state_table`: the `map_prior` x
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
 state_table(model)
 #> Prior x posterior state classification (counts)
 #>        posterior

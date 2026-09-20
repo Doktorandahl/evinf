@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Running an extreme value inflated negative binomial model with bootstrapping</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/evinb.R" class="external-link"><code>R/evinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/evinb.R" class="external-link"><code>R/evinb.R</code></a></small>
       <div class="d-none name"><code>evinb.Rd</code></div>
     </div>
 
@@ -140,7 +140,7 @@ settings.</p></dd>
 <dt id="arg-max-diff-par-max-no-em-steps-max-no-em-steps-warmup-c-lim-prune-c-range-max-upd-par-pl-multinomial-max-upd-par-nb-max-upd-par-pl-no-m-bfgs-steps-multinomial-no-m-bfgs-steps-nb-no-m-bfgs-steps-pl-pdf-pl-type-eta-int-init-beta-multinom-pl-init-beta-nb-init-beta-pl-init-alpha-nb-init-c">max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C<a class="anchor" aria-label="anchor" href="#arg-max-diff-par-max-no-em-steps-max-no-em-steps-warmup-c-lim-prune-c-range-max-upd-par-pl-multinomial-max-upd-par-nb-max-upd-par-pl-no-m-bfgs-steps-multinomial-no-m-bfgs-steps-nb-no-m-bfgs-steps-pl-pdf-pl-type-eta-int-init-beta-multinom-pl-init-beta-nb-init-beta-pl-init-alpha-nb-init-c"></a></dt>
 <dd><p><strong>Deprecated.</strong> Pass these through <code>control = evinf_control(...)</code>;
 supplying one directly overrides the corresponding <code>control</code> element and
-emits a warning. See <code><a href="evinf_control.html">evinf_control</a></code>.</p></dd>
+emits a warning. See <code><a href="evinf_control.html">evinf_control</a></code>. Will be removed in 0.11.0.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -194,7 +194,6 @@ fixed plan.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">evinb</span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>

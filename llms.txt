@@ -52,8 +52,13 @@ remotes::install_github("Doktorandahl/evinf")
 library(evinf)
 data(genevzinb2)
 
-# Fit an EVZINB model with 100 bootstrap replicates
-model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 100)
+future::plan(future::multisession, workers = 4) # bootstraps run in parallel
+
+# c.lim pins the extreme-value threshold's candidate range (see c_profile());
+# left NULL, it is chosen from the data.
+model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2,
+                control = evinf_control(c.lim = c(173, 263)),
+                n_bootstraps = 20)
 
 summary(model)
 tidy(model)                       # all components, one row per coefficient
@@ -61,7 +66,8 @@ glance(model)                     # goodness-of-fit
 predict(model, type = "harmonic") # harmonic-mean prediction
 
 lr_test(model, "x1")              # LR test for x1 across all components
-compare_models(model)             # against NB and ZINB
+comp <- compare_models(model)     # against NB and ZINB
+compare_fit(comp)                 # paired bootstrap comparison of fit (AIC, BIC, ...)
 ```
 
 Separate formulas can be given for the count, zero-inflation,

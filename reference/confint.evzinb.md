@@ -65,12 +65,7 @@ A two-column matrix.
 data(genevzinb2)
 m <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 25)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Warning: C_EV reached the boundary of the candidate range in 3 of 25 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 5 of 25 bootstrap replicates; consider widening c.lim.
 # the Pareto shape (alpha_nb) and the threshold (c_ev) are in coef()/confint()
 confint(m, parm = c("count_x1", "alpha_nb", "c_ev"))
 #>                 2.5 %     97.5 %

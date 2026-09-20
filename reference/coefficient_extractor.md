@@ -64,7 +64,7 @@ A tibble with coefficient values, one row per bootstrap and component
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 coefficient_extractor(model, component = 'all')
 #> # A tibble: 16 × 5
 #>    `(Intercept)`     x1     x2      x3 .component
@@ -90,36 +90,81 @@ coefficient_extractor(model, component = 'all')
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Warning: C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
 zinb_comp <- compare_models(model)
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: alternation limit reached
 coefficient_extractor(zinb_comp$zinb)
-#> # A tibble: 6 × 5
-#>   `(Intercept)`      x1     x2     x3 .component
-#>           <dbl>   <dbl>  <dbl>  <dbl> <chr>     
-#> 1         3.91   0.979   0.559 -0.341 count     
-#> 2         3.94   0.943  -0.433  0.125 count     
-#> 3         3.54  -0.0195  0.310  0.380 count     
-#> 4         0.176 -0.988   1.28  -0.815 zero      
-#> 5         0.284 -1.91    1.67  -1.70  zero      
-#> 6        -1.03  -1.22    1.38   0.310 zero      
+#> # A tibble: 10 × 5
+#>    `(Intercept)`      x1      x2     x3 .component
+#>            <dbl>   <dbl>   <dbl>  <dbl> <chr>     
+#>  1         3.91   0.979   0.559  -0.341 count     
+#>  2         4.03   0.486   0.0320  0.680 count     
+#>  3         3.04   1.53   -1.08   -0.292 count     
+#>  4         3.94   0.943  -0.433   0.125 count     
+#>  5         3.54  -0.0195  0.310   0.380 count     
+#>  6         0.176 -0.988   1.28   -0.815 zero      
+#>  7         0.675 -0.615   0.434  -0.273 zero      
+#>  8        -0.324 -1.13    1.44   -0.682 zero      
+#>  9         0.284 -1.91    1.67   -1.70  zero      
+#> 10        -1.03  -1.22    1.38    0.310 zero      
 # }
 # \donttest{
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Error in eval(expr, p) : inv(): matrix is singular
-#> Error in eval(expr, p) : inv(): matrix is singular
 zinb_comp <- compare_models(model)
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
-#> Error in -bootstrap$boot_id : invalid argument to unary operator
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
@@ -149,11 +194,13 @@ zinb_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 coefficient_extractor(zinb_comp$nb)
-#> # A tibble: 3 × 4
-#>   `(Intercept)`    x1     x2    x3
-#>           <dbl> <dbl>  <dbl> <dbl>
-#> 1          2.97  1.37 -0.304 1.19 
-#> 2          2.95  1.26 -0.113 0.199
-#> 3          3.27  1.01 -0.178 0.288
+#> # A tibble: 5 × 4
+#>   `(Intercept)`    x1     x2     x3
+#>           <dbl> <dbl>  <dbl>  <dbl>
+#> 1          2.97  1.37 -0.304 1.19  
+#> 2          2.95  1.26 -0.113 0.199 
+#> 3          3.27  1.01 -0.178 0.288 
+#> 4          3.13  1.82 -0.923 0.174 
+#> 5          2.85  1.58 -1.05  0.0615
 # }
 ```

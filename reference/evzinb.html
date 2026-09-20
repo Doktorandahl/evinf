@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Running an extreme value and zero inflated negative binomial model with bootstrapping</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/evzinb.R" class="external-link"><code>R/evzinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/evzinb.R" class="external-link"><code>R/evzinb.R</code></a></small>
       <div class="d-none name"><code>evzinb.Rd</code></div>
     </div>
 
@@ -149,7 +149,7 @@ values, ...).</p></dd>
 <dd><p><strong>Deprecated.</strong> These EM tuning arguments still work but should be
 passed through <code>control = evinf_control(...)</code>; supplying one directly
 overrides the corresponding <code>control</code> element and emits a warning. See
-<code><a href="evinf_control.html">evinf_control</a></code> for their meaning.</p></dd>
+<code><a href="evinf_control.html">evinf_control</a></code> for their meaning. Will be removed in 0.11.0.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -203,7 +203,7 @@ fixed plan.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">evzinb</span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Peacekeeping and one-sided violence, with an in-formula log1p() transform</span></span></span>

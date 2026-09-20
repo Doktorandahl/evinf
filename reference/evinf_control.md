@@ -32,7 +32,8 @@ evinf_control(
   init.Alpha.NB = 0.01,
   init.C = NULL,
   alpha_floor = 0.001,
-  coef_limit = 50
+  coef_limit = 50,
+  max.c.iter = 50
 )
 ```
 
@@ -63,7 +64,7 @@ evinf_control(
 
 - prune.c.range:
 
-  `FALSE`, or a number in \\0, 1\]: thin the candidate set to about
+  `FALSE`, or a number in \\0, 1): thin the candidate set to about
   `length(c.lim) * (1 - prune.c.range)` values.
 
 - max.upd.par.zc.multinomial, max.upd.par.pl.multinomial,
@@ -79,7 +80,14 @@ evinf_control(
 
 - pdf.pl.type:
 
-  Pareto density approximation: `"approx"` or `"exact"`.
+  Which Pareto-block derivatives the M-step uses for \\\beta\_{PL}\\:
+  `"approx"` (the default) uses the gradient/Hessian of the *continuous*
+  Pareto log-density; `"exact"` uses the gradient/Hessian of the
+  *discretised* Pareto log-pmf that the likelihood itself always uses
+  (this only changes the Newton step taken each M-step, not what is
+  being maximised). The two typically converge to nearly the same
+  estimates; `"exact"` can help when `"approx"`'s steps are poorly
+  scaled for a heavy-tailed fit.
 
 - eta.int:
 
@@ -115,6 +123,22 @@ evinf_control(
   outright tail collapse (shape near 0), not a merely heavy tail.
   `coef_limit` (default `50`) is on the linear-predictor scale, where
   `50` is already extreme.
+
+- max.c.iter:
+
+  Maximum number of outer ECME iterations (each one re-profiles
+  \\C\_{EV}\\ over the candidate grid) per phase (warm-up, convergence).
+  Guards against the profile oscillating between two candidate values
+  forever. If the convergence-phase loop hits this cap, the fit's
+  `converge` is set to `FALSE` (see `$c_converged` to tell this apart
+  from the EM inner loop not converging) and, for a full-sample fit, a
+  [`warning()`](https://rdrr.io/r/base/warning.html) names the last two
+  \\C\_{EV}\\ values visited. The warm-up phase is capped independently
+  and recorded in `$c_warmup_capped` (with its own
+  [`warning()`](https://rdrr.io/r/base/warning.html) for a full-sample
+  fit); it does not affect `converge`, since warm-up is a short
+  exploratory phase and not settling there is not by itself a sign the
+  fit failed.
 
 ## Value
 

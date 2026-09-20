@@ -35,7 +35,7 @@ argument of evzinb() / evinb()."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Control settings for evzinb() / evinb()</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/control.R" class="external-link"><code>R/control.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/control.R" class="external-link"><code>R/control.R</code></a></small>
       <div class="d-none name"><code>evinf_control.Rd</code></div>
     </div>
 
@@ -70,7 +70,8 @@ argument of <code><a href="evzinb.html">evzinb()</a></code> / <code><a href="evi
 <span>  init.Alpha.NB <span class="op">=</span> <span class="fl">0.01</span>,</span>
 <span>  init.C <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  alpha_floor <span class="op">=</span> <span class="fl">0.001</span>,</span>
-<span>  coef_limit <span class="op">=</span> <span class="fl">50</span></span>
+<span>  coef_limit <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  max.c.iter <span class="op">=</span> <span class="fl">50</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -102,7 +103,7 @@ with the same <code>boot_seed</code> settle in different ones (see the
 
 
 <dt id="arg-prune-c-range">prune.c.range<a class="anchor" aria-label="anchor" href="#arg-prune-c-range"></a></dt>
-<dd><p><code>FALSE</code>, or a number in \[0, 1]: thin the candidate
+<dd><p><code>FALSE</code>, or a number in \[0, 1): thin the candidate
 set to about <code>length(c.lim) * (1 - prune.c.range)</code> values.</p></dd>
 
 
@@ -116,7 +117,14 @@ inflation, count and Pareto components.</p></dd>
 
 
 <dt id="arg-pdf-pl-type">pdf.pl.type<a class="anchor" aria-label="anchor" href="#arg-pdf-pl-type"></a></dt>
-<dd><p>Pareto density approximation: <code>"approx"</code> or <code>"exact"</code>.</p></dd>
+<dd><p>Which Pareto-block derivatives the M-step uses for
+\(\beta_{PL}\): <code>"approx"</code> (the default) uses the gradient/Hessian
+of the <em>continuous</em> Pareto log-density; <code>"exact"</code> uses the
+gradient/Hessian of the <em>discretised</em> Pareto log-pmf that the
+likelihood itself always uses (this only changes the Newton step taken
+each M-step, not what is being maximised). The two typically converge to
+nearly the same estimates; <code>"exact"</code> can help when <code>"approx"</code>'s
+steps are poorly scaled for a heavy-tailed fit.</p></dd>
 
 
 <dt id="arg-eta-int">eta.int<a class="anchor" aria-label="anchor" href="#arg-eta-int"></a></dt>
@@ -151,6 +159,20 @@ shape is non-finite or below <code>alpha_floor</code>. <code>alpha_floor</code>
 collapse (shape near 0), not a merely heavy tail. <code>coef_limit</code>
 (default <code>50</code>) is on the linear-predictor scale, where <code>50</code> is
 already extreme.</p></dd>
+
+
+<dt id="arg-max-c-iter">max.c.iter<a class="anchor" aria-label="anchor" href="#arg-max-c-iter"></a></dt>
+<dd><p>Maximum number of outer ECME iterations (each one re-profiles
+\(C_{EV}\) over the candidate grid) per phase (warm-up, convergence). Guards
+against the profile oscillating between two candidate values forever. If the
+convergence-phase loop hits this cap, the fit's <code>converge</code> is set to
+<code>FALSE</code> (see <code>$c_converged</code> to tell this apart from the EM inner
+loop not converging) and, for a full-sample fit, a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> names the
+last two \(C_{EV}\) values visited. The warm-up phase is capped
+independently and recorded in <code>$c_warmup_capped</code> (with its own
+<code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> for a full-sample fit); it does not affect <code>converge</code>,
+since warm-up is a short exploratory phase and not settling there is not by
+itself a sign the fit failed.</p></dd>
 
 </dl></div>
     <div class="section level2">

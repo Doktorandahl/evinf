@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>EVZINB tidy function</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/tidy_evzinb.R" class="external-link"><code>R/tidy_evzinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/tidy_evzinb.R" class="external-link"><code>R/tidy_evzinb.R</code></a></small>
       <div class="d-none name"><code>tidy.evzinb.Rd</code></div>
     </div>
 
@@ -116,6 +116,11 @@
   errors, p-values, t-values and confidence intervals are unavailable; the
   estimate column is returned on its own and a message is emitted. Requesting
   bootstrapped coefficients for such a model is an error.</p>
+<p>A bootstrapped <code>p.value</code> is never reported below <code>1 / B</code>, where
+  <code>B</code> is the number of usable bootstrap replicates: with no draw
+  crossing the estimate, the true p-value could be anywhere in
+  <code>[0, 1/B)</code>, so it is floored at <code>1/B</code> rather than reported as
+  exactly <code>0</code>.</p>
 <p>With <code>component = "all"</code> the output has one row per coefficient
   <em>per component</em> (a <code>y.level</code> column names the component). Like
   <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code>, this multi-component shape cannot be rendered by
@@ -130,38 +135,132 @@
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Error in eval(expr, p) : inv(): matrix is singular</span>
 <span class="r-in"><span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 16 × 6</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    y.level term        estimate std.error statistic p.value</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;fct&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> zero    (Intercept)    0.511    0.204      2.50        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> zero    x1            -<span style="color: #BB0000;">0.674</span>    0.204     -<span style="color: #BB0000;">3.31</span>        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> zero    x2             0.607    0.323      1.88        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> zero    x3            -<span style="color: #BB0000;">0.420</span>    0.018<span style="text-decoration: underline;">7</span>   -<span style="color: #BB0000;">22.5</span>         0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> evi     (Intercept)   -<span style="color: #BB0000;">1.73</span>     0.566     -<span style="color: #BB0000;">3.06</span>        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> evi     x1             0.736    0.210      3.50        1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> evi     x2            -<span style="color: #BB0000;">0.429</span>    0.792     -<span style="color: #BB0000;">0.542</span>       1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> evi     x3             0.166    0.013<span style="text-decoration: underline;">4</span>    12.4         0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> count   (Intercept)    3.13     0.269     11.6         0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> count   x1             0.843    0.152      5.54        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">11</span> count   x2             0.599    0.172      3.47        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">12</span> count   x3             0.241    0.528      0.457       1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">13</span> pareto  (Intercept)    2.71     0.302      8.99        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">14</span> pareto  x1            -<span style="color: #BB0000;">2.28</span>     1.51      -<span style="color: #BB0000;">1.50</span>        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">15</span> pareto  x2             1.45     1.02       1.42        0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">16</span> pareto  x3             1.50     0.772      1.95        0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> zero    (Intercept)    0.511    0.204      2.50      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> zero    x1            -<span style="color: #BB0000;">0.674</span>    0.204     -<span style="color: #BB0000;">3.31</span>      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> zero    x2             0.607    0.323      1.88      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> zero    x3            -<span style="color: #BB0000;">0.420</span>    0.018<span style="text-decoration: underline;">7</span>   -<span style="color: #BB0000;">22.5</span>       0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> evi     (Intercept)   -<span style="color: #BB0000;">1.73</span>     0.566     -<span style="color: #BB0000;">3.06</span>      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> evi     x1             0.736    0.210      3.50      1  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> evi     x2            -<span style="color: #BB0000;">0.429</span>    0.792     -<span style="color: #BB0000;">0.542</span>     1  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> evi     x3             0.166    0.013<span style="text-decoration: underline;">4</span>    12.4       0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> count   (Intercept)    3.13     0.269     11.6       0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> count   x1             0.843    0.152      5.54      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">11</span> count   x2             0.599    0.172      3.47      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">12</span> count   x3             0.241    0.528      0.457     1  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">13</span> pareto  (Intercept)    2.71     0.302      8.99      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">14</span> pareto  x1            -<span style="color: #BB0000;">2.28</span>     1.51      -<span style="color: #BB0000;">1.50</span>      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">15</span> pareto  x2             1.45     1.02       1.42      0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">16</span> pareto  x3             1.50     0.772      1.95      0.5</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># multi-component table with modelsummary</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"modelsummary"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"modelsummary"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">&amp;&amp;</span></span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"broom"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>    <span class="va">model</span>,</span></span>
 <span class="r-in"><span>    shape <span class="op">=</span> <span class="va">term</span> <span class="op">+</span> <span class="va">y.level</span> <span class="op">~</span> <span class="va">model</span>,</span></span>
 <span class="r-in"><span>    gof_map <span class="op">=</span> <span class="fu"><a href="gof_map_evinf.html">gof_map_evinf</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> Package `broom` required for this function to work.</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span>   Please install it by running `install.packages("broom")`.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | y.level | (1)     |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +=======================+=========+=========+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | (Intercept)           | zero    | 0.511   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.204) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | -1.729  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.566) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 3.131   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.269) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | 2.714   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.302) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | x1                    | zero    | -0.674  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.204) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | 0.736   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.210) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 0.843   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.152) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | -2.278  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (1.515) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | x2                    | zero    | 0.607   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.323) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | -0.429  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.792) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 0.599   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.172) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | 1.449   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (1.023) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | x3                    | zero    | -0.420  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.019) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | evi     | 0.166   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.013) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | count   | 0.241   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.528) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       | pareto  | 1.503   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |                       |         | (0.772) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Observations          |         | 100     |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Parameters            |         | 18      |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | alpha_nb              |         | 1.43    |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | C_EV                  |         | 184     |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Obs. above C_EV       |         | 10      |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | logLik                |         | -254.03 |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | AIC                   |         | 544.1   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | BIC                   |         | 591.0   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Usable bootstraps     |         | 2       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Failed bootstraps     |         | 0       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Degenerate bootstraps |         | 3       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | C_EV on boundary      |         | 0       |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | Converged             |         | TRUE    |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | C_EV profile settled  |         | TRUE    |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> +-----------------------+---------+---------+ </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
