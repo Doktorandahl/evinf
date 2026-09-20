@@ -9,6 +9,7 @@ reference:
   - evzinb
   - evinb
   - evinf_control
+  - evinf_family
   - add_bootstraps
   - failed_bootstraps
 
