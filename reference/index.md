@@ -10,6 +10,8 @@ Estimate the EVZINB / EVINB model and tune the EM algorithm.
   binomial model with bootstrapping
 - [`evinf_control()`](evinf_control.md) : Control settings for evzinb()
   / evinb()
+- [`evinf_family()`](evinf_family.md) : Model family for evzinb() /
+  evinb() (round9 E.0)
 - [`add_bootstraps()`](add_bootstraps.md) : Add more bootstrap
   replicates to a fitted model
 - [`failed_bootstraps()`](failed_bootstraps.md) : Inspect the bootstrap

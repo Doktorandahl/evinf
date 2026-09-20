@@ -10,7 +10,14 @@ update of \\C\_{EV}\\ ([`em_profile_c`](em_profile_c.md)).
 ## Usage
 
 ``` r
-em_fit_fixed_c(y, x_obj, ini.val, control, fixed_zc = FALSE)
+em_fit_fixed_c(
+  y,
+  x_obj,
+  ini.val,
+  control,
+  fixed_zc = FALSE,
+  family = evinf_family()
+)
 ```
 
 ## Arguments
@@ -37,6 +44,10 @@ em_fit_fixed_c(y, x_obj, ini.val, control, fixed_zc = FALSE)
 
   When `TRUE` (EVINB) the zero-inflation multinomial block is held at
   `ini.val$Beta.multinom.ZC`.
+
+- family:
+
+  An [`evinf_family()`](evinf_family.md) object (round9 E.1).
 
 ## Value
 

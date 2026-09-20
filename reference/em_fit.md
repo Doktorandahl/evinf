@@ -17,7 +17,8 @@ em_fit(
   ini.val,
   control,
   model = c("evzinb", "evinb"),
-  full_sample = TRUE
+  full_sample = TRUE,
+  family = evinf_family()
 )
 ```
 
@@ -56,6 +57,12 @@ em_fit(
   [`warning()`](https://rdrr.io/r/base/warning.html) (bootstrap
   replicates already record it via `converge` / `c_converged` without
   one).
+
+- family:
+
+  An [`evinf_family()`](evinf_family.md) object (round9 E.1); the
+  default reproduces today's NB/mixture model exactly. For
+  `count = "poisson"`, `Alpha.NB` is dropped from `par.all`.
 
 ## Value
 

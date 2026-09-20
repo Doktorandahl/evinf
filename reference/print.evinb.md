@@ -33,7 +33,7 @@ model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 print(model)
 #> 
-#>  Fitted EVINB model with formulas: 
+#>  Fitted EVINB model (nbinom count, mixture zero) with formulas: 
 #>  NB:     y ~ x1 + x2 + x3
 #>  EVI:    y ~ x1 + x2 + x3 
 #>  Pareto: y ~ x1 + x2 + x3 

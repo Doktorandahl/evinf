@@ -2,10 +2,44 @@
 
 ## evinf 0.11.0
 
-Implements audit §5.6 (offsets and weights): work package D of
-`dev/plan_0.12_families_offsets_panel.md`.
+Implements audit §5.6 (offsets and weights) and §5.5 (model families):
+work packages D and E.1 of `dev/plan_0.12_families_offsets_panel.md`.
 
 ### New features
+
+- [`evzinb()`](../reference/evzinb.md) /
+  [`evinb()`](../reference/evinb.md) gain `family =`, an
+  [`evinf_family()`](../reference/evinf_family.md) object (or a bare
+  string, shorthand for `evinf_family(count = string)`) naming the
+  count-state distribution: `"nbinom"` (the default, reproducing today’s
+  model exactly) or `"poisson"`. A Poisson count state drops the
+  dispersion parameter `Alpha.NB` entirely – not one fewer degree of
+  freedom silently fixed at a boundary, but genuinely absent from
+  `par.all`, [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`vcov()`](https://rdrr.io/r/stats/vcov.html),
+  [`confint()`](https://rdrr.io/r/stats/confint.html),
+  [`tidy()`](https://generics.r-lib.org/reference/tidy.html), and every
+  bootstrap replicate’s `coef`;
+  [`summary()`](https://rdrr.io/r/base/summary.html)/[`glance()`](https://generics.r-lib.org/reference/glance.html)/[`print()`](https://rdrr.io/r/base/print.html)
+  show it as absent rather than `NA`, and report the fitted family
+  (e.g. `"poisson/mixture"`).
+  [`residuals()`](https://rdrr.io/r/stats/residuals.html),
+  `predict(type = "quantile")` and
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html) all dispatch on
+  the fitted family. The Poisson M-step matches
+  `glm(family = poisson())`’s closed-form MLE to numerical precision
+  (verified directly, and via the full
+  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
+  API). `family = evinf_family(zero = "hurdle")` (a zero-truncated count
+  state under a hurdle zero process) is accepted by
+  [`evinf_family()`](../reference/evinf_family.md) but not yet
+  implemented by
+  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
+  – both error clearly rather than silently ignoring it;
+  [`evinb()`](../reference/evinb.md) additionally rejects it
+  unconditionally (it has no zero state to hurdle over). Default
+  (`family = evinf_family()`) fits are numerically unchanged (audit
+  §5.5, round9 E.0/E.1).
 
 - [`offset()`](https://rdrr.io/r/stats/offset.html) is now supported in
   `formula_zi` and `formula_evi` (already supported in `formula_nb`),
@@ -23,6 +57,7 @@ Implements audit §5.6 (offsets and weights): work package D of
   `predict(newdata = )` (which requires the offset variable, like the
   existing count-component offset already does). Default (no-offset)
   fits are numerically unchanged (audit §5.6, round9 D.1).
+
 - [`evzinb()`](../reference/evzinb.md) /
   [`evinb()`](../reference/evinb.md) gain `weights =`, given as a bare
   column name, a string naming a column, or a numeric vector.
