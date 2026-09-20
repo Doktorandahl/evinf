@@ -62,7 +62,9 @@
   algorithm converged (<code>converged</code>) and whether the C_EV profile settled
   within <code>max.c.iter</code> (<code>c_converged</code>; <code>NA</code> for a model fitted
   before this field existed), the number of EM steps, the number of
-  observations at or above C_EV, and, for a bootstrapped model, the bootstrap
+  observations at or above C_EV, the smallest fitted Pareto shape
+  (<code>min_alpha_pl</code>; see <code>alpha_pl_floor</code> in
+  <code><a href="evinf_control.html">evinf_control</a></code>), and, for a bootstrapped model, the bootstrap
   replicate counts (<code>NA</code> otherwise): <code>n_bootstraps</code> (usable),
   <code>n_failed_bootstraps</code>, <code>n_degenerate_bootstraps</code> — these three
   partition the number of replicates requested (see <code><a href="evinf_control.html">evinf_control</a></code>
@@ -83,11 +85,11 @@
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu"><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 15</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 16</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    nobs  npar alpha parameter   aic   bic logLik converged c_converged n_above_c</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>   100    18  1.43       184  544.  591.  -<span style="color: #BB0000;">254.</span> TRUE      TRUE               10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 5 more variables: n_em_steps &lt;int&gt;, n_bootstraps &lt;int&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 6 more variables: n_em_steps &lt;int&gt;, min_alpha_pl &lt;dbl&gt;, n_bootstraps &lt;int&gt;,</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   n_failed_bootstraps &lt;int&gt;, n_degenerate_bootstraps &lt;int&gt;,</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   n_c_on_boundary &lt;int&gt;</span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>

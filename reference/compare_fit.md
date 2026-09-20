@@ -150,11 +150,11 @@ compare_fit(compare_models(model))
 #>  model metric median_difference prop_evinf_better n_pairs
 #>     nb    aic          -76.0200             1.000       3
 #>     nb    bic          -42.1500             0.667       3
-#>     nb   rmse           33.4700             0.000       3
+#>     nb   rmse           23.2300             0.000       3
 #>     nb  rmsle            0.2116             0.000       3
 #>   zinb    aic          -26.5600             1.000       3
 #>   zinb    bic           -3.1160             0.667       3
-#>   zinb   rmse           62.5200             0.000       3
+#>   zinb   rmse           52.2100             0.000       3
 #>   zinb  rmsle            0.2452             0.000       3
 # }
 ```

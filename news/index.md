@@ -424,6 +424,28 @@ and the review follow-ups in `dev/review_round1.md`.
   `1e-3`. Switched to the algebraically identical, cancellation-free
   `-log(y + 1/alpha) - lbeta(y + 1, 1/alpha)`, which was at least as
   accurate in every case checked (review §7, round8 0.9).
+- A fitted Pareto shape (`alpha_pl`) that collapses toward 0 made
+  `predict(type = "explog")` return `Inf` and
+  `predict(type = "harmonic")` return an astronomically large finite
+  number (e.g. ~1e22 x `C` on `hks` with an ordinary specification)
+  instead of erroring or warning – both involve `exp(1 / alpha_pl)` or
+  `1 / alpha_pl`. A shared helper (`evinf_clamp_alpha_pl()`) now floors
+  `alpha_pl` at `evinf_control(alpha_pl_floor = )` (default `0.01`) in
+  `harmonic_calc()`, `explog_calc()`, the derived Pareto-tail summaries
+  in `$fitted`
+  ([`em_fitted_values()`](../reference/em_fitted_values.md)), and the
+  quantile-prediction clamp that already existed for
+  `quantiles_from_evzinb()` (extended to `quantiles_from_evinb()`, which
+  previously lacked it). The helper warns once per call, naming how many
+  observations were clamped – except inside
+  [`em_fitted_values()`](../reference/em_fitted_values.md), which runs
+  on every EM fit including every bootstrap replicate, so it clamps
+  silently there rather than warning on routine fits.
+  [`glance()`](https://generics.r-lib.org/reference/glance.html) gains
+  `min_alpha_pl` (the true, unclamped value) and
+  [`print()`](https://rdrr.io/r/base/print.html) adds a note when it
+  falls below the floor, so a collapsed extreme-value shape stays
+  visible without digging (review §2, round9 0.1).
 
 ### Breaking changes / deprecations
 

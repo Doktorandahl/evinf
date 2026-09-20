@@ -61,6 +61,8 @@ data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 oob_evaluation(model)
-#> [1] 3.053584       NA       NA       NA 4.003586
+#> Warning: evinf (harmonic prediction): 4 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
+#> Warning: evinf (explog prediction): 4 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
+#> [1] 3.053584       NA       NA       NA 3.602603
 # }
 ```
