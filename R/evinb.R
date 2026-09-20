@@ -5,6 +5,9 @@
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
 #' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.0/E.1).
+#'   \code{zero = "hurdle"} errors: \code{evinb()} has no zero state to
+#'   hurdle over.
 #' @param verbose Should progress be printed for the first run of evinb.
 #'
 #' @return An object of class 'evinb'
@@ -17,12 +20,18 @@ run_evinb <- function(
   control = evinf_control(),
   block = NULL,
   weights = NULL,
+  family = evinf_family(),
   verbose = FALSE
 ) {
   control <- validate_evinf_control(control)
+  family <- evinf_resolve_family(family)
   if (!is.null(block) && !(is.character(block) && length(block) == 1L)) {
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
+  }
+  if (family$zero == "hurdle") {
+    stop("evinb() has no zero state to hurdle over (family = ",
+         "evinf_family(zero = \"hurdle\") is evzinb()-only).", call. = FALSE)
   }
   # round9 D.1 (audit §5.6): offset() is supported in the count and
   # EVI-inflation components; not in the Pareto shape component. evinb has no
@@ -109,10 +118,12 @@ run_evinb <- function(
   Ini.Val$C <- control$init.C
 
   if (verbose) {
-    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
+    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
+                     family = family)
   } else {
     capture.output(
-      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
+      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
+                       family = family)
     )
   }
   if (verbose && isTRUE(object$loglik_recomputed)) {
@@ -172,6 +183,12 @@ run_evinb <- function(
   object$props <- object$par.mat$Props[, 2:3]
   colnames(object$props) <- colnames(object$resp) <- c('count', 'evi')
   object$par.mat$Props <- NULL
+  # round9 E.1: mirror run_evzinb()'s drop, so coef()/vcov()/confint()/
+  # tidy()/glance() all show Alpha.NB as absent (not NA) for a Poisson count
+  # state.
+  if (family$count == "poisson") {
+    object$par.mat$Alpha.NB <- NULL
+  }
   object$coef <- object$par.mat
   object$par.mat <- NULL
   object$coef$Beta.multinom.ZC <- NULL
@@ -272,11 +289,12 @@ bootrun_evinb <- function(
   Ini.Val$Beta.multinom.PL <- as.numeric(object$coef$Beta.multinom.PL)
   Ini.Val$Beta.NB <- as.numeric(object$coef$Beta.NB)
   Ini.Val$Beta.PL <- as.numeric(object$coef$Beta.PL)
-  Ini.Val$Alpha.NB <- object$coef$Alpha.NB
+  # round9 E.1: see the matching comment in bootrun_evzinb().
+  Ini.Val$Alpha.NB <- object$coef$Alpha.NB %||% object$control$init.Alpha.NB %||% 0.01
   Ini.Val$C <- object$coef$C
   capture.output(
     evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
-                         full_sample = FALSE)
+                         full_sample = FALSE, family = object$family %||% evinf_family())
   )
 
   evinb_boot$par.mat$Beta.multinom.PL <- as.numeric(
@@ -303,6 +321,9 @@ bootrun_evinb <- function(
   evinb_boot$props <- evinb_boot$par.mat$Props[, 2:3]
 
   evinb_boot$par.mat$Props <- NULL
+  if (isTRUE(evinb_boot$family$count == "poisson")) {
+    evinb_boot$par.mat$Alpha.NB <- NULL
+  }
 
   evinb_boot$coef <- evinb_boot$par.mat
   evinb_boot$par.mat <- NULL
@@ -402,6 +423,7 @@ evinb <- function(
   ncores = NULL,
   block = NULL,
   weights = NULL,
+  family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -415,12 +437,13 @@ evinb <- function(
   weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
   data <- weights_resolved$data
   weights_col <- weights_resolved$weights_col
+  family <- evinf_resolve_family(family)
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evinb")
 
   stored_call <- as.call(c(quote(evinf::evinb), list(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
-    ncores = ncores, boot_seed = boot_seed, verbose = verbose
+    ncores = ncores, boot_seed = boot_seed, family = family, verbose = verbose
   )))
   stored_call$data <- mc$data  # the expression, not the data frame (audit N6)
 
@@ -434,6 +457,7 @@ evinb <- function(
     control = ctrl,
     block = block,
     weights = weights_col,
+    family = family,
     verbose = verbose
   )
   full_run$weights_col <- weights_col

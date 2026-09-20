@@ -19,6 +19,11 @@
 #'   \code{max.upd.par.nb}, \code{no.m.bfgs.steps.nb}, \code{eta.int}).
 #' @param fixed_zc When \code{TRUE} (the EVINB case) the zero-inflation
 #'   multinomial block is not updated and its line search is skipped.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.1); the
+#'   default reproduces today's NB/mixture model exactly. For
+#'   \code{count = "poisson"}, \code{Alpha.NB} never moves (the M-step's
+#'   Newton system is block-diagonal with an exactly-zero step in that
+#'   coordinate) -- it is simply dropped from \code{par.all} downstream.
 #'
 #' @return A list with
 #'   \describe{
@@ -32,8 +37,9 @@
 #'
 #' @seealso \code{\link{em_fit_fixed_c}}, \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
-em_step <- function(y, ext, par, control, fixed_zc = FALSE) {
+em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_family()) {
   n_beta_nb <- ncol(ext$nb)
+  family_count_code <- evinf_family_count_code(family)
 
   zc_old      <- par$Beta.multinom.ZC
   pl_mult_old <- par$Beta.multinom.PL
@@ -47,7 +53,7 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE) {
   ll <- function(zc, plm, nb, al, pl) {
     log_lik_fun(zc, plm, nb, al, pl, c_pl,
                 ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
-                ext$offset_zc, ext$offset_pl_mult, ext$weights)
+                ext$offset_zc, ext$offset_pl_mult, ext$weights, family_count_code)
   }
 
   # audit0.10 §1.8: pdf.pl.type = "exact" uses the discretised-Pareto
@@ -58,7 +64,7 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE) {
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y,
     control$max.upd.par.nb, control$no.m.bfgs.steps.nb, ext$offset,
     ext$offset_zc, ext$offset_pl_mult, ext$weights,
-    identical(control$pdf.pl.type, "exact")
+    family_count_code, identical(control$pdf.pl.type, "exact")
   )
 
   # --- take the BFGS values where they are finite, otherwise keep the old ----

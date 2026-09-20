@@ -5,6 +5,7 @@
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
 #' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.0/E.1).
 #' @param verbose Should progress be printed for the first run of evzinb.
 #'
 #' @return An object of class 'evzinb'
@@ -18,11 +19,20 @@ run_evzinb <- function(
   control = evinf_control(),
   block = NULL,
   weights = NULL,
+  family = evinf_family(),
   verbose = TRUE
 ) {
   control <- validate_evinf_control(control)
+  family <- evinf_resolve_family(family)
   if (!is.null(block) && !(is.character(block) && length(block) == 1L)) {
     stop("`block` must be NULL or a single string naming a column of `data`.",
+         call. = FALSE)
+  }
+  # round9 E.1: zero = "hurdle" is round9 E.2 (not yet implemented on this
+  # branch) -- error clearly rather than silently ignoring it and fitting an
+  # ordinary mixture.
+  if (family$zero == "hurdle") {
+    stop("family = evinf_family(zero = \"hurdle\") is not yet implemented.",
          call. = FALSE)
   }
   # round9 D.1 (audit §5.6): offset() is supported in the count, zero-inflation
@@ -121,10 +131,12 @@ run_evzinb <- function(
   Ini.Val$C <- control$init.C
 
   if (verbose) {
-    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
+    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
+                     family = family)
   } else {
     capture.output(
-      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
+      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
+                       family = family)
     )
   }
   if (verbose && isTRUE(object$loglik_recomputed)) {
@@ -143,6 +155,13 @@ run_evzinb <- function(
   names(object$par.mat$Beta.multinom.ZC) <- c('(Intercept)', colnames(d_zi$X))
   names(object$par.mat$Beta.multinom.PL) <- c('(Intercept)', colnames(d_evi$X))
   names(object$par.mat$Beta.PL) <- c('(Intercept)', colnames(d_pareto$X))
+
+  # round9 E.1: Alpha.NB is not a parameter of a Poisson count state -- drop
+  # it (absent, not NA) so coef()/vcov()/confint()/tidy()/glance() all show
+  # it as absent (evinf_flatten_coef(), glance.evzinb()).
+  if (family$count == "poisson") {
+    object$par.mat$Alpha.NB <- NULL
+  }
 
   object$formulas <- list(
     formula_nb = formula_nb,
@@ -292,6 +311,14 @@ run_evzinb <- function(
 #'   \code{block =} instead. The bootstrap resamples rows exactly as without
 #'   weights and carries each drawn row's weight along (the resampling
 #'   probabilities themselves are not reweighted).
+#' @param family An \code{\link{evinf_family}()} object, or a string as
+#'   shorthand for its \code{count} argument (round9 E.0/E.1), e.g.
+#'   \code{family = "poisson"}. The default reproduces today's
+#'   negative-binomial count state exactly. \code{count = "poisson"} drops
+#'   \code{Alpha.NB} entirely (not merely fixes it): it is absent from
+#'   \code{par.all}, \code{coef()}, \code{vcov()}, \code{confint()} and
+#'   \code{tidy()}, and shown as absent (not \code{NA}) in \code{summary()}
+#'   and \code{glance()}.
 #' @param boot_seed Optional bootstrap seed for reproducibility. When supplied
 #'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
 #'   \code{object$boot_seeds} is always populated for a bootstrapped model
@@ -375,6 +402,7 @@ evzinb <- function(
   ncores = NULL,
   block = NULL,
   weights = NULL,
+  family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -392,6 +420,9 @@ evzinb <- function(
   weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
   data <- weights_resolved$data
   weights_col <- weights_resolved$weights_col
+  # round9 E.0: family = accepts an evinf_family() object or a plain string
+  # (shorthand for the count family).
+  family <- evinf_resolve_family(family)
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evzinb")
 
@@ -401,7 +432,7 @@ evzinb <- function(
   # formulas / control / block from the fitted object.
   stored_call <- as.call(c(quote(evinf::evzinb), list(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
-    ncores = ncores, boot_seed = boot_seed, verbose = verbose
+    ncores = ncores, boot_seed = boot_seed, family = family, verbose = verbose
   )))
   stored_call$data <- mc$data
 
@@ -416,6 +447,7 @@ evzinb <- function(
     control = ctrl,
     block = block,
     weights = weights_col,
+    family = family,
     verbose = verbose
   )
   full_run$weights_col <- weights_col
@@ -516,11 +548,15 @@ bootrun_evzinb <- function(
   Ini.Val$Beta.multinom.PL <- as.numeric(object$coef$Beta.multinom.PL)
   Ini.Val$Beta.NB <- as.numeric(object$coef$Beta.NB)
   Ini.Val$Beta.PL <- as.numeric(object$coef$Beta.PL)
-  Ini.Val$Alpha.NB <- object$coef$Alpha.NB
+  # round9 E.1: object$coef$Alpha.NB is NULL for a Poisson count state (it
+  # isn't a parameter); update_bfgs_fun() still needs *some* placeholder
+  # double there (it's simply never updated/used), so fall back to the
+  # control default.
+  Ini.Val$Alpha.NB <- object$coef$Alpha.NB %||% object$control$init.Alpha.NB %||% 0.01
   Ini.Val$C <- object$coef$C
   capture.output(
     evzinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
-                          full_sample = FALSE)
+                          full_sample = FALSE, family = object$family %||% evinf_family())
   )
   evzinb_boot$par.mat$Beta.multinom.ZC <- as.numeric(
     evzinb_boot$par.mat$Beta.multinom.ZC
@@ -551,6 +587,11 @@ bootrun_evzinb <- function(
   evzinb_boot$props <- evzinb_boot$par.mat$Props
 
   evzinb_boot$par.mat$Props <- NULL
+  # round9 E.1: mirror run_evzinb()'s drop, so a bootstrap replicate's coef
+  # is absent Alpha.NB exactly like the full-sample fit's.
+  if (isTRUE(evzinb_boot$family$count == "poisson")) {
+    evzinb_boot$par.mat$Alpha.NB <- NULL
+  }
   evzinb_boot$coef <- evzinb_boot$par.mat
   evzinb_boot$par.mat <- NULL
   evzinb_boot$resp <- NULL

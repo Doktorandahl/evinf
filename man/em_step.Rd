@@ -4,7 +4,7 @@
 \alias{em_step}
 \title{One EM step for the EVZINB / EVINB mixture at fixed \eqn{C_{EV}}}
 \usage{
-em_step(y, ext, par, control, fixed_zc = FALSE)
+em_step(y, ext, par, control, fixed_zc = FALSE, family = evinf_family())
 }
 \arguments{
 \item{y}{Numeric response vector.}
@@ -20,6 +20,12 @@ em_step(y, ext, par, control, fixed_zc = FALSE)
 
 \item{fixed_zc}{When \code{TRUE} (the EVINB case) the zero-inflation
 multinomial block is not updated and its line search is skipped.}
+
+\item{family}{An \code{\link{evinf_family}()} object (round9 E.1); the
+default reproduces today's NB/mixture model exactly. For
+\code{count = "poisson"}, \code{Alpha.NB} never moves (the M-step's
+Newton system is block-diagonal with an exactly-zero step in that
+coordinate) -- it is simply dropped from \code{par.all} downstream.}
 }
 \value{
 A list with

@@ -9,6 +9,10 @@ ell_nb_i_fun <- function(beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i = 0.0) 
     .Call(`_evinf_ell_nb_i_fun`, beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i)
 }
 
+ell_pois_i_fun <- function(beta_nb, x_nb_ext_i, y_i, offset_nb_i = 0.0) {
+    .Call(`_evinf_ell_pois_i_fun`, beta_nb, x_nb_ext_i, y_i, offset_nb_i)
+}
+
 delldtheta_nb_i_fun <- function(beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i = 0.0) {
     .Call(`_evinf_delldtheta_nb_i_fun`, beta_nb, alpha_nb, x_nb_ext_i, y_i, offset_nb_i)
 }
@@ -37,15 +41,15 @@ d2elldbeta2_pl_i_fun_exact <- function(beta_pl, c_pl, x_pl_ext_i, y_i) {
     .Call(`_evinf_d2elldbeta2_pl_i_fun_exact`, beta_pl, c_pl, x_pl_ext_i, y_i)
 }
 
-log_lik_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w) {
-    .Call(`_evinf_log_lik_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w)
+log_lik_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L) {
+    .Call(`_evinf_log_lik_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count)
 }
 
-log_lik_profile_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w) {
-    .Call(`_evinf_log_lik_profile_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w)
+log_lik_profile_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L) {
+    .Call(`_evinf_log_lik_profile_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count)
 }
 
-update_bfgs_fun <- function(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, exact_pl = FALSE) {
-    .Call(`_evinf_update_bfgs_fun`, gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, exact_pl)
+update_bfgs_fun <- function(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, exact_pl = FALSE) {
+    .Call(`_evinf_update_bfgs_fun`, gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, family_count, exact_pl)
 }
 

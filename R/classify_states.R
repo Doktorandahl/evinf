@@ -8,9 +8,18 @@
 # §1.12, D.4) -- the same distribution used by the likelihood, CDF, quantiles,
 # residuals and simulation -- rather than a second, independently maintained
 # copy of the same formula.
-evinf_responsibilities <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior) {
+#
+# round9 E.1: family$count selects the count-state density (dpois() for
+# "poisson", the alpha_nb -> 0 limit of the NB one); alpha_nb is unused (and
+# may be any placeholder) for a Poisson count state.
+evinf_responsibilities <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior,
+                                   family = evinf_family()) {
   d_zero <- as.numeric(y == 0)
-  d_count <- stats::dnbinom(y, mu = mu_nb, size = 1 / alpha_nb)
+  d_count <- if (family$count == "poisson") {
+    stats::dpois(y, lambda = mu_nb)
+  } else {
+    stats::dnbinom(y, mu = mu_nb, size = 1 / alpha_nb)
+  }
   d_evi <- dpareto_disc(y, C, pl_alpha)
 
   num <- cbind(prior[, 1] * d_zero,
