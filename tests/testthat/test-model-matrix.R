@@ -26,6 +26,26 @@ test_that("factor covariates expand to dummies and predict() accepts a level sub
 
   nd <- d[d$g %in% c("a", "b"), ][1:5, ]
   p <- predict(m, newdata = nd)
+  # TEMP DIAGNOSTIC (round9 0.3 follow-up): dump every component predict()
+  # combines, to find which one is non-finite on a platform where this
+  # differs from local (macOS/Accelerate) runs. Remove before merging.
+  if (!all(is.finite(p))) {
+    cat("\n--- DIAG test-model-matrix.R:30 ---\n")
+    cat("p:", p, "\n")
+    cat("log.lik:", m$log.lik, " C:", m$coef$C, "\n")
+    cat("Beta.NB:", m$coef$Beta.NB, "\n")
+    cat("Beta.PL:", m$coef$Beta.PL, "\n")
+    cat("Beta.multinom.ZC:", m$coef$Beta.multinom.ZC, "\n")
+    cat("Beta.multinom.PL:", m$coef$Beta.multinom.PL, "\n")
+    cat("min(fitted alpha.pl):", min(m$fitted$alpha.pl), "\n")
+    prbs <- evinf:::prob_from_evzinb(m, newdata = nd)
+    cnts <- evinf:::counts_from_evzinb(m, newdata = nd)
+    alphs <- evinf:::fitted_alpha_from_evzinb(m, newdata = nd)
+    cat("prbs:\n"); print(prbs)
+    cat("cnts:\n"); print(cnts)
+    cat("alphs:\n"); print(alphs)
+    cat("--- END DIAG ---\n\n")
+  }
   expect_length(p, 5L)
   expect_true(all(is.finite(p)))
 })
