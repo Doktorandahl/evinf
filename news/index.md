@@ -488,7 +488,16 @@ and the review follow-ups in `dev/review_round1.md`.
   `min_alpha_pl` (the true, unclamped value) and
   [`print()`](https://rdrr.io/r/base/print.html) adds a note when it
   falls below the floor, so a collapsed extreme-value shape stays
-  visible without digging (review §2, round9 0.1).
+  visible without digging (review §2, round9 0.1). The opposite
+  direction – `alpha_pl` overflowing
+  [`exp()`](https://rdrr.io/r/base/Log.html) to literal `Inf` (an
+  extreme `Beta.PL` coefficient on a sparse factor level, rather than a
+  collapsing tail) – isn’t a case a floor helps with:
+  `harmonic_calc()`’s `(1 + alpha_pl) / alpha_pl` computed
+  `Inf/Inf = NaN` there. Rewritten as `1/alpha_pl + 1`, exact for any
+  finite `alpha_pl` and correct at `alpha_pl = Inf` too (the
+  extreme-value contribution’s mathematical limit there is `C`), so no
+  ceiling is needed either.
 
 - The round8 A.2 closed form for the NB dispersion Hessian’s alpha-alpha
   entry switched to its O(y) loop fallback only for `y <= 30`, but the
