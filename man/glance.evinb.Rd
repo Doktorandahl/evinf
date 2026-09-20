@@ -13,7 +13,9 @@
 }
 \value{
 A one-row tibble of goodness-of-fit statistics: number of observations
-  and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+  and parameters, family (round9 E.0, e.g. "nbinom/mixture" or "poisson/mixture"),
+  alpha_NB (NA when the family has none, round9 E.1), C_EV, AIC, BIC,
+  log-likelihood, whether the EM
   algorithm converged (\code{converged}) and whether the C_EV profile settled
   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
   before this field existed), the number of EM steps, the number of
