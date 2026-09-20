@@ -46,7 +46,8 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE) {
 
   ll <- function(zc, plm, nb, al, pl) {
     log_lik_fun(zc, plm, nb, al, pl, c_pl,
-                ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset)
+                ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
+                ext$offset_zc, ext$offset_pl_mult)
   }
 
   # audit0.10 §1.8: pdf.pl.type = "exact" uses the discretised-Pareto
@@ -56,6 +57,7 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE) {
     zc_old, pl_mult_old, nb_old, alpha_old, pl_old, c_pl,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y,
     control$max.upd.par.nb, control$no.m.bfgs.steps.nb, ext$offset,
+    ext$offset_zc, ext$offset_pl_mult,
     identical(control$pdf.pl.type, "exact")
   )
 

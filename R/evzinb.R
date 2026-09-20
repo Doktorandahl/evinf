@@ -23,11 +23,15 @@ run_evzinb <- function(
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # audit 4.4: offsets are only supported in the count component. A non-NB
-  # formula the user supplied with offset() is an error; one that merely
-  # inherited formula_nb's offset by default has it stripped.
+  # round9 D.1 (audit §5.6): offset() is supported in the count, zero-inflation
+  # and EVI-inflation components; not in the Pareto shape component (a
+  # non-NB formula the user supplied with offset() there is an error). A
+  # component that merely inherited formula_nb's offset by defaulting to it
+  # has that offset stripped -- no inheritance, an offset applies only where
+  # it is written explicitly.
   formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
-  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto",
+                                            allow_offset = FALSE)
   formula_zi <- evinf_component_formula(formula_zi, formula_nb, "formula_zi")
 
   # Restrict to the union of variables used by any component (plus the block
@@ -49,6 +53,8 @@ run_evzinb <- function(
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
+  offset_zc <- d_zi$offset
+  offset_pl_mult <- d_evi$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -64,6 +70,8 @@ run_evzinb <- function(
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
+  OBS.X.obj$offset.zc <- offset_zc
+  OBS.X.obj$offset.pl_mult <- offset_pl_mult
 
   init.Beta.multinom.ZC <- control$init.Beta.multinom.ZC
   init.Beta.multinom.PL <- control$init.Beta.multinom.PL
@@ -150,6 +158,8 @@ run_evzinb <- function(
   object$c_lim_default <- isTRUE(control$c_lim_default)
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
+  object$offset_zc <- offset_zc
+  object$offset_pl_mult <- offset_pl_mult
   object$data <- list()
 
   object$data$data <- model_data
@@ -218,10 +228,24 @@ run_evzinb <- function(
 
 #' Running an extreme value and zero inflated negative binomial model with bootstrapping
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model
-#' @param formula_zi Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
+#' @param formula_nb Formula for the negative binomial (count) component of the model.
+#'   May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).
+#' @param formula_zi Formula for the zero-inflation component of the model. If NULL
+#'   taken as the same formula as nb, with any \code{offset()} term stripped (an
+#'   offset applies only where it is written explicitly, never by inheritance).
+#'   May include its own \code{offset()} term: since the zero-inflation logit is
+#'   the log-odds of the zero state \emph{against} the count state, an offset there
+#'   shifts that log-odds, e.g. \code{offset(log(exposure))} makes a larger
+#'   exposure relatively less likely to land in the structural-zero state.
+#' @param formula_evi Formula for the extreme-value inflation component of the model.
+#'   If NULL taken as the same formula as nb, offset stripped as above. May include
+#'   its own \code{offset()} term (e.g. \code{offset(log(population))} for a
+#'   probability of an extreme event that scales with exposure), read the same way:
+#'   it shifts the EVI log-odds against the count state.
+#' @param formula_pareto Formula for the pareto (extreme value) component of the
+#'   model. If NULL taken as the same formula as nb, offset stripped as above.
+#'   \code{offset()} is \strong{not} supported here (errors if present): an offset
+#'   on a shape parameter has no clear reading.
 #' @param data data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
@@ -439,6 +463,10 @@ bootrun_evzinb <- function(
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
     object$offset_nb[boot_id]
+  OBS.X.obj$offset.zc <- if (is.null(object$offset_zc)) rep(0, length(boot_id)) else
+    object$offset_zc[boot_id]
+  OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
+    object$offset_pl_mult[boot_id]
   Control <- object$control
 
   Ini.Val <- list()

@@ -260,7 +260,7 @@ arma::mat d2elldbeta2_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_
 }
 
 //[[Rcpp::export]]
-double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb){
+double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult){
 
   int n = x_mult_z_ext.n_rows;
   arma::mat props = zeros<mat>(n,3) ;
@@ -270,8 +270,13 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
   // function is called from every stats::optimise() line search in
   // R/em_step.R (dozens of evaluations per em_step() call across the four
   // blocks), so it's the single highest-leverage target in this file.
-  arma::vec eta_z_vec = x_mult_z_ext * gamma_z;
-  arma::vec eta_pl_mult_vec = x_mult_pl_ext * gamma_pl;
+  // round9 D.1: offset_zc / offset_pl_mult (zero-inflation / EVI-inflation
+  // component offsets) enter additively into the pre-softmax linear
+  // predictor, exactly like offset_nb enters mu_i below -- an offset shifts
+  // eta, not d eta / d beta, so every gradient/Hessian formula in this file
+  // keeps its existing form.
+  arma::vec eta_z_vec = x_mult_z_ext * gamma_z + offset_zc;
+  arma::vec eta_pl_mult_vec = x_mult_pl_ext * gamma_pl + offset_pl_mult;
   for(int i=0; i<n; i++){
     fill_props_row(props, i, eta_z_vec(i), eta_pl_mult_vec(i));
   }
@@ -321,7 +326,8 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
                               arma::vec c_candidates,
                               arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext,
                               arma::mat x_nb_ext, arma::mat x_pl_ext,
-                              arma::vec y, arma::vec offset_nb){
+                              arma::vec y, arma::vec offset_nb,
+                              arma::vec offset_zc, arma::vec offset_pl_mult){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -340,8 +346,8 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
   // ell_nb_i_fun()) and the Pareto shape (alpha_pl_vec) -- none of these
   // depend on C, so each is computed once per observation.
   for (int i = 0; i < n; i++) {
-    double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
-    double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
+    double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0) + offset_zc(i);
+    double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0) + offset_pl_mult(i);
     fill_props_row(props, i, eta_z, eta_pl);
 
     arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
@@ -412,7 +418,7 @@ arma::mat safe_newton_step(const arma::mat &H, const arma::mat &g) {
 }
 
 //[[Rcpp::export]]
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, bool exact_pl = false){
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, bool exact_pl = false){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -433,9 +439,10 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
 
   // round8 A.3: precomputed linear predictor instead of trans(X.submat(i,...))
-  // per row (same pattern as log_lik_fun()).
-  arma::vec eta_z_vec0 = x_mult_z_ext * gamma_z_old;
-  arma::vec eta_pl_mult_vec0 = x_mult_pl_ext * gamma_pl_old;
+  // per row (same pattern as log_lik_fun()). round9 D.1: offsets enter
+  // additively, same as log_lik_fun()/log_lik_profile_fun() above.
+  arma::vec eta_z_vec0 = x_mult_z_ext * gamma_z_old + offset_zc;
+  arma::vec eta_pl_mult_vec0 = x_mult_pl_ext * gamma_pl_old + offset_pl_mult;
   for(int i=0; i<n; i++){
     fill_props_row(props, i, eta_z_vec0(i), eta_pl_mult_vec0(i));
   }
@@ -466,7 +473,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   }
 
   //Calculate function value before the algorithm starts
-  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
+  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
 
   arma::mat d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
   arma::mat dQdtheta_nb = zeros<mat>(n_nb+1,1);
@@ -573,7 +580,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
+  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
 
   //Update beta_pl with BFGS
   // round8 A.3: restrict to the y >= c_pl rows once (arma::find()), then
@@ -641,7 +648,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
+  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
 
   //Update gamma_z with BFGS
   // round8 A.3: X'w / X' diag(w) X instead of a per-row loop building a
@@ -649,9 +656,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   // every row, every sub-iteration. gamma_pl_old is fixed throughout this
   // block (the gamma_pl block runs after), so its linear predictor is
   // computed once, outside the loop.
-  arma::vec eta_pl_mult_fixed = x_mult_pl_ext * gamma_pl_old;
+  arma::vec eta_pl_mult_fixed = x_mult_pl_ext * gamma_pl_old + offset_pl_mult;
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
-    arma::vec eta_z_i = x_mult_z_ext * gamma_z_old;
+    arma::vec eta_z_i = x_mult_z_ext * gamma_z_old + offset_zc;
     arma::vec denom_vec = 1 + exp(eta_z_i) + exp(eta_pl_mult_fixed);
     arma::vec w_grad_z = resp.col(0) - exp(eta_z_i)/denom_vec;
     dQdgamma_z = x_mult_z_ext.t() * w_grad_z;
@@ -672,14 +679,14 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
+  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
 
   //Update gamma_pl with BFGS
   // round8 A.3: same pattern as the gamma_z block; gamma_z_old is now fixed
   // (already updated above), so its linear predictor is computed once.
-  arma::vec eta_z_fixed = x_mult_z_ext * gamma_z_old;
+  arma::vec eta_z_fixed = x_mult_z_ext * gamma_z_old + offset_zc;
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
-    arma::vec eta_pl_mult_i = x_mult_pl_ext * gamma_pl_old;
+    arma::vec eta_pl_mult_i = x_mult_pl_ext * gamma_pl_old + offset_pl_mult;
     arma::vec denom_vec2 = 1 + exp(eta_z_fixed) + exp(eta_pl_mult_i);
     arma::vec w_grad_pl = resp.col(2) - exp(eta_pl_mult_i)/denom_vec2;
     dQdgamma_pl = x_mult_pl_ext.t() * w_grad_pl;
@@ -700,7 +707,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
+  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
 
   return Rcpp::List::create(
     Rcpp::Named("props") = props,

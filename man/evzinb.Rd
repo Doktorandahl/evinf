@@ -41,13 +41,27 @@ evzinb(
 )
 }
 \arguments{
-\item{formula_nb}{Formula for the negative binomial (count) component of the model}
+\item{formula_nb}{Formula for the negative binomial (count) component of the model.
+May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).}
 
-\item{formula_zi}{Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb}
+\item{formula_zi}{Formula for the zero-inflation component of the model. If NULL
+taken as the same formula as nb, with any \code{offset()} term stripped (an
+offset applies only where it is written explicitly, never by inheritance).
+May include its own \code{offset()} term: since the zero-inflation logit is
+the log-odds of the zero state \emph{against} the count state, an offset there
+shifts that log-odds, e.g. \code{offset(log(exposure))} makes a larger
+exposure relatively less likely to land in the structural-zero state.}
 
-\item{formula_evi}{Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb}
+\item{formula_evi}{Formula for the extreme-value inflation component of the model.
+If NULL taken as the same formula as nb, offset stripped as above. May include
+its own \code{offset()} term (e.g. \code{offset(log(population))} for a
+probability of an extreme event that scales with exposure), read the same way:
+it shifts the EVI log-odds against the count state.}
 
-\item{formula_pareto}{Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb}
+\item{formula_pareto}{Formula for the pareto (extreme value) component of the
+model. If NULL taken as the same formula as nb, offset stripped as above.
+\code{offset()} is \strong{not} supported here (errors if present): an offset
+on a shape parameter has no clear reading.}
 
 \item{data}{data to run the model on}
 

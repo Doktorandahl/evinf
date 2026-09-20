@@ -22,9 +22,12 @@ run_evinb <- function(
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # audit 4.4: offsets are only supported in the count component.
+  # round9 D.1 (audit §5.6): offset() is supported in the count and
+  # EVI-inflation components; not in the Pareto shape component. evinb has no
+  # zero-inflation component at all.
   formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
-  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto",
+                                            allow_offset = FALSE)
 
   # Restrict to the union of variables used by any component (plus the block
   # variable, audit R0.1) and drop incomplete rows once, so the design matrices
@@ -43,6 +46,7 @@ run_evinb <- function(
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
+  offset_pl_mult <- d_evi$offset
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -66,6 +70,7 @@ run_evinb <- function(
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
+  OBS.X.obj$offset.pl_mult <- offset_pl_mult
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_nb <- ncol(d_nb$X) + 1L
@@ -140,6 +145,7 @@ run_evinb <- function(
   object$c_lim_default <- isTRUE(control$c_lim_default)
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
+  object$offset_pl_mult <- offset_pl_mult
   object$data <- list()
 
   object$data$data <- model_data
@@ -248,6 +254,8 @@ bootrun_evinb <- function(
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
     object$offset_nb[boot_id]
+  OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
+    object$offset_pl_mult[boot_id]
   Control <- object$control
 
   Ini.Val <- list()
@@ -318,9 +326,19 @@ bootrun_evinb <- function(
 
 #' Running an extreme value inflated negative binomial model with bootstrapping
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
+#' @param formula_nb Formula for the negative binomial (count) component of the model.
+#'   May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).
+#' @param formula_evi Formula for the extreme-value inflation component of the model.
+#'   If NULL taken as the same formula as nb, with any \code{offset()} term stripped
+#'   (an offset applies only where it is written explicitly, never by inheritance).
+#'   May include its own \code{offset()} term: the EVI logit is the log-odds of the
+#'   extreme-value state against the count state, so an offset there shifts that
+#'   log-odds, e.g. \code{offset(log(population))} for a probability of an extreme
+#'   event that scales with exposure.
+#' @param formula_pareto Formula for the pareto (extreme value) component of the
+#'   model. If NULL taken as the same formula as nb, offset stripped as above.
+#'   \code{offset()} is \strong{not} supported here (errors if present): an offset
+#'   on a shape parameter has no clear reading.
 #' @param data Data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient

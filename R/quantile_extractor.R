@@ -161,6 +161,8 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.multinom.zc <- object$data$x.multinom.zc
     x.multinom.pl <- object$data$x.multinom.pl
+    offset_zc <- object$offset_zc %||% rep(0, nrow(x.multinom.zc))
+    offset_pl_mult <- object$offset_pl_mult %||% rep(0, nrow(x.multinom.pl))
   } else {
     x.multinom.zc <- evinf_design_newdata(
       object$terms$zi, object$xlevels$zi, newdata
@@ -168,10 +170,14 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
     x.multinom.pl <- evinf_design_newdata(
       object$terms$evi, object$xlevels$evi, newdata
     )
+    # round9 D.1: an offset() term requires and uses the offset variable from
+    # newdata, exactly like the count component's offset already does.
+    offset_zc <- evinf_offset_newdata(object$terms$zi, newdata) %||% rep(0, nrow(x.multinom.zc))
+    offset_pl_mult <- evinf_offset_newdata(object$terms$evi, newdata) %||% rep(0, nrow(x.multinom.pl))
   }
 
-  eta_zc <- as.numeric(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC)
-  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
+  eta_zc <- as.numeric(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC) + offset_zc
+  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL) + offset_pl_mult
 
   # pr_count is computed directly (never by subtraction), so it is a proper
   # probability by construction and cannot come out negative.
@@ -206,10 +212,12 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
 prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.multinom.pl <- object$data$x.multinom.pl
+    offset_pl_mult <- object$offset_pl_mult %||% rep(0, nrow(x.multinom.pl))
   } else {
     x.multinom.pl <- evinf_design_newdata(
       object$terms$evi, object$xlevels$evi, newdata
     )
+    offset_pl_mult <- evinf_offset_newdata(object$terms$evi, newdata) %||% rep(0, nrow(x.multinom.pl))
   }
 
   # pr_zc <- exp(cbind(1,x.multinom.zc)%*%object$coef$Beta.multinom.ZC)/
@@ -218,7 +226,7 @@ prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   #
 
   # audit0.10 §1.11: stable 2-category softmax, see evinf_stable_props3().
-  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
+  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL) + offset_pl_mult
   sp <- evinf_stable_props3(rep(-Inf, length(eta_pl)), eta_pl)
 
   out <- tibble::tibble(

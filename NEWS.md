@@ -1,3 +1,24 @@
+# evinf 0.11.0
+
+Implements audit §5.6 (offsets and weights): work package D of
+`dev/plan_0.12_families_offsets_panel.md`.
+
+## New features
+
+* `offset()` is now supported in `formula_zi` and `formula_evi` (already
+  supported in `formula_nb`), not just the count component. An offset there
+  shifts the corresponding multinomial-logit *log-odds against the count
+  state* -- e.g. `formula_evi = ~ x + offset(log(population))` for a
+  probability of an extreme event that scales with exposure. `formula_pareto`
+  still rejects `offset()`: a shape parameter has no clear reading for one.
+  There is no inheritance: a component that defaults to `formula_nb` gets
+  that formula with any `offset()` term stripped, exactly as before -- an
+  offset applies only where it is written explicitly. Offsets are carried
+  through the bootstrap (indexed by `boot_id`, like every other design
+  column) and through `predict(newdata = )` (which requires the offset
+  variable, like the existing count-component offset already does). Default
+  (no-offset) fits are numerically unchanged (audit §5.6, round9 D.1).
+
 # evinf 0.10.0
 
 Implements section 4 of the internal package audit (new functionality) and the

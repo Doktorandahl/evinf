@@ -38,11 +38,21 @@ evinb(
 )
 }
 \arguments{
-\item{formula_nb}{Formula for the negative binomial (count) component of the model}
+\item{formula_nb}{Formula for the negative binomial (count) component of the model.
+May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).}
 
-\item{formula_evi}{Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb}
+\item{formula_evi}{Formula for the extreme-value inflation component of the model.
+If NULL taken as the same formula as nb, with any \code{offset()} term stripped
+(an offset applies only where it is written explicitly, never by inheritance).
+May include its own \code{offset()} term: the EVI logit is the log-odds of the
+extreme-value state against the count state, so an offset there shifts that
+log-odds, e.g. \code{offset(log(population))} for a probability of an extreme
+event that scales with exposure.}
 
-\item{formula_pareto}{Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb}
+\item{formula_pareto}{Formula for the pareto (extreme value) component of the
+model. If NULL taken as the same formula as nb, offset stripped as above.
+\code{offset()} is \strong{not} supported here (errors if present): an offset
+on a shape parameter has no clear reading.}
 
 \item{data}{Data to run the model on}
 

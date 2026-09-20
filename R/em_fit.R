@@ -175,8 +175,8 @@ em_fit <- function(y, x.obj, ini.val, control,
   # C++ E-step (fill_props_row()) and the R-side E-step responsibilities
   # formula.
   final.val$Props <- evinf_stable_props3(
-    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
-    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
+    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC) + ext$offset_zc,
+    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL) + ext$offset_pl_mult
   )
 
   # round8 0.3 (review §4): em_fitted_values() used to run on props.old (the
@@ -204,7 +204,8 @@ em_fit <- function(y, x.obj, ini.val, control,
   ll.at.par <- log_lik_fun(
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
     final.val$Alpha.NB, final.val$Beta.PL, final.val$C,
-    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset
+    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
+    ext$offset_zc, ext$offset_pl_mult
   )
   loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
                                 abs(ll.at.par - func.val) > 1e-6)
