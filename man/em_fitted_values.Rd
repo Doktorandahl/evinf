@@ -4,7 +4,14 @@
 \alias{em_fitted_values}
 \title{Fitted quantities from a fitted EVZINB / EVINB parameter set}
 \usage{
-em_fitted_values(x_obj, par, props, c_ev, model = c("evzinb", "evinb"))
+em_fitted_values(
+  x_obj,
+  par,
+  props,
+  c_ev,
+  model = c("evzinb", "evinb"),
+  floor = 0.01
+)
 }
 \arguments{
 \item{x_obj}{List of component design matrices (see
@@ -21,6 +28,16 @@ offset) enters \eqn{\mu_{NB}}.}
 
 \item{model}{Either \code{"evzinb"} or \code{"evinb"}; accepted for interface
 stability, but the computation is currently the same for both.}
+
+\item{floor}{Floor for the Pareto shape used only when computing the
+derived tail summaries below (round9 0.1, review §2): \code{exp.E.log.y}
+and \code{median.pl.vec} involve \code{exp(1 / alpha.pl.vec)}, which is
+\code{Inf} (or absurdly large) once \code{alpha.pl.vec} collapses toward
+0. The returned \code{alpha.pl.vec} itself is left unclamped, so callers
+(e.g. \code{glance()}'s \code{min_alpha_pl}) still see the true fitted
+shape. This runs on every EM fit, including every bootstrap replicate, so
+it clamps silently (\code{warn = FALSE}); the collapse is still visible
+via \code{glance()}/\code{print()} without warning on every fit.}
 }
 \value{
 A named list with \code{mu.nb.vec}, \code{alpha.pl.vec},

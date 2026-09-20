@@ -20,6 +20,15 @@
 #' @param c_ev The estimated extreme-value threshold \eqn{C_{EV}}.
 #' @param model Either \code{"evzinb"} or \code{"evinb"}; accepted for interface
 #'   stability, but the computation is currently the same for both.
+#' @param floor Floor for the Pareto shape used only when computing the
+#'   derived tail summaries below (round9 0.1, review §2): \code{exp.E.log.y}
+#'   and \code{median.pl.vec} involve \code{exp(1 / alpha.pl.vec)}, which is
+#'   \code{Inf} (or absurdly large) once \code{alpha.pl.vec} collapses toward
+#'   0. The returned \code{alpha.pl.vec} itself is left unclamped, so callers
+#'   (e.g. \code{glance()}'s \code{min_alpha_pl}) still see the true fitted
+#'   shape. This runs on every EM fit, including every bootstrap replicate, so
+#'   it clamps silently (\code{warn = FALSE}); the collapse is still visible
+#'   via \code{glance()}/\code{print()} without warning on every fit.
 #'
 #' @return A named list with \code{mu.nb.vec}, \code{alpha.pl.vec},
 #'   \code{exp.E.log.y}, \code{E.inv.y}, \code{mean.pl.vec}, \code{median.pl.vec},
@@ -29,19 +38,22 @@
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
 em_fitted_values <- function(x_obj, par, props, c_ev,
-                             model = c("evzinb", "evinb")) {
+                             model = c("evzinb", "evinb"), floor = 0.01) {
   ext <- em_extend_design(x_obj, nrow(props))
 
   mu.nb.vec <- as.numeric(exp(ext$nb %*% par$Beta.NB + ext$offset))
   alpha.pl.vec <- as.numeric(exp(ext$pl %*% par$Beta.PL))
-  exp.E.log.y <- c_ev * exp(1 / alpha.pl.vec)
-  E.inv.y <- alpha.pl.vec / (c_ev * (alpha.pl.vec + 1))
+  alpha.pl.clamped <- evinf_clamp_alpha_pl(alpha.pl.vec, floor = floor,
+                                           context = "em_fitted_values()",
+                                           warn = FALSE)
+  exp.E.log.y <- c_ev * exp(1 / alpha.pl.clamped)
+  E.inv.y <- alpha.pl.clamped / (c_ev * (alpha.pl.clamped + 1))
   mean.pl.vec <- ifelse(
-    alpha.pl.vec > 1,
-    alpha.pl.vec * c_ev / (alpha.pl.vec - 1),
+    alpha.pl.clamped > 1,
+    alpha.pl.clamped * c_ev / (alpha.pl.clamped - 1),
     NA_real_
   )
-  median.pl.vec <- c_ev * 2^(1 / alpha.pl.vec)
+  median.pl.vec <- c_ev * 2^(1 / alpha.pl.clamped)
 
   list(
     mu.nb.vec        = mu.nb.vec,

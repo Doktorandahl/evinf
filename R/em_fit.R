@@ -185,7 +185,8 @@ em_fit <- function(y, x.obj, ini.val, control,
   # the same, final-parameter props. final.val$Props above doesn't depend on
   # fv, so this is a reorder, not a second pass: compute it first and feed it
   # into em_fitted_values() instead of props.old.
-  fv <- em_fitted_values(x.obj, final.val, final.val$Props, c.pl.new, model = model)
+  fv <- em_fitted_values(x.obj, final.val, final.val$Props, c.pl.new,
+                        model = model, floor = control$alpha_pl_floor %||% 0.01)
 
   final.resp <- evinf_responsibilities(
     y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props

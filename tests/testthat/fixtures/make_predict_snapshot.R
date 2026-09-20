@@ -10,7 +10,16 @@
 #
 # Run once, from the package root, with the pre-refactor code checked out:
 #   Rscript tests/testthat/fixtures/make_predict_snapshot.R
-# then commit the .rds files. Do NOT regenerate them after the refactor.
+# then commit the .rds files. Do NOT regenerate them after the refactor,
+# EXCEPT for a deliberate behavior change in predict() itself (as opposed to
+# a refactor that should leave output untouched) -- e.g. round9 0.1 (review
+# §2) intentionally changed harmonic/explog predictions wherever the fitted
+# Pareto alpha collapses toward 0, from Inf / an astronomical finite number
+# to a value clamped at alpha_pl_floor. In that case regenerate only
+# predict_snapshot_pre_refactor.rds against the *unchanged* model fixtures
+# (predict_snapshot_evzinb.rds / predict_snapshot_evinb.rds must not be
+# refit), and check that every other combination still reproduces
+# byte-for-byte before committing.
 suppressMessages(devtools::load_all(".", quiet = TRUE))
 source("tests/testthat/helper-evinf.R")
 
