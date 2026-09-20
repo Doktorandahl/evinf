@@ -39,7 +39,9 @@ A tibble of class \code{evinf_compare_fit} with columns \code{model},
   \code{metric}, \code{median_difference}, \code{prop_evinf_better},
   \code{n_pairs}. \code{median_difference} / \code{prop_evinf_better} are
   \code{NA} for the \code{aic} / \code{bic} rows of a \code{*_razor} or
-  \code{*_winsor} slot (see Details); \code{n_pairs} is left as computed.
+  \code{*_winsor} slot (see Details); \code{n_pairs} is left as computed on
+  the returned object (\code{print()} blanks it for those rows instead,
+  since a pair count next to an \code{NA} metric reads like a bug).
 }
 \description{
 For each compared model (\code{nb}, \code{zinb}, and any winsorized /

@@ -65,6 +65,20 @@ test_that("compare_fit() returns NA AIC/BIC for razorised/winsorised slots (roun
   expect_true(all(is.finite(unmodified$median_difference)))
 
   expect_output(print(cf), "not comparable to the")
+
+  # round9 0.6 (review §6): n_pairs stays numeric ("as computed") on the
+  # object itself, but print() blanks it for the not-comparable rows instead
+  # of showing a count next to an NA metric. A comparable row (rmse) still
+  # ends in its numeric n_pairs; a not-comparable one (aic) ends right after
+  # the NA/NA columns, with nothing trailing.
+  expect_true(all(modified$n_pairs[modified$metric %in% c("aic", "bic")] > 0))
+  printed <- capture.output(print(cf))
+  razor_aic_line <- grep("^\\s*nb_razor\\s+aic\\s", printed, value = TRUE)
+  razor_rmse_line <- grep("^\\s*nb_razor\\s+rmse\\s", printed, value = TRUE)
+  expect_length(razor_aic_line, 1L)
+  expect_length(razor_rmse_line, 1L)
+  expect_match(razor_aic_line, "NA\\s+NA\\s*$")
+  expect_match(razor_rmse_line, "[0-9]\\s*$")
 })
 
 test_that("oob_evaluation() on an evzinbcomp masks every column at the same positions (round8 0.4, review §5)", {

@@ -318,7 +318,11 @@ review follow-ups in `dev/review_round1.md`.
   this scale) at up to ~1.5e-10 relative error for `y` up to 1e6 and `alpha`
   down to `1e-3`. Switched to the algebraically identical, cancellation-free
   `-log(y + 1/alpha) - lbeta(y + 1, 1/alpha)`, which was at least as
-  accurate in every case checked (review §7, round8 0.9).
+  accurate in every case checked (review §7, round8 0.9). The Kahan-summed
+  reference used to check this also showed that the *pre-round-7* loop
+  (plain summation) itself drifts by ~1e-8 at large counts -- so a fit of
+  large counts from before 0.10.0 had a slightly wrong log-likelihood all
+  along, not merely a slower one (round9 0.6).
 * A fitted Pareto shape (`alpha_pl`) that collapses toward 0 made
   `predict(type = "explog")` return `Inf` and `predict(type = "harmonic")`
   return an astronomically large finite number (e.g. ~1e22 x `C` on `hks`
