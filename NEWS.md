@@ -508,8 +508,13 @@ review follow-ups in `dev/review_round1.md`.
   the four `stats::optimise()` line searches in `R/em_step.R`). Replaced
   with precomputed linear predictors (one matrix-vector product per block)
   and gradient/Hessian accumulation as `X' w` / `X' diag(w) X`. A full
-  `hks` fit went from 1.1x faster (A.1 + A.2 alone) to 8.4x faster; see
-  `A.4`'s benchmark table. Verified against the pre-A.3 code on 5 cases
+  `hks` fit went from 1.1x faster (A.1 + A.2 alone) to a platform-dependent
+  1.9x-8.4x faster (round9 0.5, review §3: the original single 8.4x/163x
+  headline was measured on Apple Accelerate and did not reproduce on
+  Linux/OpenBLAS, where the same `hks` fit was only 1.9x faster -- quote a
+  range, not one number, and see `inst/bench/bench_evinf.R`, now tracked and
+  CI-runnable, for how to reproduce either end of it); see `A.4`'s benchmark
+  table for the Apple Accelerate figures. Verified against the pre-A.3 code on 5 cases
   (`genevzinb2` and `hks`, both Pareto types, plus an `evinb` fit) at
   machine precision (max abs diff ~2e-12); the identity fixtures are
   unchanged at `1e-8`, with `c_hat` exactly (not just closely) unchanged on

@@ -1,0 +1,36 @@
+# round9 0.5 (review §3): run inst/bench/bench_evinf.R on the CI Linux
+# runner so its timings are reproducible outside any one contributor's
+# machine. Diagnostic only -- prints timings to the job log, asserts
+# nothing, and never fails the build on its own.
+on:
+  push:
+    branches: [main, master, 'round*', 'perf-*', 'families-*', 'audit-*']
+  pull_request:
+  workflow_dispatch:
+
+name: benchmark.yaml
+
+permissions: read-all
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::devtools
+          needs: check
+
+      - name: Run inst/bench/bench_evinf.R
+        run: Rscript inst/bench/bench_evinf.R
+        shell: bash
