@@ -57,7 +57,10 @@ plot(
 A tibble of class `evinf_compare_fit` with columns `model`, `metric`,
 `median_difference`, `prop_evinf_better`, `n_pairs`. `median_difference`
 / `prop_evinf_better` are `NA` for the `aic` / `bic` rows of a `*_razor`
-or `*_winsor` slot (see Details); `n_pairs` is left as computed.
+or `*_winsor` slot (see Details); `n_pairs` is left as computed on the
+returned object ([`print()`](https://rdrr.io/r/base/print.html) blanks
+it for those rows instead, since a pair count next to an `NA` metric
+reads like a bug).
 
 ## Details
 

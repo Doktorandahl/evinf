@@ -104,7 +104,9 @@ replicates is preserved.</p></dd>
   <code>metric</code>, <code>median_difference</code>, <code>prop_evinf_better</code>,
   <code>n_pairs</code>. <code>median_difference</code> / <code>prop_evinf_better</code> are
   <code>NA</code> for the <code>aic</code> / <code>bic</code> rows of a <code>*_razor</code> or
-  <code>*_winsor</code> slot (see Details); <code>n_pairs</code> is left as computed.</p>
+  <code>*_winsor</code> slot (see Details); <code>n_pairs</code> is left as computed on
+  the returned object (<code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> blanks it for those rows instead,
+  since a pair count next to an <code>NA</code> metric reads like a bug).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
