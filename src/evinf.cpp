@@ -260,7 +260,7 @@ arma::mat d2elldbeta2_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_
 }
 
 //[[Rcpp::export]]
-double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult){
+double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w){
 
   int n = x_mult_z_ext.n_rows;
   arma::mat props = zeros<mat>(n,3) ;
@@ -296,17 +296,19 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
     // audit0.10 §1.11: combine the mixture terms with a log-sum-exp instead of
     // log(p1*exp(.) + p2*exp(.)), which underflows exp(.) to exactly 0 (losing
     // all information) well before the sum itself would over/underflow.
+    // round9 D.2: w(i) is a frequency/analytic weight multiplying this row's
+    // contribution to the total log-likelihood.
     if(y(i)==0){
-      func_val = func_val + log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb_i);
+      func_val = func_val + w(i) * log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb_i);
     }else if(y(i)>0 && y(i)<c_pl){
-      func_val = func_val + log(props(i,1)) + ell_nb_i;
+      func_val = func_val + w(i) * (log(props(i,1)) + ell_nb_i);
     }else{
       double exp_xtb_pl_i = exp(eta_pl_vec(i));
       // audit0.10 §1.11: stable Pareto log-pmf, see ell_pl_i_fun().
       double ell_pl_i = exp_xtb_pl_i * log(c_pl / y(i)) +
         log(-expm1(exp_xtb_pl_i * log(y(i) / (y(i) + 1))));
 
-      func_val = func_val + log_sum_exp2(log(props(i,1)) + ell_nb_i, log(props(i,2)) + ell_pl_i);
+      func_val = func_val + w(i) * log_sum_exp2(log(props(i,1)) + ell_nb_i, log(props(i,2)) + ell_pl_i);
     }
   }
 
@@ -327,7 +329,8 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
                               arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext,
                               arma::mat x_nb_ext, arma::mat x_pl_ext,
                               arma::vec y, arma::vec offset_nb,
-                              arma::vec offset_zc, arma::vec offset_pl_mult){
+                              arma::vec offset_zc, arma::vec offset_pl_mult,
+                              arma::vec w){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -373,14 +376,14 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
     double func_val = 0;
     for (int i = 0; i < n; i++) {
       if (y(i) == 0) {
-        func_val += log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb(i));
+        func_val += w(i) * log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb(i));
       } else if (y(i) > 0 && y(i) < c_pl) {
-        func_val += log(props(i,1)) + ell_nb(i);
+        func_val += w(i) * (log(props(i,1)) + ell_nb(i));
       } else {
         double a = alpha_pl_vec(i);
         double ell_pl_i = a * log(c_pl / y(i)) +
           log(-expm1(a * log(y(i) / (y(i) + 1))));
-        func_val += log_sum_exp2(log(props(i,1)) + ell_nb(i), log(props(i,2)) + ell_pl_i);
+        func_val += w(i) * log_sum_exp2(log(props(i,1)) + ell_nb(i), log(props(i,2)) + ell_pl_i);
       }
     }
     loglik(g) = func_val;
@@ -418,7 +421,7 @@ arma::mat safe_newton_step(const arma::mat &H, const arma::mat &g) {
 }
 
 //[[Rcpp::export]]
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, bool exact_pl = false){
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, bool exact_pl = false){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -473,7 +476,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   }
 
   //Calculate function value before the algorithm starts
-  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
+  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
 
   arma::mat d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
   arma::mat dQdtheta_nb = zeros<mat>(n_nb+1,1);
@@ -539,15 +542,18 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
         + (2/(alpha_nb_old*alpha_nb_old))*mu_i/oam_i + (y(i)+r_nb)*mu_i*mu_i/(oam_i*oam_i);
     }
 
-    arma::vec w_beta = resp.col(1) % b_grad;
+    // round9 D.2: w (the frequency/analytic weight, distinct from the
+    // w_* local names below which predate it) multiplies resp the same way
+    // throughout -- score = X'(w*resp*u), Hessian = -X' diag(w*resp*v) X.
+    arma::vec w_beta = w % resp.col(1) % b_grad;
     arma::vec grad_beta = trans(x_nb_ext) * w_beta;
-    double grad_alpha = arma::sum(resp.col(1) % delldalpha_vec);
+    double grad_alpha = arma::sum(w % resp.col(1) % delldalpha_vec);
 
-    arma::vec w_hess_beta = resp.col(1) % b_hess;
+    arma::vec w_hess_beta = w % resp.col(1) % b_hess;
     arma::mat H_beta = trans(x_nb_ext) * (x_nb_ext.each_col() % w_hess_beta);
-    arma::vec w_hess_cross = resp.col(1) % b2_hess;
+    arma::vec w_hess_cross = w % resp.col(1) % b2_hess;
     arma::vec H_cross = trans(x_nb_ext) * w_hess_cross;
-    double H_alpha = arma::sum(resp.col(1) % d2elldalpha2_vec);
+    double H_alpha = arma::sum(w % resp.col(1) % d2elldalpha2_vec);
 
     dQdtheta_nb = zeros<mat>(n_nb+1,1);
     dQdtheta_nb.submat(0,0,n_nb-1,0) = grad_beta;
@@ -580,7 +586,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
+  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
 
   //Update beta_pl with BFGS
   // round8 A.3: restrict to the y >= c_pl rows once (arma::find()), then
@@ -592,12 +598,13 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   arma::uvec pl_idx = arma::find(y >= c_pl);
   int n_pl_active = pl_idx.n_elem;
   arma::mat x_pl_sub;
-  arma::vec y_pl_sub, resp2_sub;
+  arma::vec y_pl_sub, resp2_sub, w_pl_sub;
   if (n_pl_active > 0) {
     x_pl_sub = x_pl_ext.rows(pl_idx);
     y_pl_sub = y.elem(pl_idx);
     arma::vec resp2_full = resp.col(2);
     resp2_sub = resp2_full.elem(pl_idx);
+    w_pl_sub = w.elem(pl_idx);
   }
 
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
@@ -628,9 +635,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
         }
       }
 
-      arma::vec w_grad = resp2_sub % grad_w;
+      arma::vec w_grad = w_pl_sub % resp2_sub % grad_w;
       dQdbeta_pl = x_pl_sub.t() * w_grad;
-      arma::vec w_hess = resp2_sub % hess_w;
+      arma::vec w_hess = w_pl_sub % resp2_sub % hess_w;
       d2Qdbeta2_pl = x_pl_sub.t() * (x_pl_sub.each_col() % w_hess);
     }
 
@@ -648,7 +655,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
+  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
 
   //Update gamma_z with BFGS
   // round8 A.3: X'w / X' diag(w) X instead of a per-row loop building a
@@ -660,9 +667,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
     arma::vec eta_z_i = x_mult_z_ext * gamma_z_old + offset_zc;
     arma::vec denom_vec = 1 + exp(eta_z_i) + exp(eta_pl_mult_fixed);
-    arma::vec w_grad_z = resp.col(0) - exp(eta_z_i)/denom_vec;
+    arma::vec w_grad_z = w % (resp.col(0) - exp(eta_z_i)/denom_vec);
     dQdgamma_z = x_mult_z_ext.t() * w_grad_z;
-    arma::vec w_hess_z = 1.0/denom_vec;
+    arma::vec w_hess_z = w % (1.0/denom_vec);
     d2Qdgamma2_z = -1.0 * (x_mult_z_ext.t() * (x_mult_z_ext.each_col() % w_hess_z));
 
     change_mult_z_bfgs = safe_newton_step(d2Qdgamma2_z, dQdgamma_z);
@@ -679,7 +686,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
+  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
 
   //Update gamma_pl with BFGS
   // round8 A.3: same pattern as the gamma_z block; gamma_z_old is now fixed
@@ -688,9 +695,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
     arma::vec eta_pl_mult_i = x_mult_pl_ext * gamma_pl_old + offset_pl_mult;
     arma::vec denom_vec2 = 1 + exp(eta_z_fixed) + exp(eta_pl_mult_i);
-    arma::vec w_grad_pl = resp.col(2) - exp(eta_pl_mult_i)/denom_vec2;
+    arma::vec w_grad_pl = w % (resp.col(2) - exp(eta_pl_mult_i)/denom_vec2);
     dQdgamma_pl = x_mult_pl_ext.t() * w_grad_pl;
-    arma::vec w_hess_pl = 1.0/denom_vec2;
+    arma::vec w_hess_pl = w % (1.0/denom_vec2);
     d2Qdgamma2_pl = -1.0 * (x_mult_pl_ext.t() * (x_mult_pl_ext.each_col() % w_hess_pl));
 
     change_mult_pl_bfgs = safe_newton_step(d2Qdgamma2_pl, dQdgamma_pl);
@@ -707,7 +714,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult);
+  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
 
   return Rcpp::List::create(
     Rcpp::Named("props") = props,

@@ -193,6 +193,7 @@ evinf_boot_spec <- function(full_run) {
   spec$offset_nb <- full_run$offset_nb
   spec$offset_zc <- full_run$offset_zc
   spec$offset_pl_mult <- full_run$offset_pl_mult
+  spec$weights   <- full_run$weights
   spec$control   <- full_run$control
   spec$coef      <- full_run$coef
   spec$formulas  <- full_run$formulas

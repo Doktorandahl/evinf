@@ -4,6 +4,7 @@
 #' @param data Data to run the model on.
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
+#' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
 #' @param verbose Should progress be printed for the first run of evinb.
 #'
 #' @return An object of class 'evinb'
@@ -15,6 +16,7 @@ run_evinb <- function(
   data,
   control = evinf_control(),
   block = NULL,
+  weights = NULL,
   verbose = FALSE
 ) {
   control <- validate_evinf_control(control)
@@ -36,7 +38,8 @@ run_evinb <- function(
     all.vars(formula_nb),
     all.vars(formula_evi),
     all.vars(formula_pareto),
-    block
+    block,
+    weights
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -47,6 +50,8 @@ run_evinb <- function(
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
   offset_pl_mult <- d_evi$offset
+  weights_vec <- if (!is.null(weights)) model_data[[weights]] else rep(1, nrow(model_data))
+  evinf_check_weights(weights_vec, nrow(model_data))
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -71,6 +76,7 @@ run_evinb <- function(
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
   OBS.X.obj$offset.pl_mult <- offset_pl_mult
+  OBS.X.obj$weights <- weights_vec
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_nb <- ncol(d_nb$X) + 1L
@@ -146,6 +152,7 @@ run_evinb <- function(
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
   object$offset_pl_mult <- offset_pl_mult
+  object$weights <- weights_vec
   object$data <- list()
 
   object$data$data <- model_data
@@ -175,7 +182,7 @@ run_evinb <- function(
   n_zc <- length(Ini.Val$Beta.multinom.ZC)
   object$par.all <- object$par.all[-seq_len(n_zc)]
   n_par <- length(object$par.all)
-  n_obs <- length(object$data$y)
+  n_obs <- sum(object$weights)  # round9 D.2: sum(weights), row count when unweighted
   object$AIC <- 2 * n_par - 2 * object$log.lik
   object$BIC <- log(n_obs) * n_par - 2 * object$log.lik
 
@@ -256,6 +263,8 @@ bootrun_evinb <- function(
     object$offset_nb[boot_id]
   OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
     object$offset_pl_mult[boot_id]
+  OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
+    object$weights[boot_id]
   Control <- object$control
 
   Ini.Val <- list()
@@ -392,6 +401,7 @@ evinb <- function(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -402,6 +412,9 @@ evinb <- function(
   verbose = FALSE
 ) {
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
+  weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
+  data <- weights_resolved$data
+  weights_col <- weights_resolved$weights_col
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evinb")
 
@@ -420,8 +433,10 @@ evinb <- function(
     data = data,
     control = ctrl,
     block = block,
+    weights = weights_col,
     verbose = verbose
   )
+  full_run$weights_col <- weights_col
   full_run$call <- stored_call
   runtime <- difftime(Sys.time(), t1)
 

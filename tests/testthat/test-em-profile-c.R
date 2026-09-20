@@ -41,7 +41,7 @@ expect_profile_matches_loop <- function(m, tol = 1e-10) {
       pe$par$Beta.multinom.ZC, pe$par$Beta.multinom.PL, pe$par$Beta.NB,
       pe$par$Alpha.NB, pe$par$Beta.PL, cc,
       pe$ext$zc, pe$ext$pl_mult, pe$ext$nb, pe$ext$pl, pe$y, pe$ext$offset,
-      pe$ext$offset_zc, pe$ext$offset_pl_mult
+      pe$ext$offset_zc, pe$ext$offset_pl_mult, pe$ext$weights
     )
   }, numeric(1))
 
@@ -49,7 +49,7 @@ expect_profile_matches_loop <- function(m, tol = 1e-10) {
     pe$par$Beta.multinom.ZC, pe$par$Beta.multinom.PL, pe$par$Beta.NB,
     pe$par$Alpha.NB, pe$par$Beta.PL, cands,
     pe$ext$zc, pe$ext$pl_mult, pe$ext$nb, pe$ext$pl, pe$y, pe$ext$offset,
-      pe$ext$offset_zc, pe$ext$offset_pl_mult
+      pe$ext$offset_zc, pe$ext$offset_pl_mult, pe$ext$weights
   ))
 
   testthat::expect_equal(new, old, tolerance = tol)
@@ -114,13 +114,13 @@ test_that("log_lik_profile_fun() handles a single-element candidate vector", {
     pe$par$Beta.multinom.ZC, pe$par$Beta.multinom.PL, pe$par$Beta.NB,
     pe$par$Alpha.NB, pe$par$Beta.PL, cc,
     pe$ext$zc, pe$ext$pl_mult, pe$ext$nb, pe$ext$pl, pe$y, pe$ext$offset,
-      pe$ext$offset_zc, pe$ext$offset_pl_mult
+      pe$ext$offset_zc, pe$ext$offset_pl_mult, pe$ext$weights
   )
   new <- as.numeric(evinf:::log_lik_profile_fun(
     pe$par$Beta.multinom.ZC, pe$par$Beta.multinom.PL, pe$par$Beta.NB,
     pe$par$Alpha.NB, pe$par$Beta.PL, cc,
     pe$ext$zc, pe$ext$pl_mult, pe$ext$nb, pe$ext$pl, pe$y, pe$ext$offset,
-      pe$ext$offset_zc, pe$ext$offset_pl_mult
+      pe$ext$offset_zc, pe$ext$offset_pl_mult, pe$ext$weights
   ))
   expect_length(new, 1L)
   expect_equal(new, old, tolerance = 1e-10)

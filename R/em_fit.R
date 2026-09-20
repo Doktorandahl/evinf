@@ -63,7 +63,10 @@ em_fit <- function(y, x.obj, ini.val, control,
                    model = c("evzinb", "evinb"), full_sample = TRUE) {
   model <- match.arg(model)
   ext <- em_extend_design(x.obj, length(y))
-  n <- length(y)
+  # round9 D.2 (audit §5.6): BIC's `n` is sum(weights) -- the row count when
+  # weights = 1 (the default), the effective sample size for frequency
+  # weights otherwise.
+  n <- sum(ext$weights)
 
   max_c_iter <- control$max.c.iter %||% 50
   c.range <- em_c_candidates(y, control$c.lim, control$prune.c.range)
@@ -205,7 +208,7 @@ em_fit <- function(y, x.obj, ini.val, control,
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
     final.val$Alpha.NB, final.val$Beta.PL, final.val$C,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
-    ext$offset_zc, ext$offset_pl_mult
+    ext$offset_zc, ext$offset_pl_mult, ext$weights
   )
   loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
                                 abs(ll.at.par - func.val) > 1e-6)

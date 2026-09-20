@@ -38,7 +38,7 @@ em_profile_c <- function(y, x_obj, par, c_candidates) {
     par$Beta.multinom.ZC, par$Beta.multinom.PL, par$Beta.NB, par$Alpha.NB,
     par$Beta.PL, c_candidates,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
-    ext$offset_zc, ext$offset_pl_mult
+    ext$offset_zc, ext$offset_pl_mult, ext$weights
   ))
 
   # audit0.10 §1.4: which(loglik == max(loglik)) returns a vector on an exact

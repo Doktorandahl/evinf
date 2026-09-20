@@ -18,6 +18,24 @@ Implements audit §5.6 (offsets and weights): work package D of
   column) and through `predict(newdata = )` (which requires the offset
   variable, like the existing count-component offset already does). Default
   (no-offset) fits are numerically unchanged (audit §5.6, round9 D.1).
+* `evzinb()` / `evinb()` gain `weights = `, given as a bare column name, a
+  string naming a column, or a numeric vector. **Frequency-weight
+  semantics**: every observation's contribution to the log-likelihood and to
+  the EM/M-step accumulations is multiplied by its weight (a fit with
+  integer weights matches a fit on the row-duplicated data to machine
+  precision at the likelihood level, and to 1e-6-1e-8 in the fitted
+  coefficients -- floating-point accumulation order can shift which exact
+  point the EM's own convergence tolerance stops at, the same phenomenon as
+  round8 A.3). `nobs()` -- and therefore `AIC`, `BIC` and the approximate
+  t-based p-values -- now use `sum(weights)`, not the row count;
+  `glance()` gains `sum_weights` alongside the unchanged, row-count `nobs`,
+  so both are visible together. Weights must be positive and finite;
+  non-integer (analytic) weights are allowed, though the AIC/BIC
+  interpretation above assumes frequency weights. `weights = ` does
+  **not** give design-based standard errors for survey data -- for that,
+  resample primary sampling units with `block = ` instead. The bootstrap
+  resamples rows exactly as without weights and carries each drawn row's
+  weight along (audit §5.6, round9 D.2).
 
 # evinf 0.10.0
 

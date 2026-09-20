@@ -14,6 +14,7 @@ evinb(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par,
@@ -77,6 +78,26 @@ either as a bare column name (\code{block = id}) or a string
 no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 and Vegelius (2024) cannot be reproduced from them directly (see
 \code{?hks}).}
+
+\item{weights}{Optional observation weights (round9 D.2), given as a bare
+column name (\code{weights = wt}), a string naming a column
+(\code{weights = "wt"}), or a numeric vector. Must be positive and
+finite; need not be integers (analytic weights are allowed, not just
+frequency counts). \strong{Frequency-weight semantics}: every
+observation's contribution to the log-likelihood and to the EM/M-step
+accumulations is multiplied by its weight, and \code{nobs()} -- and
+therefore \code{AIC}, \code{BIC} and the approximate t-based p-values --
+use \code{sum(weights)}, not the row count (see \code{sum_weights} in
+\code{\link{glance.evzinb}}). This interpretation of AIC/BIC assumes the
+weights really are frequency weights (repeat-count equivalents); for
+analytic weights the information-criterion values are still computed
+this way but their usual interpretation is weaker. \strong{\code{weights}
+does not give design-based standard errors for survey data} -- a
+sampling weight changes the point estimate, not the variance under the
+sampling design; for that, resample primary sampling units with
+\code{block =} instead. The bootstrap resamples rows exactly as without
+weights and carries each drawn row's weight along (the resampling
+probabilities themselves are not reweighted).}
 
 \item{boot_seed}{Optional bootstrap seed for reproducibility. When supplied
 it is used as-is; when \code{NULL} a seed is drawn and recorded, so
