@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/Doktorandahl/evinf/blob/families-0.11.0/inst/CITATION)
+[`inst/CITATION`](https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partD/inst/CITATION)
 
 Randahl D, Vegelius J (2024). “Inference with Extremes: Accounting for
 Extreme Values in Count Regression Models.” *International Studies

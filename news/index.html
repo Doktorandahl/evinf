@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,9 +29,20 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partD/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.11.0" id="evinf-0110">evinf 0.11.0<a class="anchor" aria-label="anchor" href="#evinf-0110"></a></h2>
+<p>Implements audit §5.6 (offsets and weights): work package D of <code>dev/plan_0.12_families_offsets_panel.md</code>.</p>
+<div class="section level3">
+<h3 id="new-features-0-11-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-11-0"></a></h3>
+<ul><li>
+<code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> is now supported in <code>formula_zi</code> and <code>formula_evi</code> (already supported in <code>formula_nb</code>), not just the count component. An offset there shifts the corresponding multinomial-logit <em>log-odds against the count state</em> – e.g. <code>formula_evi = ~ x + offset(log(population))</code> for a probability of an extreme event that scales with exposure. <code>formula_pareto</code> still rejects <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code>: a shape parameter has no clear reading for one. There is no inheritance: a component that defaults to <code>formula_nb</code> gets that formula with any <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term stripped, exactly as before – an offset applies only where it is written explicitly. Offsets are carried through the bootstrap (indexed by <code>boot_id</code>, like every other design column) and through <code>predict(newdata = )</code> (which requires the offset variable, like the existing count-component offset already does). Default (no-offset) fits are numerically unchanged (audit §5.6, round9 D.1).</li>
+<li>
+<code><a href="../reference/evzinb.html">evzinb()</a></code> / <code><a href="../reference/evinb.html">evinb()</a></code> gain <code>weights =</code>, given as a bare column name, a string naming a column, or a numeric vector. <strong>Frequency-weight semantics</strong>: every observation’s contribution to the log-likelihood and to the EM/M-step accumulations is multiplied by its weight (a fit with integer weights matches a fit on the row-duplicated data to machine precision at the likelihood level, and to 1e-6-1e-8 in the fitted coefficients – floating-point accumulation order can shift which exact point the EM’s own convergence tolerance stops at, the same phenomenon as round8 A.3). <code><a href="https://rdrr.io/r/stats/nobs.html" class="external-link">nobs()</a></code> – and therefore <code>AIC</code>, <code>BIC</code> and the approximate t-based p-values – now use <code>sum(weights)</code>, not the row count; <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code> gains <code>sum_weights</code> alongside the unchanged, row-count <code>nobs</code>, so both are visible together. Weights must be positive and finite; non-integer (analytic) weights are allowed, though the AIC/BIC interpretation above assumes frequency weights. <code>weights =</code> does <strong>not</strong> give design-based standard errors for survey data – for that, resample primary sampling units with <code>block =</code> instead. The bootstrap resamples rows exactly as without weights and carries each drawn row’s weight along (audit §5.6, round9 D.2).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.10.0" id="evinf-0100">evinf 0.10.0<a class="anchor" aria-label="anchor" href="#evinf-0100"></a></h2>
 <p>Implements section 4 of the internal package audit (new functionality) and the review follow-ups in <code>dev/review_round1.md</code>.</p>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Running an extreme value inflated negative binomial model with bootstrapping</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/evinb.R" class="external-link"><code>R/evinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partD/R/evinb.R" class="external-link"><code>R/evinb.R</code></a></small>
       <div class="d-none name"><code>evinb.Rd</code></div>
     </div>
 
@@ -49,6 +49,7 @@
 <span>  multicore <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ncores <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  block <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  weights <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  boot_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="evinf_control.html">evinf_control</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">max.diff.par</span>,</span>
@@ -78,15 +79,25 @@
 
 
 <dl><dt id="arg-formula-nb">formula_nb<a class="anchor" aria-label="anchor" href="#arg-formula-nb"></a></dt>
-<dd><p>Formula for the negative binomial (count) component of the model</p></dd>
+<dd><p>Formula for the negative binomial (count) component of the model.
+May include an <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term (\(\mu_{NB} = \exp(x'\beta + offset)\)).</p></dd>
 
 
 <dt id="arg-formula-evi">formula_evi<a class="anchor" aria-label="anchor" href="#arg-formula-evi"></a></dt>
-<dd><p>Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb</p></dd>
+<dd><p>Formula for the extreme-value inflation component of the model.
+If NULL taken as the same formula as nb, with any <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term stripped
+(an offset applies only where it is written explicitly, never by inheritance).
+May include its own <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term: the EVI logit is the log-odds of the
+extreme-value state against the count state, so an offset there shifts that
+log-odds, e.g. <code>offset(log(population))</code> for a probability of an extreme
+event that scales with exposure.</p></dd>
 
 
 <dt id="arg-formula-pareto">formula_pareto<a class="anchor" aria-label="anchor" href="#arg-formula-pareto"></a></dt>
-<dd><p>Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb</p></dd>
+<dd><p>Formula for the pareto (extreme value) component of the
+model. If NULL taken as the same formula as nb, offset stripped as above.
+<code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> is <strong>not</strong> supported here (errors if present): an offset
+on a shape parameter has no clear reading.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
@@ -123,6 +134,28 @@ either as a bare column name (<code>block = id</code>) or a string
 no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 and Vegelius (2024) cannot be reproduced from them directly (see
 <code><a href="hks.html">?hks</a></code>).</p></dd>
+
+
+<dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
+<dd><p>Optional observation weights (round9 D.2), given as a bare
+column name (<code>weights = wt</code>), a string naming a column
+(<code>weights = "wt"</code>), or a numeric vector. Must be positive and
+finite; need not be integers (analytic weights are allowed, not just
+frequency counts). <strong>Frequency-weight semantics</strong>: every
+observation's contribution to the log-likelihood and to the EM/M-step
+accumulations is multiplied by its weight, and <code><a href="https://rdrr.io/r/stats/nobs.html" class="external-link">nobs()</a></code> – and
+therefore <code>AIC</code>, <code>BIC</code> and the approximate t-based p-values –
+use <code>sum(weights)</code>, not the row count (see <code>sum_weights</code> in
+<code><a href="glance.evzinb.html">glance.evzinb</a></code>). This interpretation of AIC/BIC assumes the
+weights really are frequency weights (repeat-count equivalents); for
+analytic weights the information-criterion values are still computed
+this way but their usual interpretation is weaker. <strong><code>weights</code>
+does not give design-based standard errors for survey data</strong> – a
+sampling weight changes the point estimate, not the variance under the
+sampling design; for that, resample primary sampling units with
+<code>block =</code> instead. The bootstrap resamples rows exactly as without
+weights and carries each drawn row's weight along (the resampling
+probabilities themselves are not reweighted).</p></dd>
 
 
 <dt id="arg-boot-seed">boot_seed<a class="anchor" aria-label="anchor" href="#arg-boot-seed"></a></dt>

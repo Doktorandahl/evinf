@@ -17,6 +17,7 @@ evzinb(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par,
@@ -47,22 +48,39 @@ evzinb(
 
 - formula_nb:
 
-  Formula for the negative binomial (count) component of the model
+  Formula for the negative binomial (count) component of the model. May
+  include an [`offset()`](https://rdrr.io/r/stats/offset.html) term
+  (\\\mu\_{NB} = \exp(x'\beta + offset)\\).
 
 - formula_zi:
 
   Formula for the zero-inflation component of the model. If NULL taken
-  as the same formula as nb
+  as the same formula as nb, with any
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term stripped (an
+  offset applies only where it is written explicitly, never by
+  inheritance). May include its own
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term: since the
+  zero-inflation logit is the log-odds of the zero state *against* the
+  count state, an offset there shifts that log-odds, e.g.
+  `offset(log(exposure))` makes a larger exposure relatively less likely
+  to land in the structural-zero state.
 
 - formula_evi:
 
   Formula for the extreme-value inflation component of the model. If
-  NULL taken as the same formula as nb
+  NULL taken as the same formula as nb, offset stripped as above. May
+  include its own [`offset()`](https://rdrr.io/r/stats/offset.html) term
+  (e.g. `offset(log(population))` for a probability of an extreme event
+  that scales with exposure), read the same way: it shifts the EVI
+  log-odds against the count state.
 
 - formula_pareto:
 
   Formula for the pareto (extreme value) component of the model. If NULL
-  taken as the same formula as nb
+  taken as the same formula as nb, offset stripped as above.
+  [`offset()`](https://rdrr.io/r/stats/offset.html) is **not** supported
+  here (errors if present): an offset on a shape parameter has no clear
+  reading.
 
 - data:
 
@@ -102,6 +120,28 @@ evzinb(
   identifier, so the conflict-level cluster bootstrap in Randahl and
   Vegelius (2024) cannot be reproduced from them directly (see
   [`?hks`](hks.md)).
+
+- weights:
+
+  Optional observation weights (round9 D.2), given as a bare column name
+  (`weights = wt`), a string naming a column (`weights = "wt"`), or a
+  numeric vector. Must be positive and finite; need not be integers
+  (analytic weights are allowed, not just frequency counts).
+  **Frequency-weight semantics**: every observation's contribution to
+  the log-likelihood and to the EM/M-step accumulations is multiplied by
+  its weight, and [`nobs()`](https://rdrr.io/r/stats/nobs.html) – and
+  therefore `AIC`, `BIC` and the approximate t-based p-values – use
+  `sum(weights)`, not the row count (see `sum_weights` in
+  [`glance.evzinb`](glance.evzinb.md)). This interpretation of AIC/BIC
+  assumes the weights really are frequency weights (repeat-count
+  equivalents); for analytic weights the information-criterion values
+  are still computed this way but their usual interpretation is weaker.
+  **`weights` does not give design-based standard errors for survey
+  data** – a sampling weight changes the point estimate, not the
+  variance under the sampling design; for that, resample primary
+  sampling units with `block =` instead. The bootstrap resamples rows
+  exactly as without weights and carries each drawn row's weight along
+  (the resampling probabilities themselves are not reweighted).
 
 - boot_seed:
 

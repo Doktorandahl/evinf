@@ -17,7 +17,7 @@ none was given."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@ none was given."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Prepend the intercept column to each component design matrix</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0/R/em_candidates.R" class="external-link"><code>R/em_candidates.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partD/R/em_candidates.R" class="external-link"><code>R/em_candidates.R</code></a></small>
       <div class="d-none name"><code>em_extend_design.Rd</code></div>
     </div>
 
@@ -64,7 +64,9 @@ none was given.</p>
 <dl><dt id="arg-x-obj">x_obj<a class="anchor" aria-label="anchor" href="#arg-x-obj"></a></dt>
 <dd><p>List with elements <code>X.multinom.ZC</code>, <code>X.multinom.PL</code>,
 <code>X.NB</code>, <code>X.PL</code> (each a numeric matrix \(n \times p\) without an
-intercept column, or <code>NULL</code>) and optionally <code>offset.nb</code>.</p></dd>
+intercept column, or <code>NULL</code>) and optionally <code>offset.nb</code>,
+<code>offset.zc</code>, <code>offset.pl_mult</code> (round9 D.1) and <code>weights</code>
+(round9 D.2).</p></dd>
 
 
 <dt id="arg-n">n<a class="anchor" aria-label="anchor" href="#arg-n"></a></dt>
@@ -74,7 +76,9 @@ intercept column, or <code>NULL</code>) and optionally <code>offset.nb</code>.</
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with elements <code>zc</code>, <code>pl_mult</code>, <code>nb</code>, <code>pl</code>
-  (the extended numeric matrices) and <code>offset</code> (length-<code>n</code> numeric).</p>
+  (the extended numeric matrices), <code>offset</code>, <code>offset_zc</code>,
+  <code>offset_pl_mult</code> (length-<code>n</code> numeric, zero when not supplied)
+  and <code>weights</code> (length-<code>n</code> numeric, one when not supplied).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
