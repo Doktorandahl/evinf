@@ -90,4 +90,22 @@ saveRDS(capture_fit(fit_i(f_hks, hks, formula_pareto = f_hks_pareto,
                           bootstrap = FALSE)),
         file.path(fixtures_dir, "em_baseline_evinb_hks.rds"))
 
+## 6: fixed c.lim/init.C version of test-model-matrix.R's factor fit (round9
+## 0.3, review §1 failure 1). That test's `evzinb(y ~ x1 + g, ...)` uses the
+## *default*, data-driven c.lim, which the accumulation-order change in A.3
+## (round8) pushed into a different local optimum (min(alpha_pl) collapsed
+## from 1.91 to 0.973) on some platforms, surfacing only as a downstream
+## is.finite() failure once alpha_pl got small enough to overflow a
+## prediction. This fixed-c.lim/init.C version pins the *trajectory*
+## (`ctrl`, same as every other baseline here) so a future accumulation-order
+## change shows up here directly as a coefficient/log-lik difference, not as
+## an unrelated test failing somewhere downstream. Added new in round9 -- not
+## a regeneration of an existing baseline, so the "do not regenerate" note
+## above does not apply to this one.
+f6 <- y ~ x1 + g
+saveRDS(capture_fit(fit_z(f6, gf, bootstrap = FALSE)),
+        file.path(fixtures_dir, "em_baseline_evzinb_factor_fixed.rds"))
+saveRDS(capture_fit(fit_i(f6, gf, bootstrap = FALSE)),
+        file.path(fixtures_dir, "em_baseline_evinb_factor_fixed.rds"))
+
 message("baselines written to ", fixtures_dir)

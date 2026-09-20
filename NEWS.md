@@ -496,7 +496,17 @@ review follow-ups in `dev/review_round1.md`.
   `A.4`'s benchmark table. Verified against the pre-A.3 code on 5 cases
   (`genevzinb2` and `hks`, both Pareto types, plus an `evinb` fit) at
   machine precision (max abs diff ~2e-12); the identity fixtures are
-  unchanged at `1e-8`, with `c_hat` exactly (not just closely) unchanged.
+  unchanged at `1e-8`, with `c_hat` exactly (not just closely) unchanged on
+  those cases. That comparison is on a single call at identical fixed inputs,
+  not on a full fit's trajectory: the reordering perturbs each Newton step at
+  the ~1e-12 level, and on data with a close second optimum that is enough
+  for the *iterated* EM to converge somewhere else. On one factor-covariate
+  fit this moved the log-likelihood from -253.5553 to -253.6816 and
+  `min(alpha_pl)` from 1.91 to 0.973 on some platforms (review §1) --
+  "estimates unchanged" above is therefore too strong as a blanket claim;
+  read it as "unchanged on every case checked so far", with a dedicated
+  fixed-trajectory regression test now guarding that specific case (round9
+  0.3) and the `alpha_pl -> 0` consequence guarded separately (round9 0.1).
 
 
 # evinf 0.9.4
