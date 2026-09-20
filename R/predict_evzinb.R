@@ -2,7 +2,14 @@ harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
                           floor = 0.01) {
   pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
                                        context = "harmonic prediction")
-  pr_count * count + pr_pareto * C * (1 + pareto_alpha) / pareto_alpha
+  # round9 0.1 follow-up: (1 + alpha) / alpha is algebraically identical to
+  # 1/alpha + 1, but the former is Inf/Inf = NaN once a fitted Pareto shape
+  # overflows exp() (an extreme Beta.PL coefficient on a sparse factor level
+  # can push the linear predictor past ~709.78, e.g. genevzinb2_factor()'s
+  # y ~ x1 + g fit). 1/alpha + 1 is exact for finite alpha and gives the
+  # mathematically correct limit (1) as alpha -> Inf, so no floor/ceiling on
+  # alpha is needed for this specific failure mode.
+  pr_count * count + pr_pareto * C * (1 / pareto_alpha + 1)
 }
 
 # audit R0.5 / 2.7: state-probability columns with the canonical names

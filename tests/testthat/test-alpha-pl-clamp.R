@@ -53,6 +53,34 @@ test_that("glance() reports the unclamped min_alpha_pl and print() notes a colla
   expect_true(grepl("alpha_pl_floor = 0.01", out))
 })
 
+test_that("harmonic prediction stays finite when the fitted Pareto shape overflows exp() to Inf", {
+  # round9 0.1 follow-up, found via CI: on some platforms
+  # genevzinb2_factor()'s y ~ x1 + g fit (test-model-matrix.R:30) gives an
+  # extreme Beta.PL coefficient for a sparse factor level, pushing one row's
+  # Pareto-shape linear predictor past ~709.78 -- alpha_pl = exp(that)
+  # overflows to literal Inf. This is the *opposite* of the near-zero
+  # collapse the floor above guards against, and harmonic_calc()'s old
+  # (1 + alpha) / alpha formula computed Inf/Inf = NaN there. Rewritten as
+  # 1/alpha + 1, which is exact for any finite alpha and gives the
+  # mathematically correct limit (1, i.e. the extreme-value contribution
+  # -> C) as alpha -> Inf -- no ceiling/clamp needed for this failure mode.
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  n <- nobs(m)
+  testthat::local_mocked_bindings(
+    fitted_alpha_from_evzinb = function(object, newdata = NULL, return_data = FALSE) {
+      tibble::tibble(pareto_alpha = c(Inf, 1e300, exp(709), rep(1, n - 3)))
+    },
+    .package = "evinf"
+  )
+  expect_no_warning(h <- predict(m, type = "harmonic"))
+  expect_true(all(is.finite(h)))
+
+  prbs <- suppressWarnings(evinf:::prob_from_evzinb(m))
+  cnts <- evinf:::counts_from_evzinb(m)
+  expect_equal(unname(h[1]),
+               unname(prbs$pr_count[1] * cnts$count[1] + prbs$pr_pareto[1] * m$coef$C))
+})
+
 test_that("hks with a four-covariate specification yields finite predictions despite a collapsing alpha_pl (round9 0.1, review §2)", {
   skip_on_cran()
   data(hks, package = "evinf", envir = environment())
