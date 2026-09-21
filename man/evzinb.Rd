@@ -16,6 +16,9 @@ evzinb(
   ncores = NULL,
   block = NULL,
   weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
   family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
@@ -108,6 +111,34 @@ sampling design; for that, resample primary sampling units with
 \code{block =} instead. The bootstrap resamples rows exactly as without
 weights and carries each drawn row's weight along (the resampling
 probabilities themselves are not reweighted).}
+
+\item{time}{Optional time index for panel/time-series bootstrap resampling
+(round9 F), given as a bare column name (\code{time = t}) or a string
+(\code{time = "t"}); required for \code{bootstrap_scheme \%in\%
+c("moving_block", "stationary")}. Must be strictly increasing within
+every \code{block} unit's rows as they already appear in the data --
+this is never sorted for you; sort \code{data} by \code{(block, time)}
+first if it isn't already.}
+
+\item{bootstrap_scheme}{One of \code{"iid"} (plain row resampling, the
+default when \code{block} is not given), \code{"cluster"} (resample
+whole \code{block} units, the default when \code{block} is given -- what
+\code{block =} has always done), \code{"moving_block"} or
+\code{"stationary"} (block-resample each unit's own time series; see
+Kunsch 1989 / Politis and Romano 1994). The two block schemes need
+\code{time}; \code{block} is optional for them (the whole data is
+treated as one unit when omitted). With overlapping blocks the
+out-of-bag set is smaller and more temporally correlated than under iid
+resampling, so out-of-bag error (\code{\link{oob_evaluation}}) is
+optimistic relative to genuine forecasting performance; each bootstrap
+replicate's realised out-of-bag fraction is stored as
+\code{$oob_fraction} next to \code{$boot_id}.}
+
+\item{block_length}{Block length for \code{bootstrap_scheme \%in\%
+c("moving_block", "stationary")}; \code{NULL} (the default) uses
+\code{ceiling(T^(1/3))} for each unit's own length \eqn{T} (a message
+names the value(s) used, once, at the original fit -- not on every
+bootstrap replicate).}
 
 \item{family}{An \code{\link{evinf_family}()} object, or a string as
 shorthand for its \code{count} argument (round9 E.0/E.1/E.2), e.g.

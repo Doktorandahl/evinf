@@ -201,6 +201,8 @@ evinf_boot_spec <- function(full_run) {
   spec$terms     <- full_run$terms
   spec$xlevels   <- full_run$xlevels
   spec$block_vec <- full_run$block_vec
+  spec$bootstrap_scheme <- full_run$bootstrap_scheme
+  spec$block_length <- full_run$block_length
   class(spec) <- class(full_run)
   spec
 }

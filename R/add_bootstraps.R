@@ -57,14 +57,15 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = NULL,
 
   runner <- if (inherits(object, "evzinb")) bootrun_evzinb else bootrun_evinb
   block2 <- object$block_vec
+  time2 <- object$time_vec
   start <- length(object$bootstraps)
   boot_spec <- evinf_boot_spec(object)
 
   new_boots <- evinf_with_plan(multicore, ncores, {
     evinf_pmap(
       seq_len(n),
-      function(i, spec, blk) try(runner(spec, blk)),
-      spec = boot_spec, blk = block2,
+      function(i, spec, blk, tv) try(runner(spec, blk, tv)),
+      spec = boot_spec, blk = block2, tv = time2,
       seed = boot_seed, label = "bootstrap", verbose = verbose
     )
   })
