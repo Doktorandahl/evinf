@@ -37,6 +37,21 @@ packages D and E of `dev/plan_0.12_families_offsets_panel.md`.
   * Default (`family = evinf_family()`) fits are numerically unchanged
     (audit §5.5, round9 E.0/E.1/E.2).
 
+* `compare_models()` gains `poisson_comparison` / `zip_comparison`, mirroring
+  the existing `nb_comparison` / `zinb_comparison`: Poisson (`glm()`) and
+  zero-inflated Poisson (`pscl::zeroinfl(dist = "poisson")`) competitor
+  baselines. Both default to `TRUE` only when the fitted model itself used
+  `family = "poisson"`, `FALSE` otherwise -- user-overridable either way;
+  `zip_comparison` is unavailable for `evinb` objects, with the same
+  defaults-to-`FALSE`-with-a-message / errors-if-`TRUE` behaviour as
+  `zinb_comparison`. `predict.poissonboot()` / `predict.zipboot()`,
+  `tidy.poissonboot()` / `tidy.zipboot()` and
+  `glance.poissonboot()` / `glance.zipboot()` are registered alongside the
+  existing `nbboot` / `zinbboot` methods (neither reports a dispersion
+  parameter: `alpha` is `NA` in `glance()`); `compare_fit()` and
+  `oob_evaluation()` need no changes, having already treated their model
+  list generically (round9 E.3).
+
 * `offset()` is now supported in `formula_zi` and `formula_evi` (already
   supported in `formula_nb`), not just the count component. An offset there
   shifts the corresponding multinomial-logit *log-odds against the count
