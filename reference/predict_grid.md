@@ -77,6 +77,7 @@ A tibble with columns `variable`, `value`, `type`, `estimate`,
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 predict_grid(model, "x1", type = "harmonic")
 #> # A tibble: 50 × 6
 #>    variable value type     estimate conf.low conf.high

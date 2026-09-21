@@ -16,6 +16,11 @@ evinb(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
+  family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par,
@@ -44,17 +49,29 @@ evinb(
 
 - formula_nb:
 
-  Formula for the negative binomial (count) component of the model
+  Formula for the negative binomial (count) component of the model. May
+  include an [`offset()`](https://rdrr.io/r/stats/offset.html) term
+  (\\\mu\_{NB} = \exp(x'\beta + offset)\\).
 
 - formula_evi:
 
   Formula for the extreme-value inflation component of the model. If
-  NULL taken as the same formula as nb
+  NULL taken as the same formula as nb, with any
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term stripped (an
+  offset applies only where it is written explicitly, never by
+  inheritance). May include its own
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term: the EVI logit
+  is the log-odds of the extreme-value state against the count state, so
+  an offset there shifts that log-odds, e.g. `offset(log(population))`
+  for a probability of an extreme event that scales with exposure.
 
 - formula_pareto:
 
   Formula for the pareto (extreme value) component of the model. If NULL
-  taken as the same formula as nb
+  taken as the same formula as nb, offset stripped as above.
+  [`offset()`](https://rdrr.io/r/stats/offset.html) is **not** supported
+  here (errors if present): an offset on a shape parameter has no clear
+  reading.
 
 - data:
 
@@ -94,6 +111,82 @@ evinb(
   identifier, so the conflict-level cluster bootstrap in Randahl and
   Vegelius (2024) cannot be reproduced from them directly (see
   [`?hks`](hks.md)).
+
+- weights:
+
+  Optional observation weights (round9 D.2), given as a bare column name
+  (`weights = wt`), a string naming a column (`weights = "wt"`), or a
+  numeric vector. Must be positive and finite; need not be integers
+  (analytic weights are allowed, not just frequency counts).
+  **Frequency-weight semantics**: every observation's contribution to
+  the log-likelihood and to the EM/M-step accumulations is multiplied by
+  its weight, and [`nobs()`](https://rdrr.io/r/stats/nobs.html) – and
+  therefore `AIC`, `BIC` and the approximate t-based p-values – use
+  `sum(weights)`, not the row count (see `sum_weights` in
+  [`glance.evzinb`](glance.evzinb.md)). This interpretation of AIC/BIC
+  assumes the weights really are frequency weights (repeat-count
+  equivalents); for analytic weights the information-criterion values
+  are still computed this way but their usual interpretation is weaker.
+  **`weights` does not give design-based standard errors for survey
+  data** – a sampling weight changes the point estimate, not the
+  variance under the sampling design; for that, resample primary
+  sampling units with `block =` instead. The bootstrap resamples rows
+  exactly as without weights and carries each drawn row's weight along
+  (the resampling probabilities themselves are not reweighted).
+
+- time:
+
+  Optional time index for panel/time-series bootstrap resampling (round9
+  F), given as a bare column name (`time = t`) or a string
+  (`time = "t"`); required for
+  `bootstrap_scheme %in% c("moving_block", "stationary")`. Must be
+  strictly increasing within every `block` unit's rows as they already
+  appear in the data – this is never sorted for you; sort `data` by
+  `(block, time)` first if it isn't already.
+
+- bootstrap_scheme:
+
+  One of `"iid"` (plain row resampling, the default when `block` is not
+  given), `"cluster"` (resample whole `block` units, the default when
+  `block` is given – what `block =` has always done), `"moving_block"`
+  or `"stationary"` (block-resample each unit's own time series; see
+  Kunsch 1989 / Politis and Romano 1994). The two block schemes need
+  `time`; `block` is optional for them (the whole data is treated as one
+  unit when omitted). With overlapping blocks the out-of-bag set is
+  smaller and more temporally correlated than under iid resampling, so
+  out-of-bag error ([`oob_evaluation`](oob_evaluation.md)) is optimistic
+  relative to genuine forecasting performance; each bootstrap
+  replicate's realised out-of-bag fraction is stored as `$oob_fraction`
+  next to `$boot_id`.
+
+- block_length:
+
+  Block length for
+  `bootstrap_scheme %in% c("moving_block", "stationary")`; `NULL` (the
+  default) uses `ceiling(T^(1/3))` for each unit's own length \\T\\ (a
+  message names the value(s) used, once, at the original fit – not on
+  every bootstrap replicate).
+
+- family:
+
+  An [`evinf_family()`](evinf_family.md) object, or a string as
+  shorthand for its `count` argument (round9 E.0/E.1/E.2), e.g.
+  `family = "poisson"`. The default reproduces today's
+  negative-binomial, mixture-zero model exactly. `count = "poisson"`
+  drops `Alpha.NB` entirely (not merely fixes it): it is absent from
+  `par.all`, [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`vcov()`](https://rdrr.io/r/stats/vcov.html),
+  [`confint()`](https://rdrr.io/r/stats/confint.html) and
+  [`tidy()`](https://generics.r-lib.org/reference/tidy.html), and shown
+  as absent (not `NA`) in
+  [`summary()`](https://rdrr.io/r/base/summary.html) and
+  [`glance()`](https://generics.r-lib.org/reference/glance.html).
+  `zero = "hurdle"` makes the zero state own every zero (rather than
+  competing with the count state for them) and zero-truncates the count
+  state; verified to match
+  [`pscl::hurdle()`](https://rdrr.io/pkg/pscl/man/hurdle.html)'s
+  coefficients and log-likelihood to numerical precision when the
+  extreme-value state is unreachable.
 
 - boot_seed:
 

@@ -10,7 +10,7 @@ The extreme-value threshold \\C\_{EV}\\ is held fixed.
 ## Usage
 
 ``` r
-em_step(y, ext, par, control, fixed_zc = FALSE)
+em_step(y, ext, par, control, fixed_zc = FALSE, family = evinf_family())
 ```
 
 ## Arguments
@@ -38,6 +38,14 @@ em_step(y, ext, par, control, fixed_zc = FALSE)
 
   When `TRUE` (the EVINB case) the zero-inflation multinomial block is
   not updated and its line search is skipped.
+
+- family:
+
+  An [`evinf_family()`](evinf_family.md) object (round9 E.1); the
+  default reproduces today's NB/mixture model exactly. For
+  `count = "poisson"`, `Alpha.NB` never moves (the M-step's Newton
+  system is block-diagonal with an exactly-zero step in that coordinate)
+  – it is simply dropped from `par.all` downstream.
 
 ## Value
 

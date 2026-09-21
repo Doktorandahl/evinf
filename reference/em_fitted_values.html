@@ -17,7 +17,7 @@ driver; it is identical for the EVZINB and EVINB models."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,7 +54,14 @@ driver; it is identical for the EVZINB and EVINB models.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">em_fitted_values</span><span class="op">(</span><span class="va">x_obj</span>, <span class="va">par</span>, <span class="va">props</span>, <span class="va">c_ev</span>, model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"evzinb"</span>, <span class="st">"evinb"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">em_fitted_values</span><span class="op">(</span></span>
+<span>  <span class="va">x_obj</span>,</span>
+<span>  <span class="va">par</span>,</span>
+<span>  <span class="va">props</span>,</span>
+<span>  <span class="va">c_ev</span>,</span>
+<span>  model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"evzinb"</span>, <span class="st">"evinb"</span><span class="op">)</span>,</span>
+<span>  floor <span class="op">=</span> <span class="fl">0.01</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -84,6 +91,18 @@ offset) enters \(\mu_{NB}\).</p></dd>
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>Either <code>"evzinb"</code> or <code>"evinb"</code>; accepted for interface
 stability, but the computation is currently the same for both.</p></dd>
+
+
+<dt id="arg-floor">floor<a class="anchor" aria-label="anchor" href="#arg-floor"></a></dt>
+<dd><p>Floor for the Pareto shape used only when computing the
+derived tail summaries below (round9 0.1, review §2): <code>exp.E.log.y</code>
+and <code>median.pl.vec</code> involve <code>exp(1 / alpha.pl.vec)</code>, which is
+<code>Inf</code> (or absurdly large) once <code>alpha.pl.vec</code> collapses toward
+0. The returned <code>alpha.pl.vec</code> itself is left unclamped, so callers
+(e.g. <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>'s <code>min_alpha_pl</code>) still see the true fitted
+shape. This runs on every EM fit, including every bootstrap replicate, so
+it clamps silently (<code>warn = FALSE</code>); the collapse is still visible
+via <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>/<code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> without warning on every fit.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -33,7 +33,8 @@ evinf_control(
   init.C = NULL,
   alpha_floor = 0.001,
   coef_limit = 50,
-  max.c.iter = 50
+  max.c.iter = 50,
+  alpha_pl_floor = 0.01
 )
 ```
 
@@ -133,7 +134,29 @@ evinf_control(
   `converge` is set to `FALSE` (see `$c_converged` to tell this apart
   from the EM inner loop not converging) and, for a full-sample fit, a
   [`warning()`](https://rdrr.io/r/base/warning.html) names the last two
-  \\C\_{EV}\\ values visited.
+  \\C\_{EV}\\ values visited. The warm-up phase is capped independently
+  and recorded in `$c_warmup_capped` (with its own
+  [`warning()`](https://rdrr.io/r/base/warning.html) for a full-sample
+  fit); it does not affect `converge`, since warm-up is a short
+  exploratory phase and not settling there is not by itself a sign the
+  fit failed.
+
+- alpha_pl_floor:
+
+  Floor for the fitted Pareto shape \\\alpha\_{PL}\\ (round9 0.1). Some
+  observations' fitted \\\alpha\_{PL}\\ can collapse toward 0 (heaviest
+  possible tail); several downstream quantities involve
+  \\\exp(1/\alpha\_{PL})\\ or \\1/\alpha\_{PL}\\ and silently return
+  `Inf` or an astronomically large finite number when that happens
+  (`predict(type = "harmonic")`, `predict(type = "explog")`, the
+  continuous-Pareto mixture quantile, and the `$fitted` tail summaries).
+  Any fitted \\\alpha\_{PL}\\ below `alpha_pl_floor` is clamped to it
+  before these calculations, with a
+  [`warning()`](https://rdrr.io/r/base/warning.html) naming how many
+  observations were clamped; the unclamped values are still what
+  [`glance()`](https://generics.r-lib.org/reference/glance.html)'s
+  `min_alpha_pl` and [`print()`](https://rdrr.io/r/base/print.html)'s
+  note report, so a collapsed EV shape stays visible.
 
 ## Value
 

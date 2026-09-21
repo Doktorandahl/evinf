@@ -17,7 +17,7 @@ threshold \(C_{EV}\) is held fixed."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,7 +54,7 @@ threshold \(C_{EV}\) is held fixed.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">em_step</span><span class="op">(</span><span class="va">y</span>, <span class="va">ext</span>, <span class="va">par</span>, <span class="va">control</span>, fixed_zc <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">em_step</span><span class="op">(</span><span class="va">y</span>, <span class="va">ext</span>, <span class="va">par</span>, <span class="va">control</span>, fixed_zc <span class="op">=</span> <span class="cn">FALSE</span>, family <span class="op">=</span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -83,6 +83,14 @@ threshold \(C_{EV}\) is held fixed.</p>
 <dt id="arg-fixed-zc">fixed_zc<a class="anchor" aria-label="anchor" href="#arg-fixed-zc"></a></dt>
 <dd><p>When <code>TRUE</code> (the EVINB case) the zero-inflation
 multinomial block is not updated and its line search is skipped.</p></dd>
+
+
+<dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
+<dd><p>An <code><a href="evinf_family.html">evinf_family()</a></code> object (round9 E.1); the
+default reproduces today's NB/mixture model exactly. For
+<code>count = "poisson"</code>, <code>Alpha.NB</code> never moves (the M-step's
+Newton system is block-diagonal with an exactly-zero step in that
+coordinate) – it is simply dropped from <code>par.all</code> downstream.</p></dd>
 
 </dl></div>
     <div class="section level2">
