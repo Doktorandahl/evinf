@@ -39,13 +39,6 @@ test_that("evzinb()/evinb() accept family = as a bare string, equivalent to evin
   expect_null(m_str$coef$Alpha.NB)
 })
 
-test_that("evzinb(family = hurdle) errors: E.2 is not yet implemented", {
-  expect_error(
-    fit_evzinb_fast(family = evinf_family(zero = "hurdle"), bootstrap = FALSE),
-    "not yet implemented"
-  )
-})
-
 test_that("evinb() rejects a hurdle zero process: it has no zero state to hurdle over", {
   expect_error(
     fit_evinb_fast(family = evinf_family(zero = "hurdle"), bootstrap = FALSE),
