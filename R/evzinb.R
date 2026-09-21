@@ -5,6 +5,15 @@
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
 #' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
+#' @param time Optional string naming a time-index column (round9 F); required
+#'   for \code{bootstrap_scheme \%in\% c("moving_block", "stationary")}.
+#' @param bootstrap_scheme One of \code{"iid"}, \code{"cluster"},
+#'   \code{"moving_block"}, \code{"stationary"} (round9 F), or \code{NULL} to
+#'   default to \code{"cluster"} when \code{block} is given, \code{"iid"}
+#'   otherwise.
+#' @param block_length Block length for \code{"moving_block"} /
+#'   \code{"stationary"} (round9 F); \code{NULL} uses \code{ceiling(T^(1/3))}
+#'   per unit.
 #' @param family An \code{\link{evinf_family}()} object (round9 E.0/E.1).
 #' @param verbose Should progress be printed for the first run of evzinb.
 #'
@@ -19,6 +28,9 @@ run_evzinb <- function(
   control = evinf_control(),
   block = NULL,
   weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
   family = evinf_family(),
   verbose = TRUE
 ) {
@@ -28,6 +40,11 @@ run_evzinb <- function(
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
+  if (!is.null(time) && !(is.character(time) && length(time) == 1L)) {
+    stop("`time` must be NULL or a single string naming a column of `data`.",
+         call. = FALSE)
+  }
+  bootstrap_scheme <- evinf_resolve_bootstrap_scheme(bootstrap_scheme, block, time)
   # round9 D.1 (audit §5.6): offset() is supported in the count, zero-inflation
   # and EVI-inflation components; not in the Pareto shape component (a
   # non-NB formula the user supplied with offset() there is an error). A
@@ -48,7 +65,8 @@ run_evzinb <- function(
     all.vars(formula_evi),
     all.vars(formula_pareto),
     block,
-    weights
+    weights,
+    time
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -186,6 +204,18 @@ run_evzinb <- function(
   object$data$data <- model_data
   object$block <- block
   object$block_vec <- if (!is.null(block)) model_data[[block]] else NULL
+  object$time <- time
+  object$time_vec <- if (!is.null(time)) model_data[[time]] else NULL
+  object$bootstrap_scheme <- bootstrap_scheme
+  # round9 F: resolve block_length = NULL to a concrete per-unit vector once,
+  # here, rather than once per bootstrap replicate -- evinf_resample_ids()'s
+  # default-block-length message would otherwise fire (and recompute
+  # identical values) on every one of potentially hundreds of replicates.
+  object$block_length <- if (bootstrap_scheme %in% c("moving_block", "stationary")) {
+    evinf_resolve_block_length(nrow(model_data), object$block_vec, block_length)
+  } else {
+    block_length
+  }
   object$data$y <- as.numeric(object$y)
   object$y <- NULL
   object$data$x.nb <- object$x.nb
@@ -304,6 +334,31 @@ run_evzinb <- function(
 #'   \code{block =} instead. The bootstrap resamples rows exactly as without
 #'   weights and carries each drawn row's weight along (the resampling
 #'   probabilities themselves are not reweighted).
+#' @param time Optional time index for panel/time-series bootstrap resampling
+#'   (round9 F), given as a bare column name (\code{time = t}) or a string
+#'   (\code{time = "t"}); required for \code{bootstrap_scheme \%in\%
+#'   c("moving_block", "stationary")}. Must be strictly increasing within
+#'   every \code{block} unit's rows as they already appear in the data --
+#'   this is never sorted for you; sort \code{data} by \code{(block, time)}
+#'   first if it isn't already.
+#' @param bootstrap_scheme One of \code{"iid"} (plain row resampling, the
+#'   default when \code{block} is not given), \code{"cluster"} (resample
+#'   whole \code{block} units, the default when \code{block} is given -- what
+#'   \code{block =} has always done), \code{"moving_block"} or
+#'   \code{"stationary"} (block-resample each unit's own time series; see
+#'   Kunsch 1989 / Politis and Romano 1994). The two block schemes need
+#'   \code{time}; \code{block} is optional for them (the whole data is
+#'   treated as one unit when omitted). With overlapping blocks the
+#'   out-of-bag set is smaller and more temporally correlated than under iid
+#'   resampling, so out-of-bag error (\code{\link{oob_evaluation}}) is
+#'   optimistic relative to genuine forecasting performance; each bootstrap
+#'   replicate's realised out-of-bag fraction is stored as
+#'   \code{$oob_fraction} next to \code{$boot_id}.
+#' @param block_length Block length for \code{bootstrap_scheme \%in\%
+#'   c("moving_block", "stationary")}; \code{NULL} (the default) uses
+#'   \code{ceiling(T^(1/3))} for each unit's own length \eqn{T} (a message
+#'   names the value(s) used, once, at the original fit -- not on every
+#'   bootstrap replicate).
 #' @param family An \code{\link{evinf_family}()} object, or a string as
 #'   shorthand for its \code{count} argument (round9 E.0/E.1/E.2), e.g.
 #'   \code{family = "poisson"}. The default reproduces today's
@@ -399,6 +454,9 @@ evzinb <- function(
   ncores = NULL,
   block = NULL,
   weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
   family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
@@ -410,6 +468,9 @@ evzinb <- function(
   verbose = FALSE
 ) {
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
+  # round9 F: `time` accepts a bare column name / string, same resolution as
+  # `block` (evinf_block_name() is generic despite its name).
+  time <- evinf_block_name(rlang::enquo(time), parent.frame(), data)
   # round9 D.2: weights = accepts a bare column name, a string naming a
   # column, or a numeric vector; a raw vector is injected into `data` under a
   # reserved name so it survives na.omit() exactly like every other model
@@ -444,6 +505,9 @@ evzinb <- function(
     control = ctrl,
     block = block,
     weights = weights_col,
+    time = time,
+    bootstrap_scheme = bootstrap_scheme,
+    block_length = block_length,
     family = family,
     verbose = verbose
   )
@@ -453,6 +517,7 @@ evzinb <- function(
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
+  time2 <- full_run$time_vec
 
   if (bootstrap) {
     # Always record the seed actually used (draw one when the user passed NULL)
@@ -478,8 +543,8 @@ evzinb <- function(
     boots <- evinf_with_plan(multicore, ncores, {
       evinf_pmap(
         seq_len(n_bootstraps),
-        function(i, spec, blk) try(bootrun_evzinb(spec, blk)),
-        spec = boot_spec, blk = block2,
+        function(i, spec, blk, tv) try(bootrun_evzinb(spec, blk, tv)),
+        spec = boot_spec, blk = block2, tv = time2,
         seed = boot_seed, label = "bootstrap", verbose = verbose
       )
     })
@@ -497,6 +562,8 @@ evzinb <- function(
 #'
 #' @param object The evzinb object to run the bootstrap on
 #' @param block Optional string specifying varible for block bootstrapping
+#' @param time_vec Optional time-index vector (round9 F), required for
+#'   \code{object$bootstrap_scheme \%in\% c("moving_block", "stationary")}.
 #' @param timing Should time be kept
 #'
 #' @return A bootstrapped evzinb object
@@ -505,22 +572,19 @@ evzinb <- function(
 bootrun_evzinb <- function(
   object,
   block = NULL,
+  time_vec = NULL,
   timing = TRUE
 ) {
   tim <- Sys.time()
-  if (is.null(block)) {
-    boot_id <- sample(
-      1:nrow(object$data$x.nb),
-      nrow(object$data$x.nb),
-      replace = T
-    )
-  } else {
-    uniques <- unique(block)
-    boot_block_id <- sample(uniques, length(uniques), replace = T)
-    boot_id <- boot_block_id %>%
-      purrr::map(~ which(block == .x)) %>%
-      purrr::reduce(c)
-  }
+  # round9 F: the single resample-index generator behind every
+  # bootstrap_scheme; "iid"/"cluster" reproduce the pre-F behaviour exactly.
+  boot_id <- evinf_resample_ids(
+    nrow(object$data$x.nb),
+    scheme = object$bootstrap_scheme %||% (if (is.null(block)) "iid" else "cluster"),
+    block_vec = block,
+    time_vec = time_vec,
+    block_length = object$block_length
+  )
   OBS.Y <- object$data$y[boot_id]
 
   OBS.X.obj <- list()
@@ -615,6 +679,12 @@ bootrun_evzinb <- function(
   evzinb_boot$data <- NULL
   evzinb_boot <- evinf_flag_degenerate(evzinb_boot, OBS.X.obj$X.PL, Control)
   evzinb_boot$boot_id <- boot_id
+  # round9 F: with overlapping blocks (moving_block/stationary) the not-drawn
+  # set is both smaller and more correlated than under iid resampling, so an
+  # OOB error computed from it is optimistic -- report the realised fraction
+  # alongside boot_id rather than leaving it implicit.
+  evzinb_boot$oob_fraction <- length(setdiff(seq_len(nrow(object$data$x.nb)), unique(boot_id))) /
+    nrow(object$data$x.nb)
   if (timing) {
     evzinb_boot$time <- difftime(Sys.time(), tim, units = 'secs')
   }

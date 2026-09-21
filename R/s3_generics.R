@@ -445,6 +445,11 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
     cl$control$init.C <- NULL
   }
   cl$block <- object$block
+  # round9 F: reuse the time column name and the resolved bootstrap scheme /
+  # block length, same as block.
+  cl$time <- object$time
+  cl$bootstrap_scheme <- object$bootstrap_scheme
+  cl$block_length <- object$block_length
   # round9 D.2: reuse the weights column name, same as block -- but only when
   # it names a real column of the data (a raw weights = <numeric vector> was
   # injected into the *original* data under a reserved name that does not
