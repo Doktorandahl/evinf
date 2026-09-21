@@ -62,6 +62,14 @@ evinf_print_fit <- function(x, kind, zi) {
   if (isTRUE(x$loglik_recomputed)) {
     cat('\n Note: log-likelihood / AIC / BIC recomputed from the returned parameters.')
   }
+  min_alpha_pl <- if (is.null(x$fitted$alpha.pl)) NA_real_ else min(x$fitted$alpha.pl)
+  alpha_pl_floor <- x$control$alpha_pl_floor %||% 0.01
+  if (isTRUE(is.finite(min_alpha_pl) && min_alpha_pl < alpha_pl_floor)) {
+    cat('\n Note: fitted Pareto shape (alpha_pl) has collapsed for at least one',
+        'observation (min = ', signif(min_alpha_pl, 3),
+        '); predictions involving it are floored at alpha_pl_floor = ',
+        alpha_pl_floor, '. See glance()$min_alpha_pl.', sep = '')
+  }
   cat('\n')
   invisible(x)
 }

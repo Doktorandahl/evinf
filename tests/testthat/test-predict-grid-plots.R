@@ -53,6 +53,13 @@ test_that("predict_grid() rejects an unknown variable", {
 test_that("evinf_scale_log1p() picks transform= or trans= by ggplot2 version (round8 0.1)", {
   skip_if_not_installed("ggplot2")
 
+  # round9 0.2 (review §1, failure 2): forcing the modern (transform =)
+  # branch via ggplot2_version still hands transform = to whatever ggplot2 is
+  # actually installed -- that argument doesn't exist there until 3.5.0, so
+  # this expectation needs a real ggplot2 >= 3.5.0, not just the un-versioned
+  # skip above. evinf_scale_log1p() itself is unchanged; only this test's
+  # environment assumption was wrong.
+  skip_if_not_installed("ggplot2", "3.5.0")
   new <- evinf:::evinf_scale_log1p("x", ggplot2_version = package_version("3.5.0"))
   expect_s3_class(new, "ScaleContinuousPosition")
   expect_identical(new$trans$name, "log1p")

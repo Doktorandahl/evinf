@@ -140,14 +140,24 @@ arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_
     // (the 2/alpha^3 and 1/alpha^4 factors are the chain rule through
     // r = 1/alpha, dr/dalpha = -1/alpha^2, applied twice). Verified
     // numerically against the loop, but this closed form cancels
-    // catastrophically for a small y *and* a small alpha (large r) -- e.g.
-    // y=5, alpha=1e-3 loses ~9 significant digits, failing the 1e-10 target
-    // -- because the true value is then a small difference of O(1/alpha^4)
-    // terms. The loop is trivially cheap at small y regardless of alpha, so
-    // just keep it exact there; only y > 30 (where the closed form is
-    // accurate to beyond 1e-10 even at alpha = 1e-3) uses the closed form.
-    // This still removes the loop for the large-y regime that motivated it.
-    if (y_i <= 30) {
+    // catastrophically for a small alpha*y (not just a small y) -- e.g.
+    // y=5, alpha=1e-3 (alpha*y=5e-3) loses ~9 significant digits, and,
+    // originally missed, y=31, alpha=1e-6 (alpha*y=3.1e-5) is off by 18%
+    // even though y alone is well above the old y > 30 threshold -- because
+    // the true value is then a small difference of O(1/alpha^4) terms; the
+    // cancellation is governed by the product alpha*y, not y alone (round9
+    // 0.4, review §4). Switched the guard accordingly: a fresh verification
+    // grid down to alpha = 1e-6 (dev/round9 report) shows the closed form's
+    // relative error crossing below 1e-9 once alpha*y exceeds roughly 0.02;
+    // alpha*y > 0.1 keeps a wide margin (worst observed relative error
+    // ~1e-11 there, several orders of magnitude under the ~1e-9/1e-10 bar
+    // used elsewhere in this file) while still using the closed form for
+    // every case that matters for cost (a large y with an alpha not
+    // vanishingly small). A large y together with an extremely small alpha
+    // (alpha*y <= 0.1, e.g. the near-Poisson regime Part E.1 targets) still
+    // takes the O(y) loop -- accepted per the round9 brief rather than
+    // adding a series expansion, since the loop is only slow, not wrong.
+    if (alpha_nb * y_i <= 0.1) {
       for (int j = 0; j < y_i; j++) {
         d2elldalpha2_nb_i = d2elldalpha2_nb_i - (j/(1+alpha_nb*j))*(j/(1+alpha_nb*j));
       }
@@ -504,8 +514,12 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       double sum_inv = R::digamma(y(i) + r_nb) - R::digamma(r_nb);
       delldalpha_vec(i) = (log(oam_i) - sum_inv)/(alpha_nb_old*alpha_nb_old) + (y(i)-mu_i)/(alpha_nb_old*oam_i);
 
+      // round9 0.4 (review §4): the cancellation this closed form suffers
+      // from is governed by alpha*y, not y alone -- see the comment at the
+      // matching guard in d2elldtheta2_nb_i_fun() above for the
+      // verification grid and the alpha_nb_old * y(i) <= 0.1 cutoff.
       double loop_term = 0;
-      if (yi > 30) {
+      if (alpha_nb_old * y(i) > 0.1) {
         loop_term = y(i)/(alpha_nb_old*alpha_nb_old)
           - (2/(alpha_nb_old*alpha_nb_old*alpha_nb_old))*sum_inv
           + (1/(alpha_nb_old*alpha_nb_old*alpha_nb_old*alpha_nb_old))*(R::trigamma(r_nb) - R::trigamma(y(i)+r_nb));

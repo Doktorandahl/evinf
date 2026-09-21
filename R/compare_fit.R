@@ -65,7 +65,9 @@ compared_boot_fit_stats <- function(slot) {
 #'   \code{metric}, \code{median_difference}, \code{prop_evinf_better},
 #'   \code{n_pairs}. \code{median_difference} / \code{prop_evinf_better} are
 #'   \code{NA} for the \code{aic} / \code{bic} rows of a \code{*_razor} or
-#'   \code{*_winsor} slot (see Details); \code{n_pairs} is left as computed.
+#'   \code{*_winsor} slot (see Details); \code{n_pairs} is left as computed on
+#'   the returned object (\code{print()} blanks it for those rows instead,
+#'   since a pair count next to an \code{NA} metric reads like a bug).
 #' @export
 #'
 #' @examples
@@ -144,6 +146,14 @@ print.evinf_compare_fit <- function(x, ...) {
   df <- as.data.frame(x)
   df$median_difference <- signif(df$median_difference, 4)
   df$prop_evinf_better <- round(df$prop_evinf_better, 3)
+  # round9 0.6 (review §6): n_pairs is left numeric on the object itself
+  # (compare_fit()'s own docs promise it "as computed"), but showing a pair
+  # count next to an NA metric reads like a bug -- blank it for display only,
+  # on the same not-comparable rows the footnote below already explains.
+  not_comparable <- is.na(df$median_difference) & df$metric %in% c("aic", "bic")
+  n_pairs_display <- as.character(df$n_pairs)
+  n_pairs_display[not_comparable] <- ""
+  df$n_pairs <- n_pairs_display
   print(df, row.names = FALSE)
   # round8 0.5: flag the rows compare_fit() left NA because a razorised /
   # winsorised slot's AIC/BIC isn't comparable to the evinf model's.

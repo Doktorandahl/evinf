@@ -27,7 +27,8 @@ evinf_control(
   init.C = NULL,
   alpha_floor = 0.001,
   coef_limit = 50,
-  max.c.iter = 50
+  max.c.iter = 50,
+  alpha_pl_floor = 0.01
 )
 }
 \arguments{
@@ -98,6 +99,19 @@ independently and recorded in \code{$c_warmup_capped} (with its own
 \code{warning()} for a full-sample fit); it does not affect \code{converge},
 since warm-up is a short exploratory phase and not settling there is not by
 itself a sign the fit failed.}
+
+\item{alpha_pl_floor}{Floor for the fitted Pareto shape \eqn{\alpha_{PL}}
+(round9 0.1). Some observations' fitted \eqn{\alpha_{PL}} can collapse
+toward 0 (heaviest possible tail); several downstream quantities involve
+\eqn{\exp(1/\alpha_{PL})} or \eqn{1/\alpha_{PL}} and silently return
+\code{Inf} or an astronomically large finite number when that happens
+(\code{predict(type = "harmonic")}, \code{predict(type = "explog")}, the
+continuous-Pareto mixture quantile, and the \code{$fitted} tail
+summaries). Any fitted \eqn{\alpha_{PL}} below \code{alpha_pl_floor} is
+clamped to it before these calculations, with a \code{warning()} naming
+how many observations were clamped; the unclamped values are still what
+\code{glance()}'s \code{min_alpha_pl} and \code{print()}'s note report, so
+a collapsed EV shape stays visible.}
 }
 \value{
 A list of class \code{"evinf_control"}.

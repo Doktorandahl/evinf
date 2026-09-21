@@ -1,5 +1,15 @@
-harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
-  pr_count * count + pr_pareto * C * (1 + pareto_alpha) / pareto_alpha
+harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
+                          floor = 0.01) {
+  pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
+                                       context = "harmonic prediction")
+  # round9 0.1 follow-up: (1 + alpha) / alpha is algebraically identical to
+  # 1/alpha + 1, but the former is Inf/Inf = NaN once a fitted Pareto shape
+  # overflows exp() (an extreme Beta.PL coefficient on a sparse factor level
+  # can push the linear predictor past ~709.78, e.g. genevzinb2_factor()'s
+  # y ~ x1 + g fit). 1/alpha + 1 is exact for finite alpha and gives the
+  # mathematically correct limit (1) as alpha -> Inf, so no floor/ceiling on
+  # alpha is needed for this specific failure mode.
+  pr_count * count + pr_pareto * C * (1 / pareto_alpha + 1)
 }
 
 # audit R0.5 / 2.7: state-probability columns with the canonical names
@@ -23,7 +33,10 @@ canonical_prbs <- function(prbs) {
   }
 }
 
-explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
+explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
+                        floor = 0.01) {
+  pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
+                                       context = "explog prediction")
   pr_count * count + C * pr_pareto * exp(1 / pareto_alpha)
 }
 
@@ -59,10 +72,12 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
             error = function(e) NULL) else NULL,
           harmonic = tibble::tibble(harmonic = harmonic_calc(
             prbs$pr_count, cnts$count, pr_pareto = prbs$pr_pareto,
-            C = C, pareto_alpha = alphs$pareto_alpha), id = nd_id),
+            C = C, pareto_alpha = alphs$pareto_alpha,
+            floor = b$control$alpha_pl_floor %||% 0.01), id = nd_id),
           explog = tibble::tibble(explog = explog_calc(
             prbs$pr_count, cnts$count, pr_pareto = prbs$pr_pareto,
-            C = C, pareto_alpha = alphs$pareto_alpha), id = nd_id)
+            C = C, pareto_alpha = alphs$pareto_alpha,
+            floor = b$control$alpha_pl_floor %||% 0.01), id = nd_id)
         )
       },
       newdata = newdata, quantile = quantile, want_q = want_q, evzinb = evzinb,
@@ -201,7 +216,8 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
       count = cnts$count,
       pr_pareto = prbs$pr_pareto,
       C = C_est,
-      pareto_alpha = alphs$pareto_alpha
+      pareto_alpha = alphs$pareto_alpha,
+      floor = object$control$alpha_pl_floor %||% 0.01
     )
 
     explog <- explog_calc(
@@ -209,7 +225,8 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
       count = cnts$count,
       pr_pareto = prbs$pr_pareto,
       C = C_est,
-      pareto_alpha = alphs$pareto_alpha
+      pareto_alpha = alphs$pareto_alpha,
+      floor = object$control$alpha_pl_floor %||% 0.01
     )
   } else if (pred == 'bootstrap_median') {
     prbs <- prbs_boot %>%

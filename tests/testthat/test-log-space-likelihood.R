@@ -114,9 +114,11 @@ test_that("a large-count model fits without -Inf (audit0.10 §1.11)", {
 test_that("the closed-form and looped NB score/Hessian (alpha component) agree (round8 A.2)", {
   # audit §5.4 / round8 A.2: delldtheta_nb_i_fun()'s and
   # d2elldtheta2_nb_i_fun()'s O(y) loops for the dispersion derivatives are
-  # replaced by digamma/trigamma closed forms (for y > 30 in the Hessian --
-  # see src/evinf.cpp for why the closed form cancels catastrophically below
-  # that, at a small alpha). Grid matches the prompt: y in
+  # replaced by digamma/trigamma closed forms (the Hessian's guard is
+  # exercised separately below, since a plain R loop like old_grad_term() /
+  # old_hess_term() is not itself a fully precise reference once alpha gets
+  # as small as 1e-6 -- see round8 0.9's identical lesson about plain
+  # summation drift). Grid matches the prompt: y in
   # {0, 1, 5, 100, 1e4, 1e5} x alpha in {1e-3, 0.01, 0.5, 1, 5, 50}.
   old_grad_term <- function(y, alpha) if (y == 0) 0 else sum(1 / (seq(0, y - 1) + 1 / alpha))
   old_hess_term <- function(y, alpha) {
@@ -147,5 +149,37 @@ test_that("the closed-form and looped NB score/Hessian (alpha component) agree (
       expect_equal(g[length(g)], expected_g, tolerance = 1e-9, info = info)
       expect_equal(h[n + 1, n + 1], expected_h, tolerance = 1e-9, info = info)
     }
+  }
+})
+
+test_that("the Hessian's alpha*y guard is accurate down to alpha = 1e-6 (round9 0.4, review §4)", {
+  # The cancellation d2elldtheta2_nb_i_fun()'s closed form suffers from is
+  # governed by alpha*y, not y alone: the old y > 30 guard let y=31,
+  # alpha=1e-6 (alpha*y=3.1e-5) through, 18% off a direct loop reference.
+  # Guard now switches on alpha_nb * y_i > 0.1 (see src/evinf.cpp for the
+  # verification grid behind that cutoff). Checked here against a direct
+  # loop reference (old_hess_term(), exact by construction -- no digamma/
+  # trigamma involved) down to alpha = 1e-6, which the round8 A.2 grid
+  # (alpha >= 1e-3) never reached.
+  old_hess_term <- function(y, alpha) {
+    if (y == 0) return(0)
+    sum((seq(0, y - 1) / (1 + alpha * seq(0, y - 1)))^2)
+  }
+  x <- c(1, 0.3, -0.2); beta <- c(0.1, -0.2, 0.05)
+  mu <- exp(sum(x * beta))
+  n <- length(x)
+
+  cases <- expand.grid(
+    y = c(1, 5, 20, 31, 50, 75, 100, 150, 1000),
+    alpha = c(1e-6, 1e-5, 1e-4, 1e-3)
+  )
+  for (k in seq_len(nrow(cases))) {
+    y <- cases$y[k]; alpha <- cases$alpha[k]
+    h <- evinf:::d2elldtheta2_nb_i_fun(beta, alpha, x, y)
+    expected_h <- -old_hess_term(y, alpha) -
+      2 / alpha^3 * log(1 + alpha * mu) + (2 / alpha^2) * mu / (1 + alpha * mu) +
+      (y + 1 / alpha) * mu^2 / (1 + alpha * mu)^2
+    expect_equal(h[n + 1, n + 1], expected_h, tolerance = 1e-6,
+                 info = sprintf("y=%s alpha=%s (alpha*y=%s)", y, alpha, alpha * y))
   }
 })
