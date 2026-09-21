@@ -42,6 +42,14 @@ compared_boot_fit_stats <- function(slot) {
 #' in which the evinf model is better, and the number of bootstrap pairs where
 #' both fits succeeded.
 #'
+#' The \code{aic} / \code{bic} rows are \code{NA} for a \code{*_razor} or
+#' \code{*_winsor} slot (round8 0.5): a razorised fit is estimated on fewer
+#' observations than the evinf model, and a winsorised fit is estimated on a
+#' different outcome, so their AIC/BIC are not on the same scale as the evinf
+#' model's and a difference between them is not meaningful. The RMSE / RMSLE
+#' rows for those slots remain comparable, because out-of-bag error is always
+#' computed against the raw (un-winsorised, un-razorised) outcome.
+#'
 #' @param comp An \code{evzinbcomp} object from \code{\link{compare_models}()}.
 #' @param metrics Which metrics: any of \code{"aic"}, \code{"bic"}, \code{"rmse"},
 #'   \code{"rmsle"}. RMSE / RMSLE come from the out-of-bag predictions and need
@@ -55,7 +63,11 @@ compared_boot_fit_stats <- function(slot) {
 #'
 #' @return A tibble of class \code{evinf_compare_fit} with columns \code{model},
 #'   \code{metric}, \code{median_difference}, \code{prop_evinf_better},
-#'   \code{n_pairs}.
+#'   \code{n_pairs}. \code{median_difference} / \code{prop_evinf_better} are
+#'   \code{NA} for the \code{aic} / \code{bic} rows of a \code{*_razor} or
+#'   \code{*_winsor} slot (see Details); \code{n_pairs} is left as computed on
+#'   the returned object (\code{print()} blanks it for those rows instead,
+#'   since a pair count next to an \code{NA} metric reads like a bug).
 #' @export
 #'
 #' @examples
@@ -91,6 +103,11 @@ compare_fit <- function(comp, metrics = c("aic", "bic", "rmse", "rmsle"),
   rows <- list()
   for (slot in model_slots) {
     cmp_stats <- compared_boot_fit_stats(comp[[slot]])
+    # round8 0.5 (review §6): a razorised fit is estimated on fewer
+    # observations and a winsorised fit on a different outcome, so their
+    # AIC/BIC are not comparable to the evinf model's even though OOB error
+    # now is (§1.5) -- see compare_fit()'s Details.
+    modified_data <- grepl("_razor$|_winsor$", slot)
     for (m in metrics) {
       key <- metric_key[[m]]
       # audit0.10 §1.6: evinf - compared (not compared - evinf), so a negative
@@ -100,10 +117,19 @@ compare_fit <- function(comp, metrics = c("aic", "bic", "rmse", "rmsle"),
         if (is.null(a) || is.null(b)) NA_real_ else unname(a[key] - b[key])
       }, numeric(1))
       diffs <- diffs[is.finite(diffs)]
+      not_comparable <- modified_data && m %in% c("aic", "bic")
       rows[[length(rows) + 1L]] <- tibble::tibble(
         model = slot, metric = m,
-        median_difference = if (length(diffs)) stats::median(diffs) else NA_real_,
-        prop_evinf_better = if (length(diffs)) mean(diffs < 0) else NA_real_,
+        median_difference = if (not_comparable || !length(diffs)) {
+          NA_real_
+        } else {
+          stats::median(diffs)
+        },
+        prop_evinf_better = if (not_comparable || !length(diffs)) {
+          NA_real_
+        } else {
+          mean(diffs < 0)
+        },
         n_pairs = length(diffs)
       )
     }
@@ -120,7 +146,22 @@ print.evinf_compare_fit <- function(x, ...) {
   df <- as.data.frame(x)
   df$median_difference <- signif(df$median_difference, 4)
   df$prop_evinf_better <- round(df$prop_evinf_better, 3)
+  # round9 0.6 (review §6): n_pairs is left numeric on the object itself
+  # (compare_fit()'s own docs promise it "as computed"), but showing a pair
+  # count next to an NA metric reads like a bug -- blank it for display only,
+  # on the same not-comparable rows the footnote below already explains.
+  not_comparable <- is.na(df$median_difference) & df$metric %in% c("aic", "bic")
+  n_pairs_display <- as.character(df$n_pairs)
+  n_pairs_display[not_comparable] <- ""
+  df$n_pairs <- n_pairs_display
   print(df, row.names = FALSE)
+  # round8 0.5: flag the rows compare_fit() left NA because a razorised /
+  # winsorised slot's AIC/BIC isn't comparable to the evinf model's.
+  if (any(grepl("_razor$|_winsor$", df$model) & df$metric %in% c("aic", "bic"))) {
+    cat("\nNote: AIC/BIC are NA for *_razor (fewer observations) and\n",
+        "*_winsor (different outcome) slots -- not comparable to the\n",
+        "evinf model; see ?compare_fit.\n", sep = "")
+  }
   invisible(x)
 }
 

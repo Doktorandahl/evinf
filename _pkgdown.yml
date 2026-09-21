@@ -9,6 +9,7 @@ reference:
   - evzinb
   - evinb
   - evinf_control
+  - evinf_family
   - add_bootstraps
   - failed_bootstraps
 
@@ -88,9 +89,15 @@ reference:
   - marginaleffects-methods
   - predict.nbboot
   - predict.zinbboot
+  - predict.poissonboot
+  - predict.zipboot
   - tidy.nbboot
   - tidy.zinbboot
+  - tidy.poissonboot
+  - tidy.zipboot
   - glance.zinbboot
+  - glance.zipboot
+  - evinf_resample_ids
   - print.evzinbcomp
   - print.summary.evzinb
   - glance.evinb

@@ -4,7 +4,14 @@
 \alias{em_fit_fixed_c}
 \title{EM iterations for the EVZINB / EVINB mixture at a fixed \eqn{C_{EV}}}
 \usage{
-em_fit_fixed_c(y, x_obj, ini.val, control, fixed_zc = FALSE)
+em_fit_fixed_c(
+  y,
+  x_obj,
+  ini.val,
+  control,
+  fixed_zc = FALSE,
+  family = evinf_family()
+)
 }
 \arguments{
 \item{y}{Numeric response vector.}
@@ -20,6 +27,8 @@ em_fit_fixed_c(y, x_obj, ini.val, control, fixed_zc = FALSE)
 
 \item{fixed_zc}{When \code{TRUE} (EVINB) the zero-inflation multinomial block
 is held at \code{ini.val$Beta.multinom.ZC}.}
+
+\item{family}{An \code{\link{evinf_family}()} object (round9 E.1).}
 }
 \value{
 A list with

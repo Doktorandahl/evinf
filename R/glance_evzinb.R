@@ -4,11 +4,18 @@
 #' @param ... Further arguments to be passed to glance()
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
-#'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+#'   and parameters, family (round9 E.0, e.g. "nbinom/mixture" or "poisson/mixture"),
+#'   alpha_NB (NA when the family has none, round9 E.1), C_EV, AIC, BIC,
+#'   log-likelihood, whether the EM
 #'   algorithm converged (\code{converged}) and whether the C_EV profile settled
 #'   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
 #'   before this field existed), the number of EM steps, the number of
-#'   observations at or above C_EV, and, for a bootstrapped model, the bootstrap
+#'   observations at or above C_EV, the smallest fitted Pareto shape
+#'   (\code{min_alpha_pl}; see \code{alpha_pl_floor} in
+#'   \code{\link{evinf_control}}), \code{sum_weights} (round9 D.2: the sum of
+#'   \code{weights =}, equal to \code{nobs} for an unweighted fit -- this,
+#'   not \code{nobs}, is what \code{aic}/\code{bic} and the model's degrees of
+#'   freedom are computed from), and, for a bootstrapped model, the bootstrap
 #'   replicate counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
 #'   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
 #'   partition the number of replicates requested (see \code{\link{evinf_control}}
@@ -29,8 +36,10 @@ glance.evzinb <- function(x, ...) {
 
   tibble::tibble(
     nobs = nrow(x$data$x.nb),
+    sum_weights = evinf_nobs(x),
     npar = length(x$par.all),
-    alpha = x$coef$Alpha.NB,
+    family = paste0(x$family$count %||% "nbinom", "/", x$family$zero %||% "mixture"),
+    alpha = x$coef$Alpha.NB %||% NA_real_,
     parameter = x$coef$C,
     aic = x$AIC,
     bic = x$BIC,
@@ -39,6 +48,7 @@ glance.evzinb <- function(x, ...) {
     c_converged = if (is.null(x$c_converged)) NA else isTRUE(x$c_converged),
     n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
+    min_alpha_pl = if (is.null(x$fitted$alpha.pl)) NA_real_ else min(x$fitted$alpha.pl),
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps,
     n_degenerate_bootstraps = boot$n_degenerate_bootstraps,
@@ -52,11 +62,18 @@ glance.evzinb <- function(x, ...) {
 #' @param ... Further arguments to be passed to glance()
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
-#'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+#'   and parameters, family (round9 E.0, e.g. "nbinom/mixture" or "poisson/mixture"),
+#'   alpha_NB (NA when the family has none, round9 E.1), C_EV, AIC, BIC,
+#'   log-likelihood, whether the EM
 #'   algorithm converged (\code{converged}) and whether the C_EV profile settled
 #'   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
 #'   before this field existed), the number of EM steps, the number of
-#'   observations at or above C_EV, and, for a bootstrapped model, the bootstrap
+#'   observations at or above C_EV, the smallest fitted Pareto shape
+#'   (\code{min_alpha_pl}; see \code{alpha_pl_floor} in
+#'   \code{\link{evinf_control}}), \code{sum_weights} (round9 D.2: the sum of
+#'   \code{weights =}, equal to \code{nobs} for an unweighted fit -- this,
+#'   not \code{nobs}, is what \code{aic}/\code{bic} and the model's degrees of
+#'   freedom are computed from), and, for a bootstrapped model, the bootstrap
 #'   replicate counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
 #'   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
 #'   partition the number of replicates requested (see \code{\link{evinf_control}}
@@ -77,8 +94,10 @@ glance.evinb <- function(x, ...) {
 
   tibble::tibble(
     nobs = nrow(x$data$x.nb),
+    sum_weights = evinf_nobs(x),
     npar = length(x$par.all),
-    alpha = x$coef$Alpha.NB,
+    family = paste0(x$family$count %||% "nbinom", "/", x$family$zero %||% "mixture"),
+    alpha = x$coef$Alpha.NB %||% NA_real_,
     parameter = x$coef$C,
     aic = x$AIC,
     bic = x$BIC,
@@ -87,6 +106,7 @@ glance.evinb <- function(x, ...) {
     c_converged = if (is.null(x$c_converged)) NA else isTRUE(x$c_converged),
     n_above_c = if (is.null(x$n_above_c)) sum(x$data$y >= x$coef$C) else x$n_above_c,
     n_em_steps = if (is.null(x$n_em_steps)) NA_integer_ else x$n_em_steps,
+    min_alpha_pl = if (is.null(x$fitted$alpha.pl)) NA_real_ else min(x$fitted$alpha.pl),
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps,
     n_degenerate_bootstraps = boot$n_degenerate_bootstraps,

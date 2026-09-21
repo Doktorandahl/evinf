@@ -28,7 +28,14 @@ so positions still line up with the compared models' replicates; see the
 \value{
 For a single model, a vector of length \code{n_bootstraps}. For an
   \code{evzinbcomp} object, a tibble with one column per compared model
-  (\code{evinf}, \code{nb}, \code{zinb}, ...) and one row per bootstrap.
+  (\code{evinf}, \code{nb}, \code{zinb}, ...) and one row per bootstrap. A
+  replicate that is \code{NA} in any column (a degenerate evinf replicate,
+  or a compared model's fit that errored) is \code{NA} in \emph{every}
+  column, so a column-wise \code{na.rm = TRUE} summary (e.g.
+  \code{summarize(oob, across(everything(), median, na.rm = TRUE))})
+  compares the same set of replicates across models rather than silently
+  different ones; the row mask itself is available as
+  \code{attr(out, "excluded")} (round8 0.4, review §5).
 }
 \description{
 Out of bag predictive performance of EVZINB and EVINB models

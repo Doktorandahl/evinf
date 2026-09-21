@@ -4,6 +4,17 @@
 #' @param data Data to run the model on.
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
+#' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
+#' @param time Optional string naming a time-index column (round9 F); required
+#'   for \code{bootstrap_scheme \%in\% c("moving_block", "stationary")}.
+#' @param bootstrap_scheme One of \code{"iid"}, \code{"cluster"},
+#'   \code{"moving_block"}, \code{"stationary"} (round9 F), or \code{NULL} to
+#'   default to \code{"cluster"} when \code{block} is given, \code{"iid"}
+#'   otherwise.
+#' @param block_length Block length for \code{"moving_block"} /
+#'   \code{"stationary"} (round9 F); \code{NULL} uses \code{ceiling(T^(1/3))}
+#'   per unit.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.0/E.1).
 #' @param verbose Should progress be printed for the first run of evzinb.
 #'
 #' @return An object of class 'evzinb'
@@ -16,18 +27,33 @@ run_evzinb <- function(
   data,
   control = evinf_control(),
   block = NULL,
+  weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
+  family = evinf_family(),
   verbose = TRUE
 ) {
   control <- validate_evinf_control(control)
+  family <- evinf_resolve_family(family)
   if (!is.null(block) && !(is.character(block) && length(block) == 1L)) {
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # audit 4.4: offsets are only supported in the count component. A non-NB
-  # formula the user supplied with offset() is an error; one that merely
-  # inherited formula_nb's offset by default has it stripped.
+  if (!is.null(time) && !(is.character(time) && length(time) == 1L)) {
+    stop("`time` must be NULL or a single string naming a column of `data`.",
+         call. = FALSE)
+  }
+  bootstrap_scheme <- evinf_resolve_bootstrap_scheme(bootstrap_scheme, block, time)
+  # round9 D.1 (audit §5.6): offset() is supported in the count, zero-inflation
+  # and EVI-inflation components; not in the Pareto shape component (a
+  # non-NB formula the user supplied with offset() there is an error). A
+  # component that merely inherited formula_nb's offset by defaulting to it
+  # has that offset stripped -- no inheritance, an offset applies only where
+  # it is written explicitly.
   formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
-  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto",
+                                            allow_offset = FALSE)
   formula_zi <- evinf_component_formula(formula_zi, formula_nb, "formula_zi")
 
   # Restrict to the union of variables used by any component (plus the block
@@ -38,7 +64,9 @@ run_evzinb <- function(
     all.vars(formula_zi),
     all.vars(formula_evi),
     all.vars(formula_pareto),
-    block
+    block,
+    weights,
+    time
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -49,6 +77,12 @@ run_evzinb <- function(
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
+  offset_zc <- d_zi$offset
+  offset_pl_mult <- d_evi$offset
+  # round9 D.2: sum(weights_vec) below is the effective sample size used for
+  # AIC/BIC/nobs() -- rep(1, n) here reproduces today's row count exactly.
+  weights_vec <- if (!is.null(weights)) model_data[[weights]] else rep(1, nrow(model_data))
+  evinf_check_weights(weights_vec, nrow(model_data))
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -64,6 +98,9 @@ run_evzinb <- function(
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
+  OBS.X.obj$offset.zc <- offset_zc
+  OBS.X.obj$offset.pl_mult <- offset_pl_mult
+  OBS.X.obj$weights <- weights_vec
 
   init.Beta.multinom.ZC <- control$init.Beta.multinom.ZC
   init.Beta.multinom.PL <- control$init.Beta.multinom.PL
@@ -105,10 +142,12 @@ run_evzinb <- function(
   Ini.Val$C <- control$init.C
 
   if (verbose) {
-    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
+    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
+                     family = family)
   } else {
     capture.output(
-      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb")
+      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
+                       family = family)
     )
   }
   if (verbose && isTRUE(object$loglik_recomputed)) {
@@ -127,6 +166,13 @@ run_evzinb <- function(
   names(object$par.mat$Beta.multinom.ZC) <- c('(Intercept)', colnames(d_zi$X))
   names(object$par.mat$Beta.multinom.PL) <- c('(Intercept)', colnames(d_evi$X))
   names(object$par.mat$Beta.PL) <- c('(Intercept)', colnames(d_pareto$X))
+
+  # round9 E.1: Alpha.NB is not a parameter of a Poisson count state -- drop
+  # it (absent, not NA) so coef()/vcov()/confint()/tidy()/glance() all show
+  # it as absent (evinf_flatten_coef(), glance.evzinb()).
+  if (family$count == "poisson") {
+    object$par.mat$Alpha.NB <- NULL
+  }
 
   object$formulas <- list(
     formula_nb = formula_nb,
@@ -150,11 +196,26 @@ run_evzinb <- function(
   object$c_lim_default <- isTRUE(control$c_lim_default)
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
+  object$offset_zc <- offset_zc
+  object$offset_pl_mult <- offset_pl_mult
+  object$weights <- weights_vec
   object$data <- list()
 
   object$data$data <- model_data
   object$block <- block
   object$block_vec <- if (!is.null(block)) model_data[[block]] else NULL
+  object$time <- time
+  object$time_vec <- if (!is.null(time)) model_data[[time]] else NULL
+  object$bootstrap_scheme <- bootstrap_scheme
+  # round9 F: resolve block_length = NULL to a concrete per-unit vector once,
+  # here, rather than once per bootstrap replicate -- evinf_resample_ids()'s
+  # default-block-length message would otherwise fire (and recompute
+  # identical values) on every one of potentially hundreds of replicates.
+  object$block_length <- if (bootstrap_scheme %in% c("moving_block", "stationary")) {
+    evinf_resolve_block_length(nrow(model_data), object$block_vec, block_length)
+  } else {
+    block_length
+  }
   object$data$y <- as.numeric(object$y)
   object$y <- NULL
   object$data$x.nb <- object$x.nb
@@ -218,10 +279,24 @@ run_evzinb <- function(
 
 #' Running an extreme value and zero inflated negative binomial model with bootstrapping
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model
-#' @param formula_zi Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
+#' @param formula_nb Formula for the negative binomial (count) component of the model.
+#'   May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).
+#' @param formula_zi Formula for the zero-inflation component of the model. If NULL
+#'   taken as the same formula as nb, with any \code{offset()} term stripped (an
+#'   offset applies only where it is written explicitly, never by inheritance).
+#'   May include its own \code{offset()} term: since the zero-inflation logit is
+#'   the log-odds of the zero state \emph{against} the count state, an offset there
+#'   shifts that log-odds, e.g. \code{offset(log(exposure))} makes a larger
+#'   exposure relatively less likely to land in the structural-zero state.
+#' @param formula_evi Formula for the extreme-value inflation component of the model.
+#'   If NULL taken as the same formula as nb, offset stripped as above. May include
+#'   its own \code{offset()} term (e.g. \code{offset(log(population))} for a
+#'   probability of an extreme event that scales with exposure), read the same way:
+#'   it shifts the EVI log-odds against the count state.
+#' @param formula_pareto Formula for the pareto (extreme value) component of the
+#'   model. If NULL taken as the same formula as nb, offset stripped as above.
+#'   \code{offset()} is \strong{not} supported here (errors if present): an offset
+#'   on a shape parameter has no clear reading.
 #' @param data data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
@@ -240,6 +315,62 @@ run_evzinb <- function(
 #'   no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 #'   and Vegelius (2024) cannot be reproduced from them directly (see
 #'   \code{?hks}).
+#' @param weights Optional observation weights (round9 D.2), given as a bare
+#'   column name (\code{weights = wt}), a string naming a column
+#'   (\code{weights = "wt"}), or a numeric vector. Must be positive and
+#'   finite; need not be integers (analytic weights are allowed, not just
+#'   frequency counts). \strong{Frequency-weight semantics}: every
+#'   observation's contribution to the log-likelihood and to the EM/M-step
+#'   accumulations is multiplied by its weight, and \code{nobs()} -- and
+#'   therefore \code{AIC}, \code{BIC} and the approximate t-based p-values --
+#'   use \code{sum(weights)}, not the row count (see \code{sum_weights} in
+#'   \code{\link{glance.evzinb}}). This interpretation of AIC/BIC assumes the
+#'   weights really are frequency weights (repeat-count equivalents); for
+#'   analytic weights the information-criterion values are still computed
+#'   this way but their usual interpretation is weaker. \strong{\code{weights}
+#'   does not give design-based standard errors for survey data} -- a
+#'   sampling weight changes the point estimate, not the variance under the
+#'   sampling design; for that, resample primary sampling units with
+#'   \code{block =} instead. The bootstrap resamples rows exactly as without
+#'   weights and carries each drawn row's weight along (the resampling
+#'   probabilities themselves are not reweighted).
+#' @param time Optional time index for panel/time-series bootstrap resampling
+#'   (round9 F), given as a bare column name (\code{time = t}) or a string
+#'   (\code{time = "t"}); required for \code{bootstrap_scheme \%in\%
+#'   c("moving_block", "stationary")}. Must be strictly increasing within
+#'   every \code{block} unit's rows as they already appear in the data --
+#'   this is never sorted for you; sort \code{data} by \code{(block, time)}
+#'   first if it isn't already.
+#' @param bootstrap_scheme One of \code{"iid"} (plain row resampling, the
+#'   default when \code{block} is not given), \code{"cluster"} (resample
+#'   whole \code{block} units, the default when \code{block} is given -- what
+#'   \code{block =} has always done), \code{"moving_block"} or
+#'   \code{"stationary"} (block-resample each unit's own time series; see
+#'   Kunsch 1989 / Politis and Romano 1994). The two block schemes need
+#'   \code{time}; \code{block} is optional for them (the whole data is
+#'   treated as one unit when omitted). With overlapping blocks the
+#'   out-of-bag set is smaller and more temporally correlated than under iid
+#'   resampling, so out-of-bag error (\code{\link{oob_evaluation}}) is
+#'   optimistic relative to genuine forecasting performance; each bootstrap
+#'   replicate's realised out-of-bag fraction is stored as
+#'   \code{$oob_fraction} next to \code{$boot_id}.
+#' @param block_length Block length for \code{bootstrap_scheme \%in\%
+#'   c("moving_block", "stationary")}; \code{NULL} (the default) uses
+#'   \code{ceiling(T^(1/3))} for each unit's own length \eqn{T} (a message
+#'   names the value(s) used, once, at the original fit -- not on every
+#'   bootstrap replicate).
+#' @param family An \code{\link{evinf_family}()} object, or a string as
+#'   shorthand for its \code{count} argument (round9 E.0/E.1/E.2), e.g.
+#'   \code{family = "poisson"}. The default reproduces today's
+#'   negative-binomial, mixture-zero model exactly. \code{count = "poisson"}
+#'   drops \code{Alpha.NB} entirely (not merely fixes it): it is absent from
+#'   \code{par.all}, \code{coef()}, \code{vcov()}, \code{confint()} and
+#'   \code{tidy()}, and shown as absent (not \code{NA}) in \code{summary()}
+#'   and \code{glance()}. \code{zero = "hurdle"} makes the zero state own
+#'   every zero (rather than competing with the count state for them) and
+#'   zero-truncates the count state; verified to match
+#'   \code{pscl::hurdle()}'s coefficients and log-likelihood to numerical
+#'   precision when the extreme-value state is unreachable.
 #' @param boot_seed Optional bootstrap seed for reproducibility. When supplied
 #'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
 #'   \code{object$boot_seeds} is always populated for a bootstrapped model
@@ -322,6 +453,11 @@ evzinb <- function(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
+  family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -332,6 +468,19 @@ evzinb <- function(
   verbose = FALSE
 ) {
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
+  # round9 F: `time` accepts a bare column name / string, same resolution as
+  # `block` (evinf_block_name() is generic despite its name).
+  time <- evinf_block_name(rlang::enquo(time), parent.frame(), data)
+  # round9 D.2: weights = accepts a bare column name, a string naming a
+  # column, or a numeric vector; a raw vector is injected into `data` under a
+  # reserved name so it survives na.omit() exactly like every other model
+  # variable (evinf_resolve_weights()).
+  weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
+  data <- weights_resolved$data
+  weights_col <- weights_resolved$weights_col
+  # round9 E.0: family = accepts an evinf_family() object or a plain string
+  # (shorthand for the count family).
+  family <- evinf_resolve_family(family)
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evzinb")
 
@@ -341,7 +490,7 @@ evzinb <- function(
   # formulas / control / block from the fitted object.
   stored_call <- as.call(c(quote(evinf::evzinb), list(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
-    ncores = ncores, boot_seed = boot_seed, verbose = verbose
+    ncores = ncores, boot_seed = boot_seed, family = family, verbose = verbose
   )))
   stored_call$data <- mc$data
 
@@ -355,13 +504,20 @@ evzinb <- function(
     data = data,
     control = ctrl,
     block = block,
+    weights = weights_col,
+    time = time,
+    bootstrap_scheme = bootstrap_scheme,
+    block_length = block_length,
+    family = family,
     verbose = verbose
   )
+  full_run$weights_col <- weights_col
   full_run$call <- stored_call
 
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
+  time2 <- full_run$time_vec
 
   if (bootstrap) {
     # Always record the seed actually used (draw one when the user passed NULL)
@@ -387,8 +543,8 @@ evzinb <- function(
     boots <- evinf_with_plan(multicore, ncores, {
       evinf_pmap(
         seq_len(n_bootstraps),
-        function(i, spec, blk) try(bootrun_evzinb(spec, blk)),
-        spec = boot_spec, blk = block2,
+        function(i, spec, blk, tv) try(bootrun_evzinb(spec, blk, tv)),
+        spec = boot_spec, blk = block2, tv = time2,
         seed = boot_seed, label = "bootstrap", verbose = verbose
       )
     })
@@ -406,6 +562,8 @@ evzinb <- function(
 #'
 #' @param object The evzinb object to run the bootstrap on
 #' @param block Optional string specifying varible for block bootstrapping
+#' @param time_vec Optional time-index vector (round9 F), required for
+#'   \code{object$bootstrap_scheme \%in\% c("moving_block", "stationary")}.
 #' @param timing Should time be kept
 #'
 #' @return A bootstrapped evzinb object
@@ -414,22 +572,19 @@ evzinb <- function(
 bootrun_evzinb <- function(
   object,
   block = NULL,
+  time_vec = NULL,
   timing = TRUE
 ) {
   tim <- Sys.time()
-  if (is.null(block)) {
-    boot_id <- sample(
-      1:nrow(object$data$x.nb),
-      nrow(object$data$x.nb),
-      replace = T
-    )
-  } else {
-    uniques <- unique(block)
-    boot_block_id <- sample(uniques, length(uniques), replace = T)
-    boot_id <- boot_block_id %>%
-      purrr::map(~ which(block == .x)) %>%
-      purrr::reduce(c)
-  }
+  # round9 F: the single resample-index generator behind every
+  # bootstrap_scheme; "iid"/"cluster" reproduce the pre-F behaviour exactly.
+  boot_id <- evinf_resample_ids(
+    nrow(object$data$x.nb),
+    scheme = object$bootstrap_scheme %||% (if (is.null(block)) "iid" else "cluster"),
+    block_vec = block,
+    time_vec = time_vec,
+    block_length = object$block_length
+  )
   OBS.Y <- object$data$y[boot_id]
 
   OBS.X.obj <- list()
@@ -439,6 +594,14 @@ bootrun_evzinb <- function(
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
     object$offset_nb[boot_id]
+  OBS.X.obj$offset.zc <- if (is.null(object$offset_zc)) rep(0, length(boot_id)) else
+    object$offset_zc[boot_id]
+  OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
+    object$offset_pl_mult[boot_id]
+  # round9 D.2: resample rows as above, carrying each row's weight along --
+  # do not reweight the resampling probabilities themselves.
+  OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
+    object$weights[boot_id]
   Control <- object$control
 
   Ini.Val <- list()
@@ -446,11 +609,15 @@ bootrun_evzinb <- function(
   Ini.Val$Beta.multinom.PL <- as.numeric(object$coef$Beta.multinom.PL)
   Ini.Val$Beta.NB <- as.numeric(object$coef$Beta.NB)
   Ini.Val$Beta.PL <- as.numeric(object$coef$Beta.PL)
-  Ini.Val$Alpha.NB <- object$coef$Alpha.NB
+  # round9 E.1: object$coef$Alpha.NB is NULL for a Poisson count state (it
+  # isn't a parameter); update_bfgs_fun() still needs *some* placeholder
+  # double there (it's simply never updated/used), so fall back to the
+  # control default.
+  Ini.Val$Alpha.NB <- object$coef$Alpha.NB %||% object$control$init.Alpha.NB %||% 0.01
   Ini.Val$C <- object$coef$C
   capture.output(
     evzinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evzinb",
-                          full_sample = FALSE)
+                          full_sample = FALSE, family = object$family %||% evinf_family())
   )
   evzinb_boot$par.mat$Beta.multinom.ZC <- as.numeric(
     evzinb_boot$par.mat$Beta.multinom.ZC
@@ -481,6 +648,11 @@ bootrun_evzinb <- function(
   evzinb_boot$props <- evzinb_boot$par.mat$Props
 
   evzinb_boot$par.mat$Props <- NULL
+  # round9 E.1: mirror run_evzinb()'s drop, so a bootstrap replicate's coef
+  # is absent Alpha.NB exactly like the full-sample fit's.
+  if (isTRUE(evzinb_boot$family$count == "poisson")) {
+    evzinb_boot$par.mat$Alpha.NB <- NULL
+  }
   evzinb_boot$coef <- evzinb_boot$par.mat
   evzinb_boot$par.mat <- NULL
   evzinb_boot$resp <- NULL
@@ -507,6 +679,12 @@ bootrun_evzinb <- function(
   evzinb_boot$data <- NULL
   evzinb_boot <- evinf_flag_degenerate(evzinb_boot, OBS.X.obj$X.PL, Control)
   evzinb_boot$boot_id <- boot_id
+  # round9 F: with overlapping blocks (moving_block/stationary) the not-drawn
+  # set is both smaller and more correlated than under iid resampling, so an
+  # OOB error computed from it is optimistic -- report the realised fraction
+  # alongside boot_id rather than leaving it implicit.
+  evzinb_boot$oob_fraction <- length(setdiff(seq_len(nrow(object$data$x.nb)), unique(boot_id))) /
+    nrow(object$data$x.nb)
   if (timing) {
     evzinb_boot$time <- difftime(Sys.time(), tim, units = 'secs')
   }

@@ -8,10 +8,33 @@
 # §1.12, D.4) -- the same distribution used by the likelihood, CDF, quantiles,
 # residuals and simulation -- rather than a second, independently maintained
 # copy of the same formula.
-evinf_responsibilities <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior) {
+#
+# round9 E.1: family$count selects the count-state density (dpois() for
+# "poisson", the alpha_nb -> 0 limit of the NB one); alpha_nb is unused (and
+# may be any placeholder) for a Poisson count state.
+# round9 E.2: family$zero == "hurdle" zero-truncates the count-state density
+# for y>0 (divide by 1-f0, f0 = P(Y=0) under the untruncated count
+# distribution) and forces y=0 rows to the zero state -- the count state
+# cannot produce a zero at all under a hurdle, mirroring the E-step override
+# in update_bfgs_fun() (src/evinf.cpp) exactly.
+evinf_responsibilities <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior,
+                                   family = evinf_family()) {
   d_zero <- as.numeric(y == 0)
-  d_count <- stats::dnbinom(y, mu = mu_nb, size = 1 / alpha_nb)
+  d_count <- if (family$count == "poisson") {
+    stats::dpois(y, lambda = mu_nb)
+  } else {
+    stats::dnbinom(y, mu = mu_nb, size = 1 / alpha_nb)
+  }
   d_evi <- dpareto_disc(y, C, pl_alpha)
+
+  if (identical(family$zero, "hurdle")) {
+    f0 <- if (family$count == "poisson") {
+      exp(-mu_nb)
+    } else {
+      (1 + alpha_nb * mu_nb)^(-1 / alpha_nb)
+    }
+    d_count <- ifelse(y == 0, 0, d_count / (1 - f0))
+  }
 
   num <- cbind(prior[, 1] * d_zero,
                prior[, 2] * d_count,
@@ -100,7 +123,8 @@ classify_states <- function(object, rule = c("map", "threshold"),
     cnt <- counts_from_evzinb(object, newdata = newdata)$count
     alph <- fitted_alpha_from_evzinb(object, newdata = newdata)$pareto_alpha
     posterior <- evinf_responsibilities(y, cnt, object$coef$Alpha.NB, alph,
-                                        object$coef$C, prior)
+                                        object$coef$C, prior,
+                                        family = object$family %||% evinf_family())
   } else {
     posterior <- matrix(NA_real_, nrow = nrow(prior), ncol = 3,
                         dimnames = list(NULL, c("zero", "count", "evi")))

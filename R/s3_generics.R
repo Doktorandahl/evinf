@@ -14,8 +14,10 @@ NULL
 .evinf_coef_slots <- c(count = "Beta.NB", zero = "Beta.multinom.ZC",
                        evi = "Beta.multinom.PL", pareto = "Beta.PL")
 
-# Flatten one $coef list into a named vector: <component>_<term>, then alpha_nb,
-# c_ev. `coefs` is object$coef (full model) or a bootstrap's $coef.
+# Flatten one $coef list into a named vector: <component>_<term>, then alpha_nb
+# (round9 E.1: omitted entirely, not NA, when the fit has no Alpha.NB -- a
+# Poisson count state), then c_ev. `coefs` is object$coef (full model) or a
+# bootstrap's $coef.
 evinf_flatten_coef <- function(coefs, components) {
   pieces <- lapply(components, function(cn) {
     v <- coefs[[.evinf_coef_slots[[cn]]]]
@@ -25,9 +27,12 @@ evinf_flatten_coef <- function(coefs, components) {
     stats::setNames(as.numeric(v), paste0(cn, "_", names(v)))
   })
   flat <- unlist(pieces, use.names = TRUE)
-  c(flat,
-    alpha_nb = as.numeric(coefs$Alpha.NB),
-    c_ev = as.numeric(coefs$C))
+  alpha_piece <- if (is.null(coefs$Alpha.NB)) {
+    NULL
+  } else {
+    stats::setNames(as.numeric(coefs$Alpha.NB), "alpha_nb")
+  }
+  c(flat, alpha_piece, c_ev = as.numeric(coefs$C))
 }
 
 # The canonical component list for an object (count/zero/evi/pareto, no zero for
@@ -57,7 +62,12 @@ evinf_boot_coef_matrix <- function(object, exclude_degenerate = TRUE) {
   m
 }
 
-evinf_nobs <- function(object) nrow(object$data$x.nb)
+# round9 D.2 (audit §5.6): sum(weights) -- the row count when weights = 1
+# (the default, including every fit from before D.2).
+evinf_nobs <- function(object) {
+  w <- object$weights
+  if (is.null(w)) nrow(object$data$x.nb) else sum(w)
+}
 
 
 # --- coef / vcov / confint -------------------------------------------------
@@ -292,9 +302,12 @@ residuals.evzinb <- function(object, type = c("response", "quantile"),
   }
   mu <- object$fitted$mu.nb
   alph <- object$fitted$alpha.pl
-  Fy <- mixture_p(y, alph, object$coef$C, mu, object$coef$Alpha.NB, probs)
+  fam <- object$family %||% evinf_family()
+  Fy <- mixture_p(y, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
+                  family_count = fam$count, family_zero = fam$zero)
   Fy1 <- ifelse(y <= 0, 0,
-                mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs))
+                mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
+                          family_count = fam$count, family_zero = fam$zero))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
   # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG
@@ -432,6 +445,20 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
     cl$control$init.C <- NULL
   }
   cl$block <- object$block
+  # round9 F: reuse the time column name and the resolved bootstrap scheme /
+  # block length, same as block.
+  cl$time <- object$time
+  cl$bootstrap_scheme <- object$bootstrap_scheme
+  cl$block_length <- object$block_length
+  # round9 D.2: reuse the weights column name, same as block -- but only when
+  # it names a real column of the data (a raw weights = <numeric vector> was
+  # injected into the *original* data under a reserved name that does not
+  # survive a fresh evaluation of `data`, so update() would error on that
+  # column rather than silently reuse stale weight values; the user must
+  # re-pass weights = explicitly in that case).
+  if (!is.null(object$weights_col) && !identical(object$weights_col, ".evinf_weights")) {
+    cl$weights <- object$weights_col
+  }
 
   chg <- function(component, change) {
     old <- object$formulas[[.evinf_formula_slot[[component]]]]

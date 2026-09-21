@@ -173,7 +173,7 @@ evinf_tidy_engine <- function(x, component, y_levels, coef_type, standard_error,
     approx_t_value <- FALSE
   }
 
-  nobs <- nrow(x$data$x.nb)
+  nobs <- evinf_nobs(x)  # round9 D.2: sum(weights), row count when unweighted
   npar <- length(x$par.all)
   err_df <- nobs - npar
 

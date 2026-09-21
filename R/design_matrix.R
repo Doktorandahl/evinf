@@ -74,11 +74,15 @@ evinf_design <- function(formula, data) {
   )
 }
 
-# Resolve a non-NB component formula (audit 4.4):
-#  * NULL           -> the NB formula, with any offset() term stripped;
-#  * has offset()    -> error (offsets are count-component only);
+# Resolve a non-NB component formula (audit 4.4; round9 D.1):
+#  * NULL           -> the NB formula, with any offset() term stripped (no
+#                      inheritance -- an offset applies only where written
+#                      explicitly);
+#  * has offset()    -> kept when allow_offset is TRUE (formula_zi/formula_evi);
+#                       an error when FALSE (formula_pareto: an offset on a
+#                       shape parameter has no clear reading);
 #  * one-sided       -> made two-sided with the NB response.
-evinf_component_formula <- function(f, nb_formula, arg_name) {
+evinf_component_formula <- function(f, nb_formula, arg_name, allow_offset = TRUE) {
   has_offset <- function(x) !is.null(attr(stats::terms(x), "offset"))
   strip_offset <- function(x) {
     tt <- stats::terms(x)
@@ -99,9 +103,10 @@ evinf_component_formula <- function(f, nb_formula, arg_name) {
     return(f)
   }
 
-  if (has_offset(f)) {
-    stop("offset() terms are only supported in the count component (not ",
-         arg_name, ").", call. = FALSE)
+  if (has_offset(f) && !allow_offset) {
+    stop("offset() terms are not supported in ", arg_name, ": an offset on ",
+         "a shape parameter has no clear reading. offset() is supported in ",
+         "formula_nb, formula_zi and formula_evi.", call. = FALSE)
   }
 
   if (length(f) == 2L) {

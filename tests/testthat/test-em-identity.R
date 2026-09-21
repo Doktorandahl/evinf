@@ -76,6 +76,24 @@ test_that("estimation is identical with a factor + in-formula transform", {
                    "em_baseline_evinb_factor.rds", 1e-8)
 })
 
+test_that("fixed-c.lim/init.C trajectory is identical for test-model-matrix.R's factor fit (round9 0.3, review §1)", {
+  # A.3 (round8) vectorised the per-observation M-step accumulation, which
+  # perturbs the Newton step at the ~1e-12 level and can therefore land a fit
+  # in a different local optimum -- test-model-matrix.R:30's `evzinb(y ~ x1 +
+  # g, ...)` (default, data-driven c.lim) moved from min(alpha_pl) = 1.91 to
+  # 0.973 on some platforms, which was enough for a downstream prediction to
+  # overflow before the 0.1 guard. Pinning c.lim/init.C (as every other
+  # baseline in this file already does) makes the *trajectory* itself the
+  # thing under test, so a future accumulation-order change shows up here as
+  # a coefficient/log-lik difference rather than as an unrelated is.finite()
+  # failure several layers downstream.
+  f6 <- y ~ x1 + g
+  expect_fit_equal(capture_fit_id(fit_z_id(f6, gf_id, bootstrap = FALSE)),
+                   "em_baseline_evzinb_factor_fixed.rds", 1e-8)
+  expect_fit_equal(capture_fit_id(fit_i_id(f6, gf_id, bootstrap = FALSE)),
+                   "em_baseline_evinb_factor_fixed.rds", 1e-8)
+})
+
 test_that("bootstrap coefficient matrices are identical (n = 3, seed 123)", {
   base <- readRDS(test_path("fixtures", "em_baseline_boot.rds"))
   mzb <- fit_z_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = TRUE,
@@ -90,6 +108,21 @@ test_that("bootstrap coefficient matrices are identical (n = 3, seed 123)", {
   expect_equal(as.data.frame(suppressWarnings(
                  coefficient_extractor(mib, "all", exclude_degenerate = FALSE))),
                as.data.frame(base$evinb), tolerance = 1e-8)
+})
+
+test_that("fitted$y.hat.pl_E.inv.y matches predict(type = 'harmonic') exactly (round8 0.3)", {
+  # review §4: em_fitted_values() used to run on the E-step's pre-recompute
+  # props ("props.old"), one step behind the props used for object$props /
+  # predict(). y.hat.pl_E.inv.y is the harmonic-mean weighting, so it must
+  # equal predict(type = "harmonic") once both are computed from the same,
+  # final-parameter props.
+  mz <- fit_z_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = FALSE)
+  expect_equal(mz$fitted$y.hat.pl_E.inv.y,
+               unname(predict(mz, type = "harmonic")))
+
+  mi <- fit_i_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = FALSE)
+  expect_equal(mi$fitted$y.hat.pl_E.inv.y,
+               unname(predict(mi, type = "harmonic")))
 })
 
 test_that("hks estimation is identical after the em_*.R refactor", {

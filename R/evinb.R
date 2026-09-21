@@ -4,6 +4,19 @@
 #' @param data Data to run the model on.
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
+#' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
+#' @param time Optional string naming a time-index column (round9 F); required
+#'   for \code{bootstrap_scheme \%in\% c("moving_block", "stationary")}.
+#' @param bootstrap_scheme One of \code{"iid"}, \code{"cluster"},
+#'   \code{"moving_block"}, \code{"stationary"} (round9 F), or \code{NULL} to
+#'   default to \code{"cluster"} when \code{block} is given, \code{"iid"}
+#'   otherwise.
+#' @param block_length Block length for \code{"moving_block"} /
+#'   \code{"stationary"} (round9 F); \code{NULL} uses \code{ceiling(T^(1/3))}
+#'   per unit.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.0/E.1).
+#'   \code{zero = "hurdle"} errors: \code{evinb()} has no zero state to
+#'   hurdle over.
 #' @param verbose Should progress be printed for the first run of evinb.
 #'
 #' @return An object of class 'evinb'
@@ -15,16 +28,34 @@ run_evinb <- function(
   data,
   control = evinf_control(),
   block = NULL,
+  weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
+  family = evinf_family(),
   verbose = FALSE
 ) {
   control <- validate_evinf_control(control)
+  family <- evinf_resolve_family(family)
   if (!is.null(block) && !(is.character(block) && length(block) == 1L)) {
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # audit 4.4: offsets are only supported in the count component.
+  if (!is.null(time) && !(is.character(time) && length(time) == 1L)) {
+    stop("`time` must be NULL or a single string naming a column of `data`.",
+         call. = FALSE)
+  }
+  bootstrap_scheme <- evinf_resolve_bootstrap_scheme(bootstrap_scheme, block, time)
+  if (family$zero == "hurdle") {
+    stop("evinb() has no zero state to hurdle over (family = ",
+         "evinf_family(zero = \"hurdle\") is evzinb()-only).", call. = FALSE)
+  }
+  # round9 D.1 (audit §5.6): offset() is supported in the count and
+  # EVI-inflation components; not in the Pareto shape component. evinb has no
+  # zero-inflation component at all.
   formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
-  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto",
+                                            allow_offset = FALSE)
 
   # Restrict to the union of variables used by any component (plus the block
   # variable, audit R0.1) and drop incomplete rows once, so the design matrices
@@ -33,7 +64,9 @@ run_evinb <- function(
     all.vars(formula_nb),
     all.vars(formula_evi),
     all.vars(formula_pareto),
-    block
+    block,
+    weights,
+    time
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -43,6 +76,9 @@ run_evinb <- function(
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
+  offset_pl_mult <- d_evi$offset
+  weights_vec <- if (!is.null(weights)) model_data[[weights]] else rep(1, nrow(model_data))
+  evinf_check_weights(weights_vec, nrow(model_data))
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -66,6 +102,8 @@ run_evinb <- function(
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
+  OBS.X.obj$offset.pl_mult <- offset_pl_mult
+  OBS.X.obj$weights <- weights_vec
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_nb <- ncol(d_nb$X) + 1L
@@ -98,10 +136,12 @@ run_evinb <- function(
   Ini.Val$C <- control$init.C
 
   if (verbose) {
-    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
+    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
+                     family = family)
   } else {
     capture.output(
-      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb")
+      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
+                       family = family)
     )
   }
   if (verbose && isTRUE(object$loglik_recomputed)) {
@@ -140,11 +180,22 @@ run_evinb <- function(
   object$c_lim_default <- isTRUE(control$c_lim_default)
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
+  object$offset_pl_mult <- offset_pl_mult
+  object$weights <- weights_vec
   object$data <- list()
 
   object$data$data <- model_data
   object$block <- block
   object$block_vec <- if (!is.null(block)) model_data[[block]] else NULL
+  object$time <- time
+  object$time_vec <- if (!is.null(time)) model_data[[time]] else NULL
+  object$bootstrap_scheme <- bootstrap_scheme
+  # round9 F: see the matching comment in run_evzinb().
+  object$block_length <- if (bootstrap_scheme %in% c("moving_block", "stationary")) {
+    evinf_resolve_block_length(nrow(model_data), object$block_vec, block_length)
+  } else {
+    block_length
+  }
 
   object$data$y <- as.numeric(object$y)
   object$y <- NULL
@@ -159,6 +210,12 @@ run_evinb <- function(
   object$props <- object$par.mat$Props[, 2:3]
   colnames(object$props) <- colnames(object$resp) <- c('count', 'evi')
   object$par.mat$Props <- NULL
+  # round9 E.1: mirror run_evzinb()'s drop, so coef()/vcov()/confint()/
+  # tidy()/glance() all show Alpha.NB as absent (not NA) for a Poisson count
+  # state.
+  if (family$count == "poisson") {
+    object$par.mat$Alpha.NB <- NULL
+  }
   object$coef <- object$par.mat
   object$par.mat <- NULL
   object$coef$Beta.multinom.ZC <- NULL
@@ -169,7 +226,7 @@ run_evinb <- function(
   n_zc <- length(Ini.Val$Beta.multinom.ZC)
   object$par.all <- object$par.all[-seq_len(n_zc)]
   n_par <- length(object$par.all)
-  n_obs <- length(object$data$y)
+  n_obs <- sum(object$weights)  # round9 D.2: sum(weights), row count when unweighted
   object$AIC <- 2 * n_par - 2 * object$log.lik
   object$BIC <- log(n_obs) * n_par - 2 * object$log.lik
 
@@ -215,6 +272,8 @@ run_evinb <- function(
 #'
 #' @param object The evinb object to run the bootstrap on
 #' @param block Optional string specifying varible for block bootstrapping
+#' @param time_vec Optional time-index vector (round9 F), required for
+#'   \code{object$bootstrap_scheme \%in\% c("moving_block", "stationary")}.
 #' @param timing Should time be kept
 #'
 #' @return A bootstrapped evinb object
@@ -223,22 +282,19 @@ run_evinb <- function(
 bootrun_evinb <- function(
   object,
   block = NULL,
+  time_vec = NULL,
   timing = TRUE
 ) {
   tim <- Sys.time()
-  if (is.null(block)) {
-    boot_id <- sample(
-      1:nrow(object$data$x.nb),
-      nrow(object$data$x.nb),
-      replace = T
-    )
-  } else {
-    uniques <- unique(block)
-    boot_block_id <- sample(uniques, length(uniques), replace = T)
-    boot_id <- boot_block_id %>%
-      purrr::map(~ which(block == .x)) %>%
-      purrr::reduce(c)
-  }
+  # round9 F: the single resample-index generator behind every
+  # bootstrap_scheme; "iid"/"cluster" reproduce the pre-F behaviour exactly.
+  boot_id <- evinf_resample_ids(
+    nrow(object$data$x.nb),
+    scheme = object$bootstrap_scheme %||% (if (is.null(block)) "iid" else "cluster"),
+    block_vec = block,
+    time_vec = time_vec,
+    block_length = object$block_length
+  )
   OBS.Y <- object$data$y[boot_id]
 
   OBS.X.obj <- list()
@@ -248,6 +304,10 @@ bootrun_evinb <- function(
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
     object$offset_nb[boot_id]
+  OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
+    object$offset_pl_mult[boot_id]
+  OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
+    object$weights[boot_id]
   Control <- object$control
 
   Ini.Val <- list()
@@ -255,11 +315,12 @@ bootrun_evinb <- function(
   Ini.Val$Beta.multinom.PL <- as.numeric(object$coef$Beta.multinom.PL)
   Ini.Val$Beta.NB <- as.numeric(object$coef$Beta.NB)
   Ini.Val$Beta.PL <- as.numeric(object$coef$Beta.PL)
-  Ini.Val$Alpha.NB <- object$coef$Alpha.NB
+  # round9 E.1: see the matching comment in bootrun_evzinb().
+  Ini.Val$Alpha.NB <- object$coef$Alpha.NB %||% object$control$init.Alpha.NB %||% 0.01
   Ini.Val$C <- object$coef$C
   capture.output(
     evinb_boot <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
-                         full_sample = FALSE)
+                         full_sample = FALSE, family = object$family %||% evinf_family())
   )
 
   evinb_boot$par.mat$Beta.multinom.PL <- as.numeric(
@@ -286,6 +347,9 @@ bootrun_evinb <- function(
   evinb_boot$props <- evinb_boot$par.mat$Props[, 2:3]
 
   evinb_boot$par.mat$Props <- NULL
+  if (isTRUE(evinb_boot$family$count == "poisson")) {
+    evinb_boot$par.mat$Alpha.NB <- NULL
+  }
 
   evinb_boot$coef <- evinb_boot$par.mat
   evinb_boot$par.mat <- NULL
@@ -308,6 +372,9 @@ bootrun_evinb <- function(
   evinb_boot$data <- NULL
   evinb_boot <- evinf_flag_degenerate(evinb_boot, OBS.X.obj$X.PL, Control)
   evinb_boot$boot_id <- boot_id
+  # round9 F: see the matching comment in bootrun_evzinb().
+  evinb_boot$oob_fraction <- length(setdiff(seq_len(nrow(object$data$x.nb)), unique(boot_id))) /
+    nrow(object$data$x.nb)
 
   class(evinb_boot) <- 'evinb_boot'
   if (timing) {
@@ -318,9 +385,19 @@ bootrun_evinb <- function(
 
 #' Running an extreme value inflated negative binomial model with bootstrapping
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
+#' @param formula_nb Formula for the negative binomial (count) component of the model.
+#'   May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).
+#' @param formula_evi Formula for the extreme-value inflation component of the model.
+#'   If NULL taken as the same formula as nb, with any \code{offset()} term stripped
+#'   (an offset applies only where it is written explicitly, never by inheritance).
+#'   May include its own \code{offset()} term: the EVI logit is the log-odds of the
+#'   extreme-value state against the count state, so an offset there shifts that
+#'   log-odds, e.g. \code{offset(log(population))} for a probability of an extreme
+#'   event that scales with exposure.
+#' @param formula_pareto Formula for the pareto (extreme value) component of the
+#'   model. If NULL taken as the same formula as nb, offset stripped as above.
+#'   \code{offset()} is \strong{not} supported here (errors if present): an offset
+#'   on a shape parameter has no clear reading.
 #' @param data Data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
@@ -374,6 +451,11 @@ evinb <- function(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
+  family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -384,12 +466,17 @@ evinb <- function(
   verbose = FALSE
 ) {
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
+  time <- evinf_block_name(rlang::enquo(time), parent.frame(), data)
+  weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
+  data <- weights_resolved$data
+  weights_col <- weights_resolved$weights_col
+  family <- evinf_resolve_family(family)
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evinb")
 
   stored_call <- as.call(c(quote(evinf::evinb), list(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
-    ncores = ncores, boot_seed = boot_seed, verbose = verbose
+    ncores = ncores, boot_seed = boot_seed, family = family, verbose = verbose
   )))
   stored_call$data <- mc$data  # the expression, not the data frame (audit N6)
 
@@ -402,12 +489,19 @@ evinb <- function(
     data = data,
     control = ctrl,
     block = block,
+    weights = weights_col,
+    time = time,
+    bootstrap_scheme = bootstrap_scheme,
+    block_length = block_length,
+    family = family,
     verbose = verbose
   )
+  full_run$weights_col <- weights_col
   full_run$call <- stored_call
   runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
+  time2 <- full_run$time_vec
 
   if (bootstrap) {
     # Always record the seed actually used (audit N4).
@@ -430,8 +524,8 @@ evinb <- function(
     boots <- evinf_with_plan(multicore, ncores, {
       evinf_pmap(
         seq_len(n_bootstraps),
-        function(i, spec, blk) try(bootrun_evinb(spec, blk)),
-        spec = boot_spec, blk = block2,
+        function(i, spec, blk, tv) try(bootrun_evinb(spec, blk, tv)),
+        spec = boot_spec, blk = block2, tv = time2,
         seed = boot_seed, label = "bootstrap", verbose = verbose
       )
     })

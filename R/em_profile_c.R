@@ -17,6 +17,7 @@
 #'   \code{Alpha.NB}, \code{Beta.PL}.
 #' @param c_candidates Numeric vector of candidate \eqn{C_{EV}} values, from
 #'   \code{\link{em_c_candidates}}.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.1).
 #'
 #' @return A list with
 #'   \describe{
@@ -27,16 +28,20 @@
 #'
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
-em_profile_c <- function(y, x_obj, par, c_candidates) {
+em_profile_c <- function(y, x_obj, par, c_candidates, family = evinf_family()) {
   ext <- em_extend_design(x_obj, length(y))
 
-  loglik <- vapply(c_candidates, function(cc) {
-    log_lik_fun(
-      par$Beta.multinom.ZC, par$Beta.multinom.PL, par$Beta.NB, par$Alpha.NB,
-      par$Beta.PL, cc,
-      ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset
-    )
-  }, numeric(1))
+  # round8 A.1 (audit §5.4): one C++ call over the whole candidate grid
+  # instead of a vapply() over log_lik_fun() -- see log_lik_profile_fun() for
+  # why (it shares the O(n) work below the candidate loop instead of redoing
+  # it once per candidate).
+  loglik <- as.numeric(log_lik_profile_fun(
+    par$Beta.multinom.ZC, par$Beta.multinom.PL, par$Beta.NB, par$Alpha.NB,
+    par$Beta.PL, c_candidates,
+    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
+    ext$offset_zc, ext$offset_pl_mult, ext$weights, evinf_family_count_code(family),
+    evinf_family_zero_code(family)
+  ))
 
   # audit0.10 §1.4: which(loglik == max(loglik)) returns a vector on an exact
   # tie and integer(0) when every value is NaN (max(loglik) is then NaN too,

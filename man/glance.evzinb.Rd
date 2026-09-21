@@ -13,11 +13,18 @@
 }
 \value{
 A one-row tibble of goodness-of-fit statistics: number of observations
-  and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+  and parameters, family (round9 E.0, e.g. "nbinom/mixture" or "poisson/mixture"),
+  alpha_NB (NA when the family has none, round9 E.1), C_EV, AIC, BIC,
+  log-likelihood, whether the EM
   algorithm converged (\code{converged}) and whether the C_EV profile settled
   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
   before this field existed), the number of EM steps, the number of
-  observations at or above C_EV, and, for a bootstrapped model, the bootstrap
+  observations at or above C_EV, the smallest fitted Pareto shape
+  (\code{min_alpha_pl}; see \code{alpha_pl_floor} in
+  \code{\link{evinf_control}}), \code{sum_weights} (round9 D.2: the sum of
+  \code{weights =}, equal to \code{nobs} for an unweighted fit -- this,
+  not \code{nobs}, is what \code{aic}/\code{bic} and the model's degrees of
+  freedom are computed from), and, for a bootstrapped model, the bootstrap
   replicate counts (\code{NA} otherwise): \code{n_bootstraps} (usable),
   \code{n_failed_bootstraps}, \code{n_degenerate_bootstraps} --- these three
   partition the number of replicates requested (see \code{\link{evinf_control}}

@@ -1,14 +1,32 @@
-# Clamp fitted Pareto alpha values away from 0 before quantile inversion
-# (shared by quantiles_from_evzinb() / quantiles_from_evinb(), audit0.10
-# §1.13, D.5): mixture_quantile()'s bisection needs a finite, well-behaved
-# alpha, and values below 1e-02 make the continuous-Pareto inverse CDF
-# numerically unstable.
-evinf_clamp_pareto_alpha <- function(alpha) {
-  if (min(alpha) < 1e-02) {
-    warning(
-      "Fitted pareto alpha-values below 1e-02 detected. Setting those alphas to 1e-02 for quantile prediction"
-    )
-    alpha[alpha < 1e-02] <- 1e-02
+# Clamp a fitted Pareto shape (alpha_pl) away from 0 (round9 0.1, review §2;
+# originally audit0.10 §1.13/D.5 for the quantile path alone). Several
+# downstream quantities involve exp(1/alpha_pl) or 1/alpha_pl --
+# predict(type = "harmonic")/"explog", the continuous-Pareto mixture
+# quantile's bisection, and the $fitted Pareto-tail summaries -- and silently
+# return Inf or an astronomically large finite number once alpha_pl collapses
+# toward 0. Shared by harmonic_calc(), explog_calc(), em_fitted_values() and
+# quantiles_from_evzinb()/quantiles_from_evinb(). Warns once per call (unless
+# `warn = FALSE`), naming how many observations were clamped, so the warning
+# is diagnostic even when only a handful of rows are affected. em_fitted_values()
+# passes warn = FALSE: it runs on every EM fit, including every bootstrap
+# replicate, so warning there would fire routinely rather than only when a
+# user actually queries an affected prediction; the collapse is still visible
+# without digging via glance()$min_alpha_pl and the print() note.
+evinf_clamp_alpha_pl <- function(alpha, floor = 0.01, context = "", warn = TRUE) {
+  bad <- alpha < floor
+  n_bad <- sum(bad)
+  if (n_bad > 0L) {
+    if (warn) {
+      warning(
+        "evinf", if (nzchar(context)) paste0(" (", context, ")") else "",
+        ": ", n_bad, " fitted Pareto alpha value",
+        if (n_bad != 1L) "s" else "",
+        " below the floor (", floor, "); clamping to the floor. Set ",
+        "`alpha_pl_floor` in evinf_control() to change this.",
+        call. = FALSE
+      )
+    }
+    alpha[bad] <- floor
   }
   alpha
 }
@@ -43,7 +61,10 @@ quantiles_from_evzinb <- function(
   prbs <- prob_from_evzinb(object, newdata = newdata)
   cnts <- counts_from_evzinb(object, newdata = newdata)
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
-  alphs$pareto_alpha <- evinf_clamp_pareto_alpha(alphs$pareto_alpha)
+  alphs$pareto_alpha <- evinf_clamp_alpha_pl(
+    alphs$pareto_alpha, floor = object$control$alpha_pl_floor %||% 0.01,
+    context = "quantile prediction"
+  )
 
   q <- mixture_quantile(
     quantile,
@@ -52,7 +73,9 @@ quantiles_from_evzinb <- function(
     nb_mu = cnts$count,
     nb_alpha = object$coef$Alpha.NB,
     probabilities = cbind(prbs$pr_zc, prbs$pr_count, prbs$pr_pareto),
-    continuous = !round
+    continuous = !round,
+    family_count = (object$family %||% evinf_family())$count,
+    family_zero = (object$family %||% evinf_family())$zero
   )
 
   if (return_data) {
@@ -88,7 +111,10 @@ quantiles_from_evinb <- function(
   prbs <- prob_from_evinb(object, newdata = newdata)
   cnts <- counts_from_evzinb(object, newdata = newdata)
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
-  alphs$pareto_alpha <- evinf_clamp_pareto_alpha(alphs$pareto_alpha)
+  alphs$pareto_alpha <- evinf_clamp_alpha_pl(
+    alphs$pareto_alpha, floor = object$control$alpha_pl_floor %||% 0.01,
+    context = "quantile prediction"
+  )
 
   q <- mixture_quantile(
     quantile,
@@ -97,7 +123,9 @@ quantiles_from_evinb <- function(
     nb_mu = cnts$count,
     nb_alpha = object$coef$Alpha.NB,
     probabilities = cbind(0, prbs$pr_count, prbs$pr_pareto),
-    continuous = !round
+    continuous = !round,
+    family_count = (object$family %||% evinf_family())$count,
+    family_zero = (object$family %||% evinf_family())$zero
   )
 
   if (return_data) {
@@ -137,6 +165,8 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.multinom.zc <- object$data$x.multinom.zc
     x.multinom.pl <- object$data$x.multinom.pl
+    offset_zc <- object$offset_zc %||% rep(0, nrow(x.multinom.zc))
+    offset_pl_mult <- object$offset_pl_mult %||% rep(0, nrow(x.multinom.pl))
   } else {
     x.multinom.zc <- evinf_design_newdata(
       object$terms$zi, object$xlevels$zi, newdata
@@ -144,10 +174,14 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
     x.multinom.pl <- evinf_design_newdata(
       object$terms$evi, object$xlevels$evi, newdata
     )
+    # round9 D.1: an offset() term requires and uses the offset variable from
+    # newdata, exactly like the count component's offset already does.
+    offset_zc <- evinf_offset_newdata(object$terms$zi, newdata) %||% rep(0, nrow(x.multinom.zc))
+    offset_pl_mult <- evinf_offset_newdata(object$terms$evi, newdata) %||% rep(0, nrow(x.multinom.pl))
   }
 
-  eta_zc <- as.numeric(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC)
-  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
+  eta_zc <- as.numeric(cbind(1, x.multinom.zc) %*% object$coef$Beta.multinom.ZC) + offset_zc
+  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL) + offset_pl_mult
 
   # pr_count is computed directly (never by subtraction), so it is a proper
   # probability by construction and cannot come out negative.
@@ -182,10 +216,12 @@ prob_from_evzinb <- function(object, newdata = NULL, return_data = FALSE) {
 prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   if (is.null(newdata)) {
     x.multinom.pl <- object$data$x.multinom.pl
+    offset_pl_mult <- object$offset_pl_mult %||% rep(0, nrow(x.multinom.pl))
   } else {
     x.multinom.pl <- evinf_design_newdata(
       object$terms$evi, object$xlevels$evi, newdata
     )
+    offset_pl_mult <- evinf_offset_newdata(object$terms$evi, newdata) %||% rep(0, nrow(x.multinom.pl))
   }
 
   # pr_zc <- exp(cbind(1,x.multinom.zc)%*%object$coef$Beta.multinom.ZC)/
@@ -194,7 +230,7 @@ prob_from_evinb <- function(object, newdata = NULL, return_data = FALSE) {
   #
 
   # audit0.10 §1.11: stable 2-category softmax, see evinf_stable_props3().
-  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL)
+  eta_pl <- as.numeric(cbind(1, x.multinom.pl) %*% object$coef$Beta.multinom.PL) + offset_pl_mult
   sp <- evinf_stable_props3(rep(-Inf, length(eta_pl)), eta_pl)
 
   out <- tibble::tibble(

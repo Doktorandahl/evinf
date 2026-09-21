@@ -28,7 +28,12 @@ evinf_set_flat_coef <- function(model, coefs) {
     nm <- names(model$coef[[slot]])
     model$coef[[slot]] <- stats::setNames(unname(coefs[paste0(cn, "_", nm)]), nm)
   }
-  model$coef$Alpha.NB <- unname(coefs[["alpha_nb"]])
+  # round9 E.1: "alpha_nb" isn't in `coefs` at all for a Poisson count state
+  # (evinf_flatten_coef() omits it entirely); leave model$coef$Alpha.NB
+  # absent rather than setting it to NA.
+  if ("alpha_nb" %in% names(coefs)) {
+    model$coef$Alpha.NB <- unname(coefs[["alpha_nb"]])
+  }
   model$coef$C <- unname(coefs[["c_ev"]])
   model
 }

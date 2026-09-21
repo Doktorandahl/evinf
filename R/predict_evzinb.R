@@ -1,5 +1,58 @@
-harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
-  pr_count * count + pr_pareto * C * (1 + pareto_alpha) / pareto_alpha
+# round9 E.2: zero-truncated draws for a hurdle count state -- rejection
+# sampling redraws only the still-zero subset each round (expected number of
+# rounds is 1/(1-f0), f0 = P(Y=0) under the untruncated distribution), so
+# this stays cheap even when f0 is not small.
+evinf_rztrunc_pois <- function(mu) {
+  n <- length(mu)
+  out <- rpois(n, lambda = mu)
+  bad <- out == 0
+  while (any(bad)) {
+    out[bad] <- rpois(sum(bad), lambda = mu[bad])
+    bad[bad] <- out[bad] == 0
+  }
+  out
+}
+evinf_rztrunc_nbinom <- function(mu, alpha) {
+  n <- length(mu)
+  out <- rnbinom(n, mu = mu, size = 1 / alpha)
+  bad <- out == 0
+  while (any(bad)) {
+    out[bad] <- rnbinom(sum(bad), mu = mu[bad], size = 1 / alpha)
+    bad[bad] <- out[bad] == 0
+  }
+  out
+}
+
+# round9 E.2: E[Y | count state] under a hurdle process is mu/(1-f0) (the
+# zero-truncated mean), not the raw mu -- applied before harmonic_calc()/
+# explog_calc() (both otherwise family-agnostic, operating on mu/count only)
+# so their aggregate point predictions reflect the count state actually
+# being zero-truncated. predict(type = "counts") is unaffected -- it reports
+# the count state's own model parameter mu, not this conditional mean.
+evinf_hurdle_mean <- function(mu, alpha_nb, family) {
+  if (!identical(family$zero, "hurdle")) {
+    return(mu)
+  }
+  f0 <- if (family$count == "poisson") {
+    exp(-mu)
+  } else {
+    (1 + alpha_nb * mu)^(-1 / alpha_nb)
+  }
+  mu / (1 - f0)
+}
+
+harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
+                          floor = 0.01) {
+  pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
+                                       context = "harmonic prediction")
+  # round9 0.1 follow-up: (1 + alpha) / alpha is algebraically identical to
+  # 1/alpha + 1, but the former is Inf/Inf = NaN once a fitted Pareto shape
+  # overflows exp() (an extreme Beta.PL coefficient on a sparse factor level
+  # can push the linear predictor past ~709.78, e.g. genevzinb2_factor()'s
+  # y ~ x1 + g fit). 1/alpha + 1 is exact for finite alpha and gives the
+  # mathematically correct limit (1) as alpha -> Inf, so no floor/ceiling on
+  # alpha is needed for this specific failure mode.
+  pr_count * count + pr_pareto * C * (1 / pareto_alpha + 1)
 }
 
 # audit R0.5 / 2.7: state-probability columns with the canonical names
@@ -23,7 +76,10 @@ canonical_prbs <- function(prbs) {
   }
 }
 
-explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha) {
+explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
+                        floor = 0.01) {
+  pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
+                                       context = "explog prediction")
   pr_count * count + C * pr_pareto * exp(1 / pareto_alpha)
 }
 
@@ -58,11 +114,17 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
               id = nd_id),
             error = function(e) NULL) else NULL,
           harmonic = tibble::tibble(harmonic = harmonic_calc(
-            prbs$pr_count, cnts$count, pr_pareto = prbs$pr_pareto,
-            C = C, pareto_alpha = alphs$pareto_alpha), id = nd_id),
+            prbs$pr_count,
+            evinf_hurdle_mean(cnts$count, b$coef$Alpha.NB, b$family %||% evinf_family()),
+            pr_pareto = prbs$pr_pareto,
+            C = C, pareto_alpha = alphs$pareto_alpha,
+            floor = b$control$alpha_pl_floor %||% 0.01), id = nd_id),
           explog = tibble::tibble(explog = explog_calc(
-            prbs$pr_count, cnts$count, pr_pareto = prbs$pr_pareto,
-            C = C, pareto_alpha = alphs$pareto_alpha), id = nd_id)
+            prbs$pr_count,
+            evinf_hurdle_mean(cnts$count, b$coef$Alpha.NB, b$family %||% evinf_family()),
+            pr_pareto = prbs$pr_pareto,
+            C = C, pareto_alpha = alphs$pareto_alpha,
+            floor = b$control$alpha_pl_floor %||% 0.01), id = nd_id)
         )
       },
       newdata = newdata, quantile = quantile, want_q = want_q, evzinb = evzinb,
@@ -198,18 +260,22 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 
     harmonic <- harmonic_calc(
       pr_count = prbs$pr_count,
-      count = cnts$count,
+      count = evinf_hurdle_mean(cnts$count, object$coef$Alpha.NB,
+                                object$family %||% evinf_family()),
       pr_pareto = prbs$pr_pareto,
       C = C_est,
-      pareto_alpha = alphs$pareto_alpha
+      pareto_alpha = alphs$pareto_alpha,
+      floor = object$control$alpha_pl_floor %||% 0.01
     )
 
     explog <- explog_calc(
       pr_count = prbs$pr_count,
-      count = cnts$count,
+      count = evinf_hurdle_mean(cnts$count, object$coef$Alpha.NB,
+                                object$family %||% evinf_family()),
       pr_pareto = prbs$pr_pareto,
       C = C_est,
-      pareto_alpha = alphs$pareto_alpha
+      pareto_alpha = alphs$pareto_alpha,
+      floor = object$control$alpha_pl_floor %||% 0.01
     )
   } else if (pred == 'bootstrap_median') {
     prbs <- prbs_boot %>%
@@ -548,6 +614,9 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata) %>% dplyr::pull()
 
   alpha_nb <- object$coef$Alpha.NB
+  fam <- object$family %||% evinf_family()
+  family_count <- fam$count
+  is_hurdle <- identical(fam$zero, "hurdle")
 
   C_est <- object$coef$C
 
@@ -558,7 +627,14 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   }
   out <- purrr::map(seq_len(n_draws), function(draw) {
       pl_draws <- rpareto_disc(n, C_est, alphs)
-      count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      # round9 E.1: alpha_nb is NULL for a Poisson count state.
+      # round9 E.2: a hurdle count state never draws 0 -- zero-truncated
+      # rejection sampling instead of the raw distribution.
+      count_draws <- if (family_count == "poisson") {
+        if (is_hurdle) evinf_rztrunc_pois(cnts) else rpois(n, lambda = cnts)
+      } else {
+        if (is_hurdle) evinf_rztrunc_nbinom(cnts, alpha_nb) else rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      }
       state_draw <- runif(n)
       prbs %>%
         dplyr::mutate(
@@ -608,6 +684,7 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata) %>% dplyr::pull()
 
   alpha_nb <- object$coef$Alpha.NB
+  family_count <- (object$family %||% evinf_family())$count
 
   C_est <- object$coef$C
   if (is.null(newdata)) {
@@ -618,7 +695,12 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 
   out <- purrr::map(seq_len(n_draws), function(draw) {
       pl_draws <- rpareto_disc(n, C_est, alphs)
-      count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      # round9 E.1: alpha_nb is NULL for a Poisson count state.
+      count_draws <- if (family_count == "poisson") {
+        rpois(n, lambda = cnts)
+      } else {
+        rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      }
       state_draw <- runif(n)
       prbs %>%
         dplyr::mutate(

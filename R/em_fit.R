@@ -42,14 +42,19 @@
 #'   bootstrap replicate. Controls only whether a \code{max.c.iter} cap-out emits
 #'   a \code{warning()} (bootstrap replicates already record it via
 #'   \code{converge} / \code{c_converged} without one).
+#' @param family An \code{\link{evinf_family}()} object (round9 E.1); the
+#'   default reproduces today's NB/mixture model exactly. For
+#'   \code{count = "poisson"}, \code{Alpha.NB} is dropped from \code{par.all}.
 #'
 #' @return A list with, among others, \code{par.mat} (estimated parameters),
 #'   \code{log.lik}, \code{AIC}, \code{BIC}, \code{resp} (posterior state
-#'   probabilities), \code{converge}, \code{c_profile}, \code{c_trace},
-#'   \code{log.lik.vec.all}, \code{loglik_recomputed}, the fitted-value vectors
-#'   (\code{mu.nb.vec}, \code{alpha.pl.vec}, \code{y.hat.pl*}, ...) and the design
-#'   matrices. The exact set and names are consumed by \code{run_evzinb()} /
-#'   \code{run_evinb()}.
+#'   probabilities), \code{converge}, \code{c_converged} (did the
+#'   convergence-phase C_EV profile settle within \code{max.c.iter}),
+#'   \code{c_warmup_capped} (the same, for the warm-up phase), \code{c_profile},
+#'   \code{c_trace}, \code{log.lik.vec.all}, \code{loglik_recomputed}, the
+#'   fitted-value vectors (\code{mu.nb.vec}, \code{alpha.pl.vec},
+#'   \code{y.hat.pl*}, ...) and the design matrices. The exact set and names
+#'   are consumed by \code{run_evzinb()} / \code{run_evinb()}.
 #'
 #' @details For \code{model = "evinb"} the zero-inflation multinomial block is
 #'   held at its initial value (\code{ini.val$Beta.multinom.ZC}) throughout both
@@ -58,10 +63,14 @@
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
 em_fit <- function(y, x.obj, ini.val, control,
-                   model = c("evzinb", "evinb"), full_sample = TRUE) {
+                   model = c("evzinb", "evinb"), full_sample = TRUE,
+                   family = evinf_family()) {
   model <- match.arg(model)
   ext <- em_extend_design(x.obj, length(y))
-  n <- length(y)
+  # round9 D.2 (audit §5.6): BIC's `n` is sum(weights) -- the row count when
+  # weights = 1 (the default), the effective sample size for frequency
+  # weights otherwise.
+  n <- sum(ext$weights)
 
   max_c_iter <- control$max.c.iter %||% 50
   c.range <- em_c_candidates(y, control$c.lim, control$prune.c.range)
@@ -84,11 +93,11 @@ em_fit <- function(y, x.obj, ini.val, control,
   while (c.abs.diff > 0 && n.c.iter.warmup < max_c_iter) {
     n.c.iter.warmup <- n.c.iter.warmup + 1L
     est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control.warmup,
-                              fixed_zc = fixed_zc)
+                              fixed_zc = fixed_zc, family = family)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
 
-    prof <- em_profile_c(y, x.obj, prel.val, c.range)
+    prof <- em_profile_c(y, x.obj, prel.val, c.range, family = family)
     log.lik.vec <- prof$profile$loglik
     c.pl.new <- prof$c_hat
     c_trace <- c(c_trace, c.pl.new)
@@ -102,17 +111,35 @@ em_fit <- function(y, x.obj, ini.val, control,
     prel.val$C <- c.pl.new
   }
 
+  # round8 0.6 (review §7): the warm-up phase can hit max.c.iter exactly like
+  # the convergence phase does (audit0.10 §1.4), but until now nothing
+  # recorded it -- c_converged below only covers the convergence-phase loop.
+  # Capture the warm-up exit condition before c.abs.diff is reset for the
+  # convergence phase.
+  c_warmup_capped <- c.abs.diff > 0 && n.c.iter.warmup >= max_c_iter
+  if (c_warmup_capped && full_sample) {
+    warning(
+      "em_fit(): the warm-up C_EV profile did not settle within ",
+      "max.c.iter = ", max_c_iter, " iterations. Warm-up is a short ",
+      "exploratory phase, so this alone is not necessarily a problem, but ",
+      "if the convergence phase below also fails to settle, consider ",
+      "raising max.c.iter.",
+      call. = FALSE
+    )
+  }
+
   # --- convergence phase --------------------------------------------------
   cat("End warm-up. Run until convergence", "\n", sep = "")
   c.abs.diff <- 100
   n.c.iter.conv <- 0L
   while (c.abs.diff > 0 && n.c.iter.conv < max_c_iter) {
     n.c.iter.conv <- n.c.iter.conv + 1L
-    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = fixed_zc)
+    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = fixed_zc,
+                              family = family)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
 
-    prof <- em_profile_c(y, x.obj, prel.val, c.range)
+    prof <- em_profile_c(y, x.obj, prel.val, c.range, family = family)
     log.lik.vec <- prof$profile$loglik
     c.pl.new <- prof$c_hat
     c_trace <- c(c_trace, c.pl.new)
@@ -146,14 +173,6 @@ em_fit <- function(y, x.obj, ini.val, control,
   }
 
   final.val <- prel.val
-  props.old <- prel.val$Props
-
-  # audit0.10 §1.11 (D.3): keep computing the point predictions (y.hat.pl_*)
-  # from the pre-recompute props.old, exactly as before -- em_fitted_values()'s
-  # mu.nb.vec / alpha.pl.vec don't depend on props at all, only its y.hat.pl_*
-  # weighting does, and that weighting is out of scope for this item (D.4
-  # covers point predictions separately).
-  fv <- em_fitted_values(x.obj, final.val, props.old, c.pl.new, model = model)
 
   # par.mat$Props / resp came from step$upd_obj at the START of the last EM
   # step (em_fit_fixed_c()), i.e. one step behind the returned parameters
@@ -164,17 +183,35 @@ em_fit <- function(y, x.obj, ini.val, control,
   # C++ E-step (fill_props_row()) and the R-side E-step responsibilities
   # formula.
   final.val$Props <- evinf_stable_props3(
-    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
-    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
-  )
-  final.resp <- evinf_responsibilities(
-    y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props
+    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC) + ext$offset_zc,
+    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL) + ext$offset_pl_mult
   )
 
-  par.all <- c(
-    final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
-    final.val$Alpha.NB, final.val$Beta.PL, final.val$C
+  # round8 0.3 (review §4): em_fitted_values() used to run on props.old (the
+  # one-step-stale E-step prior), so object$fitted$y.hat.pl_* disagreed with
+  # object$fitted$prob_* / predict(type = "harmonic") -- both should reflect
+  # the same, final-parameter props. final.val$Props above doesn't depend on
+  # fv, so this is a reorder, not a second pass: compute it first and feed it
+  # into em_fitted_values() instead of props.old.
+  fv <- em_fitted_values(x.obj, final.val, final.val$Props, c.pl.new,
+                        model = model, floor = control$alpha_pl_floor %||% 0.01)
+
+  final.resp <- evinf_responsibilities(
+    y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props,
+    family = family
   )
+
+  # round9 E.1 (audit §5.5): Alpha.NB is not a free parameter for a Poisson
+  # count state -- dropped from par.all entirely (not merely fixed), so
+  # npar/AIC/BIC/LR degrees of freedom shrink by one and it never appears in
+  # coef()/vcov()/confint()/tidy() downstream (evinf_flatten_coef()).
+  par.all <- if (family$count == "poisson") {
+    c(final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
+      final.val$Beta.PL, final.val$C)
+  } else {
+    c(final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
+      final.val$Alpha.NB, final.val$Beta.PL, final.val$C)
+  }
   n.par <- length(par.all)
 
   # audit 2.13: the trace maximum is not guaranteed to be the log-likelihood at
@@ -183,7 +220,9 @@ em_fit <- function(y, x.obj, ini.val, control,
   ll.at.par <- log_lik_fun(
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
     final.val$Alpha.NB, final.val$Beta.PL, final.val$C,
-    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset
+    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
+    ext$offset_zc, ext$offset_pl_mult, ext$weights, evinf_family_count_code(family),
+    evinf_family_zero_code(family)
   )
   loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
                                 abs(ll.at.par - func.val) > 1e-6)
@@ -193,6 +232,7 @@ em_fit <- function(y, x.obj, ini.val, control,
 
   list(
     control          = control,
+    family           = family,
     par.mat          = final.val,
     log.lik.vec.all  = log.lik.vec.all,
     c_profile        = data.frame(c = c.range, loglik = log.lik.vec),
@@ -201,6 +241,7 @@ em_fit <- function(y, x.obj, ini.val, control,
     resp             = final.resp,
     converge         = est.obj$converge && c_converged,
     c_converged      = c_converged,
+    c_warmup_capped  = c_warmup_capped,
     ini.val          = ini.val,
     x.nb             = x.obj$X.NB,
     x.pl             = x.obj$X.PL,
