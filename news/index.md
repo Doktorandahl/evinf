@@ -3,7 +3,7 @@
 ## evinf 0.11.0
 
 Implements audit §5.6 (offsets and weights) and §5.5 (model families):
-work packages D and E.1 of `dev/plan_0.12_families_offsets_panel.md`.
+work packages D and E of `dev/plan_0.12_families_offsets_panel.md`.
 
 ### New features
 
@@ -11,36 +11,47 @@ work packages D and E.1 of `dev/plan_0.12_families_offsets_panel.md`.
   [`evinb()`](../reference/evinb.md) gain `family =`, an
   [`evinf_family()`](../reference/evinf_family.md) object (or a bare
   string, shorthand for `evinf_family(count = string)`) naming the
-  count-state distribution: `"nbinom"` (the default, reproducing today’s
-  model exactly) or `"poisson"`. A Poisson count state drops the
-  dispersion parameter `Alpha.NB` entirely – not one fewer degree of
-  freedom silently fixed at a boundary, but genuinely absent from
-  `par.all`, [`coef()`](https://rdrr.io/r/stats/coef.html),
-  [`vcov()`](https://rdrr.io/r/stats/vcov.html),
-  [`confint()`](https://rdrr.io/r/stats/confint.html),
-  [`tidy()`](https://generics.r-lib.org/reference/tidy.html), and every
-  bootstrap replicate’s `coef`;
-  [`summary()`](https://rdrr.io/r/base/summary.html)/[`glance()`](https://generics.r-lib.org/reference/glance.html)/[`print()`](https://rdrr.io/r/base/print.html)
-  show it as absent rather than `NA`, and report the fitted family
-  (e.g. `"poisson/mixture"`).
-  [`residuals()`](https://rdrr.io/r/stats/residuals.html),
-  `predict(type = "quantile")` and
-  [`simulate()`](https://rdrr.io/r/stats/simulate.html) all dispatch on
-  the fitted family. The Poisson M-step matches
-  `glm(family = poisson())`’s closed-form MLE to numerical precision
-  (verified directly, and via the full
-  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
-  API). `family = evinf_family(zero = "hurdle")` (a zero-truncated count
-  state under a hurdle zero process) is accepted by
-  [`evinf_family()`](../reference/evinf_family.md) but not yet
-  implemented by
-  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
-  – both error clearly rather than silently ignoring it;
-  [`evinb()`](../reference/evinb.md) additionally rejects it
-  unconditionally (it has no zero state to hurdle over). Default
-  (`family = evinf_family()`) fits are numerically unchanged (audit
-  §5.5, round9 E.0/E.1).
-
+  count-state distribution (`count =`) and the zero process (`zero =`).
+  - `count = "nbinom"` (the default, reproducing today’s model exactly)
+    or `"poisson"`. A Poisson count state drops the dispersion parameter
+    `Alpha.NB` entirely – not one fewer degree of freedom silently fixed
+    at a boundary, but genuinely absent from `par.all`,
+    [`coef()`](https://rdrr.io/r/stats/coef.html),
+    [`vcov()`](https://rdrr.io/r/stats/vcov.html),
+    [`confint()`](https://rdrr.io/r/stats/confint.html),
+    [`tidy()`](https://generics.r-lib.org/reference/tidy.html), and
+    every bootstrap replicate’s `coef`;
+    [`summary()`](https://rdrr.io/r/base/summary.html)/[`glance()`](https://generics.r-lib.org/reference/glance.html)/[`print()`](https://rdrr.io/r/base/print.html)
+    show it as absent rather than `NA`. The Poisson M-step matches
+    `glm(family = poisson())`’s closed-form MLE to numerical precision
+    (verified directly, and via the full
+    [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
+    API).
+  - `zero = "mixture"` (the default) or `"hurdle"`
+    ([`evzinb()`](../reference/evzinb.md) only –
+    [`evinb()`](../reference/evinb.md) rejects it unconditionally,
+    having no zero state to hurdle over). Under a hurdle zero process
+    the zero state owns every zero outright (no mixing with the count
+    state there, and the posterior for a `y = 0` row is forced to the
+    zero state rather than derived from a density ratio) and the count
+    state is zero-truncated for `y > 0` (its log-density gains
+    `-log(1 - f0)`, `f0 = P(Y=0)` under the untruncated count
+    distribution; the new score/Hessian terms this requires were derived
+    symbolically and verified against central finite differences before
+    being committed). With the extreme-value state pinned unreachable, a
+    hurdle fit matches
+    [`pscl::hurdle()`](https://rdrr.io/pkg/pscl/man/hurdle.html)’s
+    coefficients and log-likelihood to numerical precision, for both
+    `count = "nbinom"` and `count = "poisson"`.
+  - [`residuals()`](https://rdrr.io/r/stats/residuals.html),
+    `predict(type = "quantile")`,
+    [`simulate()`](https://rdrr.io/r/stats/simulate.html) and
+    [`classify_states()`](../reference/classify_states.md) all dispatch
+    on the fitted family (count distribution and zero process alike);
+    [`print()`](https://rdrr.io/r/base/print.html)/[`glance()`](https://generics.r-lib.org/reference/glance.html)
+    report it (e.g. `"poisson/hurdle"`).
+  - Default (`family = evinf_family()`) fits are numerically unchanged
+    (audit §5.5, round9 E.0/E.1/E.2).
 - [`offset()`](https://rdrr.io/r/stats/offset.html) is now supported in
   `formula_zi` and `formula_evi` (already supported in `formula_nb`),
   not just the count component. An offset there shifts the corresponding
@@ -57,7 +68,6 @@ work packages D and E.1 of `dev/plan_0.12_families_offsets_panel.md`.
   `predict(newdata = )` (which requires the offset variable, like the
   existing count-component offset already does). Default (no-offset)
   fits are numerically unchanged (audit §5.6, round9 D.1).
-
 - [`evzinb()`](../reference/evzinb.md) /
   [`evinb()`](../reference/evinb.md) gain `weights =`, given as a bare
   column name, a string naming a column, or a numeric vector.

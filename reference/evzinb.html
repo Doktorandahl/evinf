@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Running an extreme value and zero inflated negative binomial model with bootstrapping</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partE1/R/evzinb.R" class="external-link"><code>R/evzinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partE2/R/evzinb.R" class="external-link"><code>R/evzinb.R</code></a></small>
       <div class="d-none name"><code>evzinb.Rd</code></div>
     </div>
 
@@ -172,13 +172,17 @@ probabilities themselves are not reweighted).</p></dd>
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
 <dd><p>An <code><a href="evinf_family.html">evinf_family()</a></code> object, or a string as
-shorthand for its <code>count</code> argument (round9 E.0/E.1), e.g.
+shorthand for its <code>count</code> argument (round9 E.0/E.1/E.2), e.g.
 <code>family = "poisson"</code>. The default reproduces today's
-negative-binomial count state exactly. <code>count = "poisson"</code> drops
-<code>Alpha.NB</code> entirely (not merely fixes it): it is absent from
+negative-binomial, mixture-zero model exactly. <code>count = "poisson"</code>
+drops <code>Alpha.NB</code> entirely (not merely fixes it): it is absent from
 <code>par.all</code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> and
 <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy()</a></code>, and shown as absent (not <code>NA</code>) in <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>
-and <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>.</p></dd>
+and <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>. <code>zero = "hurdle"</code> makes the zero state own
+every zero (rather than competing with the count state for them) and
+zero-truncates the count state; verified to match
+<code><a href="https://rdrr.io/pkg/pscl/man/hurdle.html" class="external-link">pscl::hurdle()</a></code>'s coefficients and log-likelihood to numerical
+precision when the extreme-value state is unreachable.</p></dd>
 
 
 <dt id="arg-boot-seed">boot_seed<a class="anchor" aria-label="anchor" href="#arg-boot-seed"></a></dt>

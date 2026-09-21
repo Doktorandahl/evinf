@@ -134,17 +134,23 @@ evinb(
 - family:
 
   An [`evinf_family()`](evinf_family.md) object, or a string as
-  shorthand for its `count` argument (round9 E.0/E.1), e.g.
-  `family = "poisson"`. The default reproduces today's negative-binomial
-  count state exactly. `count = "poisson"` drops `Alpha.NB` entirely
-  (not merely fixes it): it is absent from `par.all`,
-  [`coef()`](https://rdrr.io/r/stats/coef.html),
+  shorthand for its `count` argument (round9 E.0/E.1/E.2), e.g.
+  `family = "poisson"`. The default reproduces today's
+  negative-binomial, mixture-zero model exactly. `count = "poisson"`
+  drops `Alpha.NB` entirely (not merely fixes it): it is absent from
+  `par.all`, [`coef()`](https://rdrr.io/r/stats/coef.html),
   [`vcov()`](https://rdrr.io/r/stats/vcov.html),
   [`confint()`](https://rdrr.io/r/stats/confint.html) and
   [`tidy()`](https://generics.r-lib.org/reference/tidy.html), and shown
   as absent (not `NA`) in
   [`summary()`](https://rdrr.io/r/base/summary.html) and
   [`glance()`](https://generics.r-lib.org/reference/glance.html).
+  `zero = "hurdle"` makes the zero state own every zero (rather than
+  competing with the count state for them) and zero-truncates the count
+  state; verified to match
+  [`pscl::hurdle()`](https://rdrr.io/pkg/pscl/man/hurdle.html)'s
+  coefficients and log-likelihood to numerical precision when the
+  extreme-value state is unreachable.
 
 - boot_seed:
 
