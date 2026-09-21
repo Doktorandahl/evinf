@@ -110,13 +110,17 @@ weights and carries each drawn row's weight along (the resampling
 probabilities themselves are not reweighted).}
 
 \item{family}{An \code{\link{evinf_family}()} object, or a string as
-shorthand for its \code{count} argument (round9 E.0/E.1), e.g.
+shorthand for its \code{count} argument (round9 E.0/E.1/E.2), e.g.
 \code{family = "poisson"}. The default reproduces today's
-negative-binomial count state exactly. \code{count = "poisson"} drops
-\code{Alpha.NB} entirely (not merely fixes it): it is absent from
+negative-binomial, mixture-zero model exactly. \code{count = "poisson"}
+drops \code{Alpha.NB} entirely (not merely fixes it): it is absent from
 \code{par.all}, \code{coef()}, \code{vcov()}, \code{confint()} and
 \code{tidy()}, and shown as absent (not \code{NA}) in \code{summary()}
-and \code{glance()}.}
+and \code{glance()}. \code{zero = "hurdle"} makes the zero state own
+every zero (rather than competing with the count state for them) and
+zero-truncates the count state; verified to match
+\code{pscl::hurdle()}'s coefficients and log-likelihood to numerical
+precision when the extreme-value state is unreachable.}
 
 \item{boot_seed}{Optional bootstrap seed for reproducibility. When supplied
 it is used as-is; when \code{NULL} a seed is drawn and recorded, so

@@ -28,13 +28,6 @@ run_evzinb <- function(
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # round9 E.1: zero = "hurdle" is round9 E.2 (not yet implemented on this
-  # branch) -- error clearly rather than silently ignoring it and fitting an
-  # ordinary mixture.
-  if (family$zero == "hurdle") {
-    stop("family = evinf_family(zero = \"hurdle\") is not yet implemented.",
-         call. = FALSE)
-  }
   # round9 D.1 (audit §5.6): offset() is supported in the count, zero-inflation
   # and EVI-inflation components; not in the Pareto shape component (a
   # non-NB formula the user supplied with offset() there is an error). A
@@ -312,13 +305,17 @@ run_evzinb <- function(
 #'   weights and carries each drawn row's weight along (the resampling
 #'   probabilities themselves are not reweighted).
 #' @param family An \code{\link{evinf_family}()} object, or a string as
-#'   shorthand for its \code{count} argument (round9 E.0/E.1), e.g.
+#'   shorthand for its \code{count} argument (round9 E.0/E.1/E.2), e.g.
 #'   \code{family = "poisson"}. The default reproduces today's
-#'   negative-binomial count state exactly. \code{count = "poisson"} drops
-#'   \code{Alpha.NB} entirely (not merely fixes it): it is absent from
+#'   negative-binomial, mixture-zero model exactly. \code{count = "poisson"}
+#'   drops \code{Alpha.NB} entirely (not merely fixes it): it is absent from
 #'   \code{par.all}, \code{coef()}, \code{vcov()}, \code{confint()} and
 #'   \code{tidy()}, and shown as absent (not \code{NA}) in \code{summary()}
-#'   and \code{glance()}.
+#'   and \code{glance()}. \code{zero = "hurdle"} makes the zero state own
+#'   every zero (rather than competing with the count state for them) and
+#'   zero-truncates the count state; verified to match
+#'   \code{pscl::hurdle()}'s coefficients and log-likelihood to numerical
+#'   precision when the extreme-value state is unreachable.
 #' @param boot_seed Optional bootstrap seed for reproducibility. When supplied
 #'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
 #'   \code{object$boot_seeds} is always populated for a bootstrapped model
