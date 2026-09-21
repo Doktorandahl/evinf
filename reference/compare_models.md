@@ -154,16 +154,16 @@ compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
 #> 

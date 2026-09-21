@@ -18,6 +18,9 @@ evzinb(
   ncores = NULL,
   block = NULL,
   weights = NULL,
+  time = NULL,
+  bootstrap_scheme = NULL,
+  block_length = NULL,
   family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
@@ -143,6 +146,39 @@ evzinb(
   sampling units with `block =` instead. The bootstrap resamples rows
   exactly as without weights and carries each drawn row's weight along
   (the resampling probabilities themselves are not reweighted).
+
+- time:
+
+  Optional time index for panel/time-series bootstrap resampling (round9
+  F), given as a bare column name (`time = t`) or a string
+  (`time = "t"`); required for
+  `bootstrap_scheme %in% c("moving_block", "stationary")`. Must be
+  strictly increasing within every `block` unit's rows as they already
+  appear in the data – this is never sorted for you; sort `data` by
+  `(block, time)` first if it isn't already.
+
+- bootstrap_scheme:
+
+  One of `"iid"` (plain row resampling, the default when `block` is not
+  given), `"cluster"` (resample whole `block` units, the default when
+  `block` is given – what `block =` has always done), `"moving_block"`
+  or `"stationary"` (block-resample each unit's own time series; see
+  Kunsch 1989 / Politis and Romano 1994). The two block schemes need
+  `time`; `block` is optional for them (the whole data is treated as one
+  unit when omitted). With overlapping blocks the out-of-bag set is
+  smaller and more temporally correlated than under iid resampling, so
+  out-of-bag error ([`oob_evaluation`](oob_evaluation.md)) is optimistic
+  relative to genuine forecasting performance; each bootstrap
+  replicate's realised out-of-bag fraction is stored as `$oob_fraction`
+  next to `$boot_id`.
+
+- block_length:
+
+  Block length for
+  `bootstrap_scheme %in% c("moving_block", "stationary")`; `NULL` (the
+  default) uses `ceiling(T^(1/3))` for each unit's own length \\T\\ (a
+  message names the value(s) used, once, at the original fit – not on
+  every bootstrap replicate).
 
 - family:
 

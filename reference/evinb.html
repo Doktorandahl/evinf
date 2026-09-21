@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Running an extreme value inflated negative binomial model with bootstrapping</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partE3/R/evinb.R" class="external-link"><code>R/evinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/evinb.R" class="external-link"><code>R/evinb.R</code></a></small>
       <div class="d-none name"><code>evinb.Rd</code></div>
     </div>
 
@@ -50,6 +50,9 @@
 <span>  ncores <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  block <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  weights <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  time <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  bootstrap_scheme <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  block_length <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  family <span class="op">=</span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  boot_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="evinf_control.html">evinf_control</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -157,6 +160,40 @@ sampling design; for that, resample primary sampling units with
 <code>block =</code> instead. The bootstrap resamples rows exactly as without
 weights and carries each drawn row's weight along (the resampling
 probabilities themselves are not reweighted).</p></dd>
+
+
+<dt id="arg-time">time<a class="anchor" aria-label="anchor" href="#arg-time"></a></dt>
+<dd><p>Optional time index for panel/time-series bootstrap resampling
+(round9 F), given as a bare column name (<code>time = t</code>) or a string
+(<code>time = "t"</code>); required for <code>bootstrap_scheme %in%
+c("moving_block", "stationary")</code>. Must be strictly increasing within
+every <code>block</code> unit's rows as they already appear in the data –
+this is never sorted for you; sort <code>data</code> by <code>(block, time)</code>
+first if it isn't already.</p></dd>
+
+
+<dt id="arg-bootstrap-scheme">bootstrap_scheme<a class="anchor" aria-label="anchor" href="#arg-bootstrap-scheme"></a></dt>
+<dd><p>One of <code>"iid"</code> (plain row resampling, the
+default when <code>block</code> is not given), <code>"cluster"</code> (resample
+whole <code>block</code> units, the default when <code>block</code> is given – what
+<code>block =</code> has always done), <code>"moving_block"</code> or
+<code>"stationary"</code> (block-resample each unit's own time series; see
+Kunsch 1989 / Politis and Romano 1994). The two block schemes need
+<code>time</code>; <code>block</code> is optional for them (the whole data is
+treated as one unit when omitted). With overlapping blocks the
+out-of-bag set is smaller and more temporally correlated than under iid
+resampling, so out-of-bag error (<code><a href="oob_evaluation.html">oob_evaluation</a></code>) is
+optimistic relative to genuine forecasting performance; each bootstrap
+replicate's realised out-of-bag fraction is stored as
+<code>$oob_fraction</code> next to <code>$boot_id</code>.</p></dd>
+
+
+<dt id="arg-block-length">block_length<a class="anchor" aria-label="anchor" href="#arg-block-length"></a></dt>
+<dd><p>Block length for <code>bootstrap_scheme %in%
+c("moving_block", "stationary")</code>; <code>NULL</code> (the default) uses
+<code>ceiling(T^(1/3))</code> for each unit's own length \(T\) (a message
+names the value(s) used, once, at the original fit – not on every
+bootstrap replicate).</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>

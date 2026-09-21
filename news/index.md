@@ -2,8 +2,9 @@
 
 ## evinf 0.11.0
 
-Implements audit §5.6 (offsets and weights) and §5.5 (model families):
-work packages D and E of `dev/plan_0.12_families_offsets_panel.md`.
+Implements audit §5.6 (offsets and weights), §5.5 (model families) and
+§5.7 (panel/time-series resampling): work packages D, E and F of
+`dev/plan_0.12_families_offsets_panel.md`.
 
 ### New features
 
@@ -76,6 +77,35 @@ work packages D and E of `dev/plan_0.12_families_offsets_panel.md`.
   [`compare_fit()`](../reference/compare_fit.md) and
   [`oob_evaluation()`](../reference/oob_evaluation.md) need no changes,
   having already treated their model list generically (round9 E.3).
+
+- [`evzinb()`](../reference/evzinb.md) /
+  [`evinb()`](../reference/evinb.md) /
+  [`add_bootstraps()`](../reference/add_bootstraps.md) gain
+  `bootstrap_scheme =` for panel and time-series bootstrapping (round9
+  F): `"iid"` (plain row resampling, the default when `block` is not
+  given), `"cluster"` (resample whole `block` units – what `block =` has
+  always done, and still the default when `block` is given),
+  `"moving_block"` or `"stationary"` (block-resample each unit’s own
+  time series; Kunsch 1989 / Politis and Romano 1994). The two block
+  schemes need a new `time =` argument (a time index, required to be
+  strictly increasing within every `block` unit’s rows as they already
+  appear in the data – never sorted for you) and, optionally,
+  `block_length =` (`NULL`, the default, uses `ceiling(T^(1/3))` per
+  unit, messaged once at the original fit, not on every bootstrap
+  replicate). `block` is optional for the two block schemes: the whole
+  dataset is treated as one unit when it’s omitted. Every bootstrap
+  replicate gains `$oob_fraction` next to `$boot_id` – with overlapping
+  blocks the out-of-bag set is both smaller and more temporally
+  correlated than under i.i.d. resampling, so out-of-bag error
+  ([`oob_evaluation()`](../reference/oob_evaluation.md)) is optimistic
+  relative to genuine forecasting performance under those two schemes.
+  `lr_test(bootstrap = )`,
+  [`compare_models()`](../reference/compare_models.md) and
+  [`oob_evaluation()`](../reference/oob_evaluation.md) needed no
+  changes: all three already just consume whatever `boot_id` the
+  resampling generator returns. Default (`bootstrap_scheme = "iid"` /
+  `"cluster"` via `block`) fits and bootstraps are numerically
+  unchanged.
 
 - [`offset()`](https://rdrr.io/r/stats/offset.html) is now supported in
   `formula_zi` and `formula_evi` (already supported in `formula_nb`),
