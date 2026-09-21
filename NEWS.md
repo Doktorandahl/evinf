@@ -54,9 +54,10 @@ review follow-ups in `dev/review_round1.md`.
   a bootstrap ribbon and quantile lines), `"coefficients"` (bootstrap
   coefficient densities), `"ppc"` (observed-vs-expected binned frequencies) and
   `"ppc_quantiles"` (observed vs. simulated tail quantiles with a 5-95\% band).
-* `compare_fit()` summarises the paired bootstrap differences (`compared -
-  evinf`) in AIC, BIC and out-of-bag RMSE / RMSLE for an `evzinbcomp` object,
-  with the proportion of bootstraps favouring the extreme-value model;
+* `compare_fit()` summarises the paired bootstrap differences (`evinf -
+  compared`, negative favours the extreme-value model) in AIC, BIC and
+  out-of-bag RMSE / RMSLE for an `evzinbcomp` object, with the proportion of
+  bootstraps favouring the extreme-value model;
   `plot()`, `tidy()` and `glance()` methods for `evzinbcomp` and an
   `oob_evaluation()` method that tabulates the out-of-bag error per model.
 * `marginal_effects()` computes average marginal effects (central difference for
@@ -148,6 +149,118 @@ review follow-ups in `dev/review_round1.md`.
 * `predict()` on the `zinb` slot of a `compare_models()` result with
   `type = "counts"` (or `type = "all"`, or `type = "counts", confint = TRUE`)
   no longer errors with "$ operator is invalid for atomic vectors".
+* `lr_test(bootstrap = TRUE)` no longer errors ("Tibble columns must have
+  compatible sizes") when any bootstrap replicate failed or was flagged
+  degenerate. It now filters to the usable replicates first, like every other
+  bootstrap summary, and gains `exclude_degenerate = TRUE` (audit0.10 §1.1);
+  the results also report `n_bootstraps_used` next to `n_failed_bootstraps`.
+* `summary(standard_error = FALSE)` / `tidy(standard_error = FALSE)` no longer
+  error ("Column 'se'/'std.error' not found") when the model has bootstraps:
+  `approx_t_value` is now silently forced to `FALSE` along with it, and
+  `print.summary.*()` renders correctly with the `se`/`approx_t` columns
+  missing (audit0.10 §1.2).
+* `compare_models(razorize = TRUE)` refits NB/ZINB bootstraps on the wrong
+  rows whenever the razorised data had fewer rows than the full data (which
+  it always does): the bootstrap resample indices were used as-is against the
+  smaller `data_razor`, mixing in unrelated or out-of-range rows. Resamples
+  are now mapped onto `data_razor`'s own rows before refitting. Winsorised
+  out-of-bag error is now computed against the raw (unwinsorised) outcome,
+  not the winsorised one, so it is comparable to the EVZINB/EVINB OOB error.
+  `inner_nb()`/`inner_zinb()`/`boot_refit_one()`/`oob_evaluation()`'s internal
+  `try()`s no longer print to the console on a failed replicate (audit0.10
+  §1.5).
+* `marginal_effects(variables = )` errors on an unrecognised covariate name
+  (listing the available ones) instead of silently returning a 0-row tibble.
+  A numeric covariate that only enters the model's formulas wrapped in
+  `factor()`/`as.factor()`/`cut()` (e.g. `y ~ factor(g_num)`) is now treated
+  as categorical (level-vs-reference contrasts), instead of being perturbed
+  as a number and producing unseen factor levels; one wrapped only in
+  `poly()`/`ns()`/`bs()` keeps the numeric derivative/difference path with
+  its perturbation clamped to the covariate's observed range. A covariate
+  used both ways across formula components errors clearly (audit0.10 §1.10).
+* A singular M-step Hessian no longer aborts the fit (or, on some BLAS
+  backends, silently returns a wildly ill-conditioned step): the Newton step
+  now uses `arma::solve(..., solve_opts::no_approx)`, which reports failure
+  instead of throwing or returning garbage; on failure it retries once with a
+  small ridge, and if that also fails the affected block keeps its
+  pre-step value for that EM step (audit0.10 §1.3). This is also the usual
+  reason a bootstrap replicate failed.
+* The EM outer loop (the C_EV profile update) could in principle run forever
+  if the profile oscillated between two candidate values. `evinf_control()`
+  gains `max.c.iter` (default 50), capping each phase separately; hitting the
+  cap in the convergence phase sets `converge = FALSE` (see the new
+  `$c_converged` / `glance()` column to tell this apart from the inner EM not
+  converging) and, for a full-sample fit, a `warning()` names the last two
+  C_EV values visited. `em_profile_c()` also now uses `which.max()`, so an
+  exact tie in the profile no longer returns a length > 1 `c_hat` and every
+  candidate being `NaN`/infinite errors clearly instead of silently breaking
+  the outer loop (audit0.10 §1.4).
+* The likelihood could underflow to `-Inf` for a large count or a small
+  Pareto shape: the discretised Pareto log-pmf now uses a cancellation-free
+  form (`a*log(C/y) + log(-expm1(a*log(y/(y+1))))` in place of
+  `log((C/y)^a - (C/(y+1))^a)`), the NB/Pareto mixture is combined with a
+  log-sum-exp instead of summing on the natural scale, the NB log-pmf uses
+  `lgamma()` instead of an O(y) loop, and the multinomial state probabilities
+  (in the C++ M-step and in `prob_from_evzinb()` / `prob_from_evinb()`) use a
+  numerically stable softmax. Coefficients move by at most ~2e-10 and
+  log-likelihood by at most ~7e-12 on the identity fixtures -- well under the
+  1e-6 the round's numerical-identity gate would have required flagging
+  (audit0.10 §1.11).
+* `evzinb()` / `evinb()` now validate the response after `na.omit()`: a
+  negative, non-finite or non-integer value errors, naming the count and the
+  problem, instead of being silently misread (a non-integer count is
+  effectively ceiling()'d by the NB part of the C++ code but used exactly by
+  the Pareto part; a negative one produced a cryptic "argument is of length
+  zero" several layers down). `evinf_control(prune.c.range = )` now requires
+  `[0, 1)` (was `[0, 1]`; `1` passed validation but crashed with "invalid
+  'size' argument"); `em_c_candidates()` clamps its internal sample size to
+  `>= 0`, skips pruning entirely below 3 candidates, and no longer risks
+  `sample()`'s length-1-population trap (`sample(2, ...)` samples from `1:2`,
+  not the single candidate `2`) on a 3-value grid. Pruning's random draw is
+  now reproducible without touching the caller's `.Random.seed`, via a
+  generalised `evinf_seeded_sample()` (audit0.10 §1.9).
+* `lr_test()` no longer emits `evzinb()`/`evinb()`'s deprecation warning on
+  every restricted refit (once per model, or once per model x bootstrap with
+  `bootstrap = TRUE`). The restricted refits now pass a modified copy of the
+  full model's `control` object (its `init.*` fields set from the full-model
+  estimate) instead of ~20 individual tuning arguments, which also means a
+  setting added to `evinf_control()` after the model was fitted (e.g.
+  `max.c.iter`) is carried over automatically instead of needing to be added
+  to a hand-picked argument list (audit0.10 §1.7).
+* `evinf_control(pdf.pl.type = "exact")` was accepted and stored but had no
+  effect: the M-step always used the continuous-Pareto gradient/Hessian for
+  the Pareto block, giving bit-identical estimates to `"approx"`. `"exact"`
+  now uses the analytic gradient/Hessian of the *discretised* Pareto log-pmf
+  (the pmf the likelihood itself always uses) in the Newton step, computed in
+  the same cancellation-free form as the likelihood (audit0.10 §1.11). The
+  default stays `"approx"`, and default estimates are unchanged. See
+  `?evinf_control` for what each option does (audit0.10 §1.8).
+* A bootstrapped p-value of exactly `0` (no draw crossed the estimate) is now
+  floored at `1 / B`, where `B` is the number of usable bootstrap replicates
+  -- the true p-value could be anywhere in `[0, 1/B)`, so reporting exactly
+  `0` overstates the precision `B` draws can deliver.
+  `print.summary.evzinb()` / `print.summary.evinb()` show this as `"< 1/B"`
+  (e.g. `"<0.01"` for 100 usable bootstraps) instead of the default,
+  misleadingly precise `"<2e-16"` (audit0.10 §1.11).
+* `update(model, data = new_data)` kept the *old* data's data-driven
+  `control$c.lim` / `control$init.C` (both were written into `object$control`
+  at the original fit), silently reusing a candidate range for \eqn{C_{EV}}
+  chosen for data the model no longer uses. If the original range was itself
+  data-driven (not pinned by the user via `evinf_control(c.lim = )`) and
+  `data` is among the arguments being changed, they are now reset to `NULL`
+  and re-resolved from the new data, with the usual message.
+  `?update.evzinb` also documents that changing `formula_nb.` does not
+  propagate to a component formula that was originally left `NULL` and
+  inherited from it -- that component keeps its own formula regardless
+  (audit0.10 §1.11).
+* `object$props` / `object$resp` (and the `fitted$prob_*` / `posterior_*`
+  vectors derived from them) came from the E-step at the *start* of the last
+  EM step, one step behind the returned coefficients. They are now
+  recomputed at the actual returned parameters and final C_EV before
+  `evzinb()` / `evinb()` return, using the same stable softmax as the C++
+  E-step. Point predictions (`predict(type = "harmonic")` etc.) are
+  unaffected -- only these diagnostic quantities change, by up to ~0.008 on
+  the bundled example data (audit0.10 §1.11).
 
 ## Breaking changes / deprecations
 
@@ -175,9 +288,13 @@ review follow-ups in `dev/review_round1.md`.
   depend on the number of workers). Pin results you need to reproduce.
 * `future` and `furrr` are new hard dependencies; `foreach`, `doParallel`,
   `doRNG` and **`mistr`** are dropped.
-* The extreme-value component of the mixture is now a single, package-wide
-  **discretised Pareto** (`R/dist_pareto.R`): pmf
-  \eqn{(C/y)^\alpha - (C/(y+1))^\alpha} for integer \eqn{y \ge C}. Previously
+* The likelihood, CDF, quantile prediction, residuals, `simulate()` and the
+  posterior state probabilities now all share a single **discretised Pareto**
+  (`R/dist_pareto.R`): pmf \eqn{(C/y)^\alpha - (C/(y+1))^\alpha} for integer
+  \eqn{y \ge C}. The `'harmonic'`/`'explog'` point predictions still use the
+  continuous-Pareto harmonic/geometric-mean formulas as a closed-form
+  approximation (documented in `?predict.evzinb`), so they are the one place
+  that is not computed from the discretised distribution. Previously
   `predict(type = "quantile")` / `quantiles_from_*()` /
   `marginal_effects(type = "quantile")` built the mixture with `mistr` and
   inverted it there. The new path bisects the same mixture CDF used by
@@ -215,6 +332,27 @@ review follow-ups in `dev/review_round1.md`.
   `match.arg()` now rejects it.
 * The three internal `marginal.effect.*` helpers (never exported, superseded by
   `marginal_effects()`) were removed.
+* **`compare_fit()` sign convention.** The paired bootstrap difference is now
+  `evinf - compared` (was `compared - evinf`); `prop_evinf_better` is now
+  `mean(diffs < 0)`. The print header and the `plot()` x-axis label already
+  said "negative favours evinf" — it was the computation that disagreed with
+  them (a probe on `genevzinb2` showed a *positive* median with
+  `prop_evinf_better = 1` for a model that clearly wins on AIC). `compare_fit()`
+  / `plot.evzinbcomp()` also gain `exclude_degenerate = TRUE`, and
+  `oob_evaluation()` now honours it for a single evinf model.
+* The default `conf_level` for `predict()` and `marginal_effects()` is now
+  `0.95` (was `0.9`), matching `confint()` and `tidy()`. Pass
+  `conf_level = 0.9` explicitly to keep the old default.
+* **Deprecations planned for removal in 0.11.0:** the pre-0.9.4
+  `component = "nb"/"zi"/"evinf"` aliases (use `"count"`/`"zero"`/`"evi"`);
+  passing the individual EM tuning arguments (`max.diff.par`, `c.lim`,
+  `init.C`, ...) directly to `evzinb()`/`evinb()` instead of through
+  `control = evinf_control(...)`; and the deprecated `pr_zc`/`pr_pareto`
+  column names and `fitted$prob_pareto`/`fitted$posterior_pareto` duplicate
+  fields (use the canonical `pr_zero`/`pr_evi` and
+  `prob_evi`/`posterior_evi`). All of these still work in 0.10.0 and most
+  already warn when used. `revzinb_fit()`/`revinb_fit()` are superseded by
+  `simulate()` but are not deprecated and have no planned removal.
 
 ## Documentation
 

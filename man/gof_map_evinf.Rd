@@ -17,7 +17,8 @@ A tibble with columns \code{raw} (the \code{glance()} column name,
   \code{fmt} (default number of decimals). Rows: observations, parameters,
   alpha_NB, C_EV, observations at or above C_EV, log-likelihood, AIC, BIC,
   the usable / failed / degenerate bootstrap counts, the number of bootstrap
-  replicates with C_EV on the candidate-grid boundary, and convergence.
+  replicates with C_EV on the candidate-grid boundary, and convergence (both
+  of the EM loop and of the C_EV profile).
 }
 \description{
 Returns the \code{gof_map} that \code{modelsummary::modelsummary()} needs to
@@ -41,7 +42,8 @@ gof_map_evinf(extra = data.frame(raw = "n_em_steps", clean = "EM steps",
 \donttest{
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
-if (requireNamespace("modelsummary", quietly = TRUE)) {
+if (requireNamespace("modelsummary", quietly = TRUE) &&
+    requireNamespace("broom", quietly = TRUE)) {
   modelsummary::modelsummary(
     model,
     shape = term + y.level ~ model,

@@ -49,10 +49,14 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE) {
                 ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset)
   }
 
+  # audit0.10 §1.8: pdf.pl.type = "exact" uses the discretised-Pareto
+  # derivatives in the M-step instead of the continuous-Pareto approximation;
+  # the likelihood itself (ll() above) is always the discretised pmf either way.
   upd <- update_bfgs_fun(
     zc_old, pl_mult_old, nb_old, alpha_old, pl_old, c_pl,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y,
-    control$max.upd.par.nb, control$no.m.bfgs.steps.nb, ext$offset
+    control$max.upd.par.nb, control$no.m.bfgs.steps.nb, ext$offset,
+    identical(control$pdf.pl.type, "exact")
   )
 
   # --- take the BFGS values where they are finite, otherwise keep the old ----

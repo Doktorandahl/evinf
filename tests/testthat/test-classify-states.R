@@ -36,6 +36,24 @@ test_that("threshold rule leaves low-confidence rows unassigned", {
   expect_true(anyNA(cs$map_prior))
 })
 
+test_that("there is a single Pareto pmf, dpareto_disc(), not a duplicate copy (audit0.10 §1.12, D.4)", {
+  expect_false(exists("evinf_pareto_pmf", where = asNamespace("evinf"), inherits = FALSE))
+
+  y <- c(0L, 1L, 40L, 41L, 100L)
+  C <- 37.4
+  alpha <- 1.8
+  prior <- matrix(c(0.2, 0.5, 0.3), nrow = length(y), ncol = 3, byrow = TRUE)
+  resp <- evinf:::evinf_responsibilities(y, mu_nb = rep(5, length(y)),
+                                         alpha_nb = 1, pl_alpha = alpha,
+                                         C = C, prior = prior)
+  d_evi <- evinf:::dpareto_disc(y, C, alpha)
+  d_zero <- as.numeric(y == 0)
+  d_count <- stats::dnbinom(y, mu = 5, size = 1)
+  num_evi <- prior[, 3] * d_evi
+  denom <- prior[, 1] * d_zero + prior[, 2] * d_count + num_evi
+  expect_equal(unname(resp[, "evi"]), unname(num_evi / denom))
+})
+
 test_that("state_table() cross-tabulates prior vs posterior", {
   m <- fit_evzinb_fast(bootstrap = FALSE)
   st <- state_table(m)

@@ -15,7 +15,7 @@
 #' @param y Numeric response vector.
 #' @param c.lim Length-2 numeric giving the lower and upper bound of the search.
 #' @param prune.c.range \code{FALSE} for no thinning, or a number in
-#'   \code{[0, 1]} giving the proportion of interior candidates to drop (sampled
+#'   \code{[0, 1)} giving the proportion of interior candidates to drop (sampled
 #'   with probability proportional to the gaps between consecutive candidates, so
 #'   the endpoints are always kept).
 #'
@@ -26,6 +26,9 @@
 #'   support rather than by a smooth optimiser. A warning is emitted when the set
 #'   has more than 100 elements and no pruning was requested, because each extra
 #'   candidate is one extra full-data log-likelihood evaluation per EM iteration.
+#'   Pruning is reproducible without touching the caller's global RNG state: the
+#'   thinning draw is seeded from the (unpruned) candidate range itself via the
+#'   internal \code{evinf_seeded_sample()} helper.
 #'
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
@@ -41,21 +44,24 @@ em_c_candidates <- function(y, c.lim, prune.c.range) {
     )
   }
 
-  if (is.numeric(prune.c.range)) {
-    if (prune.c.range < 0 || prune.c.range > 1) {
-      stop("The prune.c.range argument must be FALSE or be between 0 and 1")
+  # audit0.10 §1.9: with fewer than 3 candidates there is no interior point to
+  # prune, so skip entirely -- this also sidesteps sample()'s length-1-
+  # population trap (sample(2, ...) samples from 1:2, not the single value 2).
+  if (is.numeric(prune.c.range) && length(c.range) >= 3) {
+    if (prune.c.range < 0 || prune.c.range >= 1) {
+      stop("The prune.c.range argument must be FALSE or be in [0, 1)")
     }
     gaps <- diff(c.range)
-    sample.size <- ceiling(length(c.range) * (1 - prune.c.range)) - 2
-    keep.indicies <- c(
-      1,
-      sample(
-        seq(2, length(c.range) - 1),
-        size = sample.size,
-        prob = gaps[-c(length(c.range) - 1)] / sum(gaps)
-      ),
-      length(c.range)
-    )
+    sample.size <- max(0, ceiling(length(c.range) * (1 - prune.c.range)) - 2)
+    pool <- seq(2, length(c.range) - 1)
+    pool_probs <- gaps[-c(length(c.range) - 1)] / sum(gaps)
+    # seq_len()-safe: sample positions into `pool` (always starting at 1, so
+    # the length-1 case is never misread as a range) rather than sampling
+    # from `pool` directly. Seeded from the candidate range so the draw is
+    # reproducible without disturbing the caller's global RNG.
+    seed <- as.integer(sum(c.range) %% .Machine$integer.max)
+    idx <- evinf_seeded_sample(length(pool), sample.size, seed = seed, prob = pool_probs)
+    keep.indicies <- c(1, pool[idx], length(c.range))
     c.range <- c.range[sort(keep.indicies)]
     if (length(c.range) > 100) {
       warning(

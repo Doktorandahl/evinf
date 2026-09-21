@@ -41,6 +41,29 @@ test_that("predict(model) equals predict(model, newdata = model$data$data) (audi
                predict(m, newdata = m$data$data, type = "states"))
 })
 
+test_that("evzinb() returns a fit instead of erroring on a singular Pareto Hessian (audit0.10 §1.3)", {
+  d <- { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2 }
+  d$x1_dup <- d$x1  # exact duplicate -> the Pareto-block Hessian is exactly singular
+  m <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2 + x3, formula_pareto = ~ x1 + x1_dup, data = d,
+    control = .fast_control(), bootstrap = FALSE, verbose = FALSE
+  )))
+  expect_s3_class(m, "evzinb")
+  expect_true(is.finite(m$log.lik))
+  expect_false(anyNA(unlist(m$coef)))
+  # On the ridge-regularised solve, an exactly collinear pair of columns must
+  # get an exactly equal split of their combined effect (a mathematical
+  # guarantee of Tikhonov regularisation, not a numerical fluke). Before the
+  # fix, arma::inv() doesn't always throw on this platform's BLAS for a
+  # rank-deficient Hessian -- it can silently return a huge, ill-conditioned
+  # "inverse" (observed ~1e15 here) that, once capped by max_upd_par, still
+  # gives x1 and x1_dup an arbitrary, generally *unequal* (and here even
+  # opposite-signed) split. This is the deterministic, platform-independent
+  # part of the regression.
+  beta_pl <- m$coef$Beta.PL
+  expect_equal(unname(beta_pl["x1"]), unname(beta_pl["x1_dup"]), tolerance = 1e-6)
+})
+
 test_that("user-supplied init.Beta.NB is actually used (audit 1.8 / R0.6)", {
   d <- { data(genevzinb2, package = "evinf", envir = environment()); genevzinb2 }
   # NB has 3 predictors (+ intercept = 4), EVI has 1: before the fix, a length-4

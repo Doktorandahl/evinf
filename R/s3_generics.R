@@ -67,7 +67,8 @@ evinf_nobs <- function(object) nrow(object$data$x.nb)
 #' @param object A fitted \code{evzinb} / \code{evinb} model.
 #' @param component One of \code{"all"} (the default), \code{"count"},
 #'   \code{"zero"}, \code{"evi"}, \code{"pareto"}. Deprecated aliases \code{"nb"},
-#'   \code{"zi"}, \code{"evinf"} are accepted.
+#'   \code{"zi"}, \code{"evinf"} are accepted, with a warning; they will be
+#'   removed in 0.11.0.
 #' @param ... Unused.
 #' @return For \code{"all"}, a named numeric vector \code{<component>_<term>},
 #'   \code{alpha_nb}, \code{c_ev}; for a single component the plain named vector.
@@ -254,12 +255,16 @@ terms.evinb <- function(x, component = "count", ...) {
 #'   \code{"response"} (\eqn{y - } harmonic prediction) or \code{"quantile"}
 #'   (randomized quantile residuals from the mixture CDF).
 #' @param seed Optional RNG seed for the randomized quantile residuals /
-#'   \code{simulate()}.
+#'   \code{simulate()}. If given, the caller's RNG state is restored on exit
+#'   (the seed only affects this call's draws).
 #' @param nsim Number of simulated response vectors.
 #' @param newdata Optional data to simulate for.
 #' @param ... Unused.
 #' @return \code{fitted()} / \code{residuals()} return a numeric vector;
-#'   \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2}, ...
+#'   \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2},
+#'   ..., with a \code{"seed"} attribute following the
+#'   \code{\link[stats]{simulate}} convention (the given \code{seed}, or, if
+#'   none was given, the RNG state before the draws were made).
 #' @name evinf-s3-predict
 #' @export
 fitted.evzinb <- function(object,
@@ -292,42 +297,54 @@ residuals.evzinb <- function(object, type = c("response", "quantile"),
                 mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  u <- stats::runif(length(y), Fy1, Fy)
+  # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG
+  # state -- same preserve-seed helper as evinf_seeded_sample() (B.4/§1.9).
+  u <- evinf_with_seed(seed, stats::runif(length(y), Fy1, Fy))
   stats::qnorm(u)
 }
 #' @rdname evinf-s3-predict
 #' @export
 residuals.evinb <- residuals.evzinb
 
+# The RNG state to record on the "seed" attribute of simulate()'s result,
+# following the stats::simulate() convention (audit0.10 §1.14, D.6): the
+# given seed if one was supplied, otherwise the caller's .Random.seed as it
+# stood immediately before the draw (so it can be restored later to
+# reproduce these draws).
+evinf_pre_draw_rng_state <- function(seed) {
+  if (!is.null(seed)) {
+    return(structure(seed, kind = as.list(RNGkind())))
+  }
+  if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+    stats::runif(1)
+  }
+  get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+}
+
 #' @rdname evinf-s3-predict
 #' @export
 simulate.evzinb <- function(object, nsim = 1, seed = NULL, newdata = NULL, ...) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  draws <- revzinb_fit(object, newdata = newdata, n_draws = nsim)
+  rng_state <- evinf_pre_draw_rng_state(seed)
+  draws <- evinf_with_seed(seed, revzinb_fit(object, newdata = newdata, n_draws = nsim))
   if (nsim == 1L) {
     draws <- list(draws)
   }
   out <- as.data.frame(draws)
   names(out) <- paste0("sim_", seq_len(nsim))
+  attr(out, "seed") <- rng_state
   out
 }
 #' @rdname evinf-s3-predict
 #' @export
 simulate.evinb <- function(object, nsim = 1, seed = NULL, newdata = NULL, ...) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  draws <- revinb_fit(object, newdata = newdata, n_draws = nsim)
+  rng_state <- evinf_pre_draw_rng_state(seed)
+  draws <- evinf_with_seed(seed, revinb_fit(object, newdata = newdata, n_draws = nsim))
   if (nsim == 1L) {
     draws <- list(draws)
   }
   out <- as.data.frame(draws)
   names(out) <- paste0("sim_", seq_len(nsim))
+  attr(out, "seed") <- rng_state
   out
 }
 
@@ -339,10 +356,24 @@ simulate.evinb <- function(object, nsim = 1, seed = NULL, newdata = NULL, ...) {
 #' @param object A fitted model (must carry \code{object$call}).
 #' @param formula_nb.,formula_zi.,formula_evi.,formula_pareto. Optional
 #'   \code{\link[stats]{update.formula}}-style changes per component, e.g.
-#'   \code{formula_pareto. = . ~ . - x3}.
+#'   \code{formula_pareto. = . ~ . - x3}. Each component is updated against
+#'   its \emph{own current} formula (the one the fitted object actually used,
+#'   whether the user supplied it or it was inherited from \code{formula_nb}
+#'   when \code{NULL}). Changing \code{formula_nb.} does not propagate to a
+#'   component formula that was originally left \code{NULL} and inherited
+#'   from it -- that component keeps whatever formula it was fitted with;
+#'   pass that component's own \code{formula_*.} explicitly to change it too.
 #' @param ... Other arguments of \code{\link{evzinb}} / \code{\link{evinb}} to
 #'   change.
 #' @param evaluate If \code{TRUE} (default) re-fit; otherwise return the updated call.
+#'
+#' @details If \code{object}'s candidate range for \eqn{C_{EV}} was itself
+#'   data-driven (\code{control$c.lim} was \code{NULL} at the original fit;
+#'   see \code{object$c_lim_default}), and \code{data} is one of the arguments
+#'   being changed, \code{control$c.lim} and \code{control$init.C} are reset to
+#'   \code{NULL} so they are re-resolved from the new data (with the usual
+#'   message) instead of silently reusing the range chosen for the old data. A
+#'   \code{c.lim} the user pinned explicitly is always kept as-is.
 #' @return The updated fit, or the call.
 #' @export
 update.evzinb <- function(object, formula_nb., formula_zi., formula_evi.,
@@ -391,6 +422,15 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
   }
 
   cl$control <- object$control
+  # audit0.10 §1.9/§1.11: c.lim / init.C were resolved from the OLD data
+  # (evinf_resolve_c()); if the range was itself data-driven (not pinned by
+  # the user) and the data is changing, reset them to NULL so the refit
+  # re-resolves a range for the NEW data instead of silently reusing the old
+  # one. A user-pinned c.lim is always kept.
+  if (isTRUE(object$c_lim_default) && "data" %in% names(extras)) {
+    cl$control$c.lim <- NULL
+    cl$control$init.C <- NULL
+  }
   cl$block <- object$block
 
   chg <- function(component, change) {

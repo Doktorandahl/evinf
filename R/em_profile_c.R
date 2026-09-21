@@ -38,16 +38,20 @@ em_profile_c <- function(y, x_obj, par, c_candidates) {
     )
   }, numeric(1))
 
-  if (is.infinite(max(loglik))) {
+  # audit0.10 §1.4: which(loglik == max(loglik)) returns a vector on an exact
+  # tie and integer(0) when every value is NaN (max(loglik) is then NaN too,
+  # and nothing equals NaN) -- both break the while() condition in em_fit().
+  # which.max() always returns a single index and ignores NaN/-Inf entries.
+  if (all(!is.finite(loglik))) {
     stop(
-      "The log-likelihood is infinite for all tested values of c in the ",
-      "c-range. Try expanding the c-range with the c.lim argument of the function"
+      "The log-likelihood is NaN or infinite for all tested values of c in ",
+      "the c-range. Try expanding the c-range with the c.lim argument of the function"
     )
   }
 
   list(
     profile = data.frame(c = c_candidates, loglik = loglik),
-    c_hat = c_candidates[which(loglik == max(loglik))],
-    loglik_max = max(loglik)
+    c_hat = c_candidates[which.max(loglik)],
+    loglik_max = max(loglik, na.rm = TRUE)
   )
 }

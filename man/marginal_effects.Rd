@@ -13,7 +13,7 @@ marginal_effects(
   method = c("derivative", "difference"),
   eps = 1e-04,
   delta = 1,
-  conf_level = 0.9,
+  conf_level = 0.95,
   newdata = NULL,
   n_max = 500,
   exclude_degenerate = TRUE,
@@ -25,7 +25,17 @@ marginal_effects(
 \item{object}{A fitted \code{evzinb} / \code{evinb} model with bootstraps.}
 
 \item{variables}{Covariates to compute effects for (default: all raw
-covariates).}
+covariates). An unrecognised name errors, listing the available
+covariates. A variable that only ever enters the model's formulas
+wrapped in \code{factor()}/\code{as.factor()}/\code{cut()} is treated as
+categorical (level-vs-reference contrasts over its observed unique
+values) even though it is stored as numeric data; one wrapped only in
+\code{poly()}/\code{ns()}/\code{bs()} keeps the numeric derivative/
+difference path but has its perturbation clamped to the covariate's
+observed range, so the perturbed value is never fed to the spline basis
+outside the range it was built from. A variable used both ways (e.g.
+bare in one formula component and \code{factor()}-wrapped in another)
+errors, since a single perturbed value cannot represent both.}
 
 \item{type}{\code{"harmonic"}, \code{"states"} or \code{"quantile"}.}
 

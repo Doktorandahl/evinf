@@ -26,7 +26,8 @@ evinf_control(
   init.Alpha.NB = 0.01,
   init.C = NULL,
   alpha_floor = 0.001,
-  coef_limit = 50
+  coef_limit = 50,
+  max.c.iter = 50
 )
 }
 \arguments{
@@ -45,7 +46,7 @@ with the same \code{boot_seed} settle in different ones (see the
 \eqn{C_{EV}} is the unique observed response values within this range.
 \code{NULL} (the default) uses a data-driven range (see Details).}
 
-\item{prune.c.range}{\code{FALSE}, or a number in \[0, 1]: thin the candidate
+\item{prune.c.range}{\code{FALSE}, or a number in \[0, 1): thin the candidate
 set to about \code{length(c.lim) * (1 - prune.c.range)} values.}
 
 \item{max.upd.par.zc.multinomial, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl}{Maximum parameter-change step sizes for the zero-inflation, extreme-value
@@ -53,7 +54,14 @@ inflation, count and Pareto components.}
 
 \item{no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl}{Number of BFGS steps per M-step for the multinomial, count and Pareto blocks.}
 
-\item{pdf.pl.type}{Pareto density approximation: \code{"approx"} or \code{"exact"}.}
+\item{pdf.pl.type}{Which Pareto-block derivatives the M-step uses for
+\eqn{\beta_{PL}}: \code{"approx"} (the default) uses the gradient/Hessian
+of the \emph{continuous} Pareto log-density; \code{"exact"} uses the
+gradient/Hessian of the \emph{discretised} Pareto log-pmf that the
+likelihood itself always uses (this only changes the Newton step taken
+each M-step, not what is being maximised). The two typically converge to
+nearly the same estimates; \code{"exact"} can help when \code{"approx"}'s
+steps are poorly scaled for a heavy-tailed fit.}
 
 \item{eta.int}{Interval for the eta line search, a numeric vector of length 2.}
 
@@ -78,6 +86,14 @@ shape is non-finite or below \code{alpha_floor}. \code{alpha_floor}
 collapse (shape near 0), not a merely heavy tail. \code{coef_limit}
 (default \code{50}) is on the linear-predictor scale, where \code{50} is
 already extreme.}
+
+\item{max.c.iter}{Maximum number of outer ECME iterations (each one re-profiles
+\eqn{C_{EV}} over the candidate grid) per phase (warm-up, convergence). Guards
+against the profile oscillating between two candidate values forever. If the
+convergence-phase loop hits this cap, the fit's \code{converge} is set to
+\code{FALSE} (see \code{$c_converged} to tell this apart from the EM inner
+loop not converging) and, for a full-sample fit, a \code{warning()} names the
+last two \eqn{C_{EV}} values visited.}
 }
 \value{
 A list of class \code{"evinf_control"}.

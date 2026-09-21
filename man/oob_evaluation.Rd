@@ -7,7 +7,8 @@
 oob_evaluation(
   object,
   predict_type = c("harmonic", "explog"),
-  metric = c("rmsle", "rmse", "mse", "mae")
+  metric = c("rmsle", "rmse", "mse", "mae"),
+  exclude_degenerate = TRUE
 )
 }
 \arguments{
@@ -17,6 +18,12 @@ oob_evaluation(
 \item{predict_type}{What type of prediction should be made? Harmonic mean, or exp(log(prediction))?}
 
 \item{metric}{What metric should be used for the out of bag evaluation? Default options include rmsle, rmse, mse, and mae. Can also take a user supplied function of the form function(y_pred,y_true) which returns a single value}
+
+\item{exclude_degenerate}{For a single evinf model (or its \code{$model} slot
+inside an \code{evzinbcomp}), return \code{NA} for bootstrap replicates
+flagged degenerate (default \code{TRUE}) instead of their out-of-bag error,
+so positions still line up with the compared models' replicates; see the
+\code{alpha_floor} argument of \code{\link{evinf_control}}.}
 }
 \value{
 For a single model, a vector of length \code{n_bootstraps}. For an

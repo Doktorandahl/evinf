@@ -28,6 +28,32 @@ evinf_check_finite <- function(X, context = "design matrix") {
   invisible(X)
 }
 
+# audit0.10 §1.9: run_evzinb()/run_evinb() call this right after na.omit(), so
+# the C++ side never sees a response it silently mishandles: a non-integer y
+# is treated as ceiling(y) by the NB loop but exactly by the Pareto part, and
+# a negative y makes em_c_candidates()'s while() condition error cryptically
+# ("argument is of length zero").
+evinf_check_response <- function(y) {
+  bad_negative <- which(y < 0)
+  if (length(bad_negative)) {
+    stop(
+      "The response contains ", length(bad_negative),
+      " negative value(s); evzinb()/evinb() require a non-negative integer count.",
+      call. = FALSE
+    )
+  }
+  bad_noninteger <- which(!is.finite(y) | abs(y - round(y)) > sqrt(.Machine$double.eps))
+  if (length(bad_noninteger)) {
+    stop(
+      "The response contains ", length(bad_noninteger),
+      " non-finite or non-integer value(s); evzinb()/evinb() require a ",
+      "non-negative integer count.",
+      call. = FALSE
+    )
+  }
+  invisible(y)
+}
+
 #' @noRd
 evinf_design <- function(formula, data) {
   mf <- stats::model.frame(formula, data, na.action = stats::na.pass)

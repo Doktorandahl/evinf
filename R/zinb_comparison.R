@@ -97,7 +97,12 @@ if(zinb_comparison){
   }
   }
   if(razorize){
-  data_razor <- object$data$data %>% dplyr::filter(!!dplyr::sym(dv_f) < sort(dplyr::pull(object$data$data[dv_f]),decreasing=T)[cutoff_value])
+  # audit0.10 §1.5: keep_rows is reused below so boot_refit_one() can map a
+  # bootstrap resample (indexed into the full data) onto data_razor's own
+  # (fewer, renumbered) rows.
+  y_full_for_razor <- dplyr::pull(object$data$data[dv_f])
+  keep_rows <- which(y_full_for_razor < sort(y_full_for_razor,decreasing=T)[cutoff_value])
+  data_razor <- object$data$data[keep_rows, ]
   if(nb_comparison){
     if(!is.null(init_theta)){
   full_nb_razor <- try(MASS::glm.nb(object$formulas$formula_nb,data = data_razor,init.theta=init_theta))
@@ -114,18 +119,25 @@ if(zinb_comparison){
   # full-data fit computed above, and just enough to refit it on a resample
   # (no closures over `object`, so parallel workers get a small spec).
   fmls <- object$formulas
-  mk <- function(type, cls, data, full) {
+  # audit0.10 §1.5: the original (unwinsorised, unrazorised) response, so OOB
+  # error is always computed against the real outcome regardless of what
+  # `data` holds. For razorised specs it is subset to keep_rows below so it
+  # stays aligned with data_razor's own row positions.
+  y_orig_full <- dplyr::pull(object$data$data[dv_f])
+  mk <- function(type, cls, data, full, keep = NULL) {
     list(class = cls, type = type, data = data, full = full,
          formulas = fmls, f_zinb = if (type == "zinb") f_zinb else NULL,
-         has_init_theta = !is.null(init_theta), init_theta = init_theta)
+         has_init_theta = !is.null(init_theta), init_theta = init_theta,
+         keep = keep,
+         y_orig = if (is.null(keep)) y_orig_full else y_orig_full[keep])
   }
   specs <- list()
   if (nb_comparison)   specs$nb   <- mk("nb",   "nbboot",  object$data$data, full_nb)
   if (zinb_comparison) specs$zinb <- mk("zinb", "zinbboot", object$data$data, full_zinb)
   if (winsorize && nb_comparison)   specs$nb_winsor   <- mk("nb",   "nbboot",  data_winsor, full_nb_winsor)
   if (winsorize && zinb_comparison) specs$zinb_winsor <- mk("zinb", "zinbboot", data_winsor, full_zinb_winsor)
-  if (razorize && nb_comparison)    specs$nb_razor    <- mk("nb",   "nbboot",  data_razor,  full_nb_razor)
-  if (razorize && zinb_comparison)  specs$zinb_razor  <- mk("zinb", "zinbboot", data_razor,  full_zinb_razor)
+  if (razorize && nb_comparison)    specs$nb_razor    <- mk("nb",   "nbboot",  data_razor,  full_nb_razor, keep = keep_rows)
+  if (razorize && zinb_comparison)  specs$zinb_razor  <- mk("zinb", "zinbboot", data_razor,  full_zinb_razor, keep = keep_rows)
 
   fam <- evinf_with_plan(multicore, ncores, {
     boot_refit_family(specs, object$bootstraps, object$boot_seeds[[1]])
@@ -141,15 +153,23 @@ if(zinb_comparison){
 # Refit one bootstrap resample under one family spec (top-level so parallel
 # workers do not receive the calling frame).
 boot_refit_one <- function(sp, boot_id) {
+  if (!is.null(sp$keep)) {
+    # audit0.10 §1.5: boot_id indexes the full model data, but sp$data is
+    # data_razor with fewer, renumbered rows. Keep only the drawn rows that
+    # survived razorising and renumber them to data_razor's own positions;
+    # inner_nb()/inner_zinb() then get the OOB set right "for free" via
+    # ordinary negative indexing (data[-boot_id, ]).
+    boot_id <- match(boot_id[boot_id %in% sp$keep], sp$keep)
+  }
   b_stub <- list(boot_id = boot_id)
   if (sp$type == "nb") {
     if (sp$has_init_theta) {
-      try(inner_nb(b_stub, sp$data, sp$formulas, sp$init_theta))
+      try(inner_nb(b_stub, sp$data, sp$formulas, sp$init_theta, sp$y_orig), silent = TRUE)
     } else {
-      try(inner_nb(b_stub, sp$data, sp$formulas))
+      try(inner_nb(b_stub, sp$data, sp$formulas, y_orig = sp$y_orig), silent = TRUE)
     }
   } else {
-    try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb))
+    try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb, sp$y_orig), silent = TRUE)
   }
 }
 
@@ -185,13 +205,16 @@ boot_refit_family <- function(specs, boots, seed) {
   }), names(specs))
 }
 
-inner_nb <- function(bootstrap,data,formulas,init_theta){
+inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
 
 
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
-  dv <- model.response(model.frame(formulas$formula_nb,data_oob))
-  boot_nb <- try(MASS::glm.nb(formulas$formula_nb,data = data_ib,init.theta=init_theta))
+  # audit0.10 §1.5: the original (unwinsorised) outcome for these OOB rows,
+  # not whatever `data` currently holds (winsorised values would make the
+  # winsorised OOB error incomparable to evinf's).
+  dv <- y_orig[-bootstrap$boot_id]
+  boot_nb <- try(MASS::glm.nb(formulas$formula_nb,data = data_ib,init.theta=init_theta), silent = TRUE)
   if(!('try-error' %in% class(boot_nb))){
   boot_nb$oob_predictions <- exp(predict(boot_nb,newdata=data_oob))
   boot_nb$oob_rmse <- sqrt(mean((dv-boot_nb$oob_predictions)^2))
@@ -212,14 +235,15 @@ inner_nb <- function(bootstrap,data,formulas,init_theta){
   return(boot_nb)
 }
 
-inner_zinb <- function(bootstrap,data,formulas,f_zinb){
+inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig){
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
-  dv <- model.response(model.frame(formulas$formula_nb,data_oob))
+  # audit0.10 §1.5: see inner_nb() -- original outcome, not `data`'s.
+  dv <- y_orig[-bootstrap$boot_id]
   # Use the full two-part formula (count | zero), matching the full-sample fit
   # (audit 1.2); formulas$formula_zi alone would use the ZI regressors for both
   # parts.
-  boot_zinb <- try(pscl::zeroinfl(f_zinb,data = data_ib,dist = 'negbin'))
+  boot_zinb <- try(pscl::zeroinfl(f_zinb,data = data_ib,dist = 'negbin'), silent = TRUE)
   if(!('try-error' %in% class(boot_zinb))){
     boot_zinb$oob_predictions <- predict(boot_zinb,newdata=data_oob)
     boot_zinb$oob_rmse <- sqrt(mean((dv-boot_zinb$oob_predictions)^2))

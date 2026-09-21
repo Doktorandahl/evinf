@@ -5,14 +5,30 @@
 \alias{plot.evzinbcomp}
 \title{Compare the extreme-value model against its plainer counterparts}
 \usage{
-compare_fit(comp, metrics = c("aic", "bic", "rmse", "rmsle"), ...)
+compare_fit(
+  comp,
+  metrics = c("aic", "bic", "rmse", "rmsle"),
+  exclude_degenerate = TRUE,
+  ...
+)
 
-\method{plot}{evzinbcomp}(x, metrics = c("aic", "bic", "rmse", "rmsle"), ...)
+\method{plot}{evzinbcomp}(
+  x,
+  metrics = c("aic", "bic", "rmse", "rmsle"),
+  exclude_degenerate = TRUE,
+  ...
+)
 }
 \arguments{
 \item{comp}{An \code{evzinbcomp} object from \code{\link{compare_models}()}.}
 
 \item{metrics}{Metrics to show.}
+
+\item{exclude_degenerate}{Drop bootstrap replicates of the evinf model
+flagged degenerate (default \code{TRUE}); see the \code{alpha_floor}
+argument of \code{\link{evinf_control}}. Excluded replicates are treated as
+missing rather than dropped, so the pairing with the compared models'
+replicates is preserved.}
 
 \item{...}{Unused.}
 
@@ -26,9 +42,10 @@ A tibble of class \code{evinf_compare_fit} with columns \code{model},
 \description{
 For each compared model (\code{nb}, \code{zinb}, and any winsorized /
 razorized variants) and each metric, computes the paired bootstrap difference
-\code{compared - evinf} (so a negative median favours the extreme-value
-model), the proportion of bootstraps in which the evinf model is better, and
-the number of bootstrap pairs where both fits succeeded.
+\code{evinf - compared} (so a negative median favours the extreme-value
+model, matching Table B3 of the ISQ appendix), the proportion of bootstraps
+in which the evinf model is better, and the number of bootstrap pairs where
+both fits succeeded.
 }
 \examples{
 \donttest{

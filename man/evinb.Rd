@@ -78,7 +78,7 @@ settings.}
 
 \item{max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C}{\strong{Deprecated.} Pass these through \code{control = evinf_control(...)};
 supplying one directly overrides the corresponding \code{control} element and
-emits a warning. See \code{\link{evinf_control}}.}
+emits a warning. See \code{\link{evinf_control}}. Will be removed in 0.11.0.}
 
 \item{verbose}{Should progress be printed for the first run of evinb}
 }

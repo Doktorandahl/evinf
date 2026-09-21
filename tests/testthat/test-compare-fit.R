@@ -19,7 +19,18 @@ test_that("compare_fit() returns the documented shape and class", {
   expect_true(all(cf$prop_evinf_better >= 0 & cf$prop_evinf_better <= 1))
   expect_true(all(cf$n_pairs > 0))
 
-  expect_output(print(cf), "compared - evinf")
+  expect_output(print(cf), "evinf - compared")
+})
+
+test_that("compare_fit() sign: evinf clearly winning on AIC gives a negative median and prop_evinf_better near 1 (audit0.10 §1.6)", {
+  comp <- make_comp()
+  # evzinb() adds two multinomial-logit blocks (zero-inflation, extreme-value)
+  # on top of the NB mean, so on data actually generated from an EVZINB
+  # process (genevzinb2) it comfortably beats the plain NB on AIC.
+  cf <- suppressWarnings(compare_fit(comp, metrics = "aic"))
+  nb_row <- cf[cf$model == "nb", ]
+  expect_lt(nb_row$median_difference, 0)
+  expect_gt(nb_row$prop_evinf_better, 0.9)
 })
 
 test_that("compare_fit() can add out-of-bag RMSE / RMSLE", {
