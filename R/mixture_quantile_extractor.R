@@ -4,13 +4,27 @@
 # (zero, count, extreme-value); the zero column is 0 for evinb.
 # round9 E.1: family_count = "poisson" uses ppois() (nb_alpha is unused --
 # and NULL -- in that case, exactly like object$coef$Alpha.NB).
+# round9 E.2: family_zero = "hurdle" zero-truncates the count state's CDF
+# contribution: F_trunc(x) = (F(x) - f0) / (1 - f0), which is exactly 0 at
+# x = 0 (the count state has no mass there under a hurdle) -- pmax(.,0)
+# only guards floating-point noise at that boundary, not a real negative.
 mixture_p <- function(x, pl_alphas, C, nb_mu, nb_alpha, probabilities,
-                      family_count = c("nbinom", "poisson")) {
+                      family_count = c("nbinom", "poisson"),
+                      family_zero = c("mixture", "hurdle")) {
   family_count <- match.arg(family_count)
+  family_zero <- match.arg(family_zero)
   count_cdf <- if (family_count == "poisson") {
     ppois(x, lambda = nb_mu)
   } else {
     pnbinom(x, mu = nb_mu, size = 1 / nb_alpha)
+  }
+  if (family_zero == "hurdle") {
+    f0 <- if (family_count == "poisson") {
+      exp(-nb_mu)
+    } else {
+      (1 + nb_alpha * nb_mu)^(-1 / nb_alpha)
+    }
+    count_cdf <- pmax((count_cdf - f0) / (1 - f0), 0)
   }
   probabilities[, 1] +
     probabilities[, 2] * count_cdf +
@@ -23,12 +37,14 @@ mixture_p <- function(x, pl_alphas, C, nb_mu, nb_alpha, probabilities,
 # differentiation in marginal_effects() (audit N1). `p` is a single probability.
 mixture_quantile <- function(p, pl_alphas, C, nb_mu, nb_alpha, probabilities,
                              continuous = FALSE,
-                             family_count = c("nbinom", "poisson")) {
+                             family_count = c("nbinom", "poisson"),
+                             family_zero = c("mixture", "hurdle")) {
   family_count <- match.arg(family_count)
+  family_zero <- match.arg(family_zero)
   n <- length(nb_mu)
   Fp <- function(x) {
     mixture_p(x, pl_alphas, C, nb_mu, nb_alpha, probabilities,
-              family_count = family_count)
+              family_count = family_count, family_zero = family_zero)
   }
   max_q <- 1e15
   lo <- rep(0, n)
