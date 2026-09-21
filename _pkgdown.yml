@@ -89,9 +89,14 @@ reference:
   - marginaleffects-methods
   - predict.nbboot
   - predict.zinbboot
+  - predict.poissonboot
+  - predict.zipboot
   - tidy.nbboot
   - tidy.zinbboot
+  - tidy.poissonboot
+  - tidy.zipboot
   - glance.zinbboot
+  - glance.zipboot
   - print.evzinbcomp
   - print.summary.evzinb
   - glance.evinb
