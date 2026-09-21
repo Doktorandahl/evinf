@@ -15,6 +15,7 @@ evzinb(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par,
@@ -41,13 +42,27 @@ evzinb(
 )
 }
 \arguments{
-\item{formula_nb}{Formula for the negative binomial (count) component of the model}
+\item{formula_nb}{Formula for the negative binomial (count) component of the model.
+May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).}
 
-\item{formula_zi}{Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb}
+\item{formula_zi}{Formula for the zero-inflation component of the model. If NULL
+taken as the same formula as nb, with any \code{offset()} term stripped (an
+offset applies only where it is written explicitly, never by inheritance).
+May include its own \code{offset()} term: since the zero-inflation logit is
+the log-odds of the zero state \emph{against} the count state, an offset there
+shifts that log-odds, e.g. \code{offset(log(exposure))} makes a larger
+exposure relatively less likely to land in the structural-zero state.}
 
-\item{formula_evi}{Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb}
+\item{formula_evi}{Formula for the extreme-value inflation component of the model.
+If NULL taken as the same formula as nb, offset stripped as above. May include
+its own \code{offset()} term (e.g. \code{offset(log(population))} for a
+probability of an extreme event that scales with exposure), read the same way:
+it shifts the EVI log-odds against the count state.}
 
-\item{formula_pareto}{Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb}
+\item{formula_pareto}{Formula for the pareto (extreme value) component of the
+model. If NULL taken as the same formula as nb, offset stripped as above.
+\code{offset()} is \strong{not} supported here (errors if present): an offset
+on a shape parameter has no clear reading.}
 
 \item{data}{data to run the model on}
 
@@ -72,6 +87,26 @@ either as a bare column name (\code{block = id}) or a string
 no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 and Vegelius (2024) cannot be reproduced from them directly (see
 \code{?hks}).}
+
+\item{weights}{Optional observation weights (round9 D.2), given as a bare
+column name (\code{weights = wt}), a string naming a column
+(\code{weights = "wt"}), or a numeric vector. Must be positive and
+finite; need not be integers (analytic weights are allowed, not just
+frequency counts). \strong{Frequency-weight semantics}: every
+observation's contribution to the log-likelihood and to the EM/M-step
+accumulations is multiplied by its weight, and \code{nobs()} -- and
+therefore \code{AIC}, \code{BIC} and the approximate t-based p-values --
+use \code{sum(weights)}, not the row count (see \code{sum_weights} in
+\code{\link{glance.evzinb}}). This interpretation of AIC/BIC assumes the
+weights really are frequency weights (repeat-count equivalents); for
+analytic weights the information-criterion values are still computed
+this way but their usual interpretation is weaker. \strong{\code{weights}
+does not give design-based standard errors for survey data} -- a
+sampling weight changes the point estimate, not the variance under the
+sampling design; for that, resample primary sampling units with
+\code{block =} instead. The bootstrap resamples rows exactly as without
+weights and carries each drawn row's weight along (the resampling
+probabilities themselves are not reweighted).}
 
 \item{boot_seed}{Optional bootstrap seed for reproducibility. When supplied
 it is used as-is; when \code{NULL} a seed is drawn and recorded, so

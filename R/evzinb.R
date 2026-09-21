@@ -4,6 +4,7 @@
 #' @param data Data to run the model on.
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
+#' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
 #' @param verbose Should progress be printed for the first run of evzinb.
 #'
 #' @return An object of class 'evzinb'
@@ -16,6 +17,7 @@ run_evzinb <- function(
   data,
   control = evinf_control(),
   block = NULL,
+  weights = NULL,
   verbose = TRUE
 ) {
   control <- validate_evinf_control(control)
@@ -23,11 +25,15 @@ run_evzinb <- function(
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # audit 4.4: offsets are only supported in the count component. A non-NB
-  # formula the user supplied with offset() is an error; one that merely
-  # inherited formula_nb's offset by default has it stripped.
+  # round9 D.1 (audit §5.6): offset() is supported in the count, zero-inflation
+  # and EVI-inflation components; not in the Pareto shape component (a
+  # non-NB formula the user supplied with offset() there is an error). A
+  # component that merely inherited formula_nb's offset by defaulting to it
+  # has that offset stripped -- no inheritance, an offset applies only where
+  # it is written explicitly.
   formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
-  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto",
+                                            allow_offset = FALSE)
   formula_zi <- evinf_component_formula(formula_zi, formula_nb, "formula_zi")
 
   # Restrict to the union of variables used by any component (plus the block
@@ -38,7 +44,8 @@ run_evzinb <- function(
     all.vars(formula_zi),
     all.vars(formula_evi),
     all.vars(formula_pareto),
-    block
+    block,
+    weights
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -49,6 +56,12 @@ run_evzinb <- function(
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
+  offset_zc <- d_zi$offset
+  offset_pl_mult <- d_evi$offset
+  # round9 D.2: sum(weights_vec) below is the effective sample size used for
+  # AIC/BIC/nobs() -- rep(1, n) here reproduces today's row count exactly.
+  weights_vec <- if (!is.null(weights)) model_data[[weights]] else rep(1, nrow(model_data))
+  evinf_check_weights(weights_vec, nrow(model_data))
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -64,6 +77,9 @@ run_evzinb <- function(
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
+  OBS.X.obj$offset.zc <- offset_zc
+  OBS.X.obj$offset.pl_mult <- offset_pl_mult
+  OBS.X.obj$weights <- weights_vec
 
   init.Beta.multinom.ZC <- control$init.Beta.multinom.ZC
   init.Beta.multinom.PL <- control$init.Beta.multinom.PL
@@ -150,6 +166,9 @@ run_evzinb <- function(
   object$c_lim_default <- isTRUE(control$c_lim_default)
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
+  object$offset_zc <- offset_zc
+  object$offset_pl_mult <- offset_pl_mult
+  object$weights <- weights_vec
   object$data <- list()
 
   object$data$data <- model_data
@@ -218,10 +237,24 @@ run_evzinb <- function(
 
 #' Running an extreme value and zero inflated negative binomial model with bootstrapping
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model
-#' @param formula_zi Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
+#' @param formula_nb Formula for the negative binomial (count) component of the model.
+#'   May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).
+#' @param formula_zi Formula for the zero-inflation component of the model. If NULL
+#'   taken as the same formula as nb, with any \code{offset()} term stripped (an
+#'   offset applies only where it is written explicitly, never by inheritance).
+#'   May include its own \code{offset()} term: since the zero-inflation logit is
+#'   the log-odds of the zero state \emph{against} the count state, an offset there
+#'   shifts that log-odds, e.g. \code{offset(log(exposure))} makes a larger
+#'   exposure relatively less likely to land in the structural-zero state.
+#' @param formula_evi Formula for the extreme-value inflation component of the model.
+#'   If NULL taken as the same formula as nb, offset stripped as above. May include
+#'   its own \code{offset()} term (e.g. \code{offset(log(population))} for a
+#'   probability of an extreme event that scales with exposure), read the same way:
+#'   it shifts the EVI log-odds against the count state.
+#' @param formula_pareto Formula for the pareto (extreme value) component of the
+#'   model. If NULL taken as the same formula as nb, offset stripped as above.
+#'   \code{offset()} is \strong{not} supported here (errors if present): an offset
+#'   on a shape parameter has no clear reading.
 #' @param data data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
@@ -240,6 +273,25 @@ run_evzinb <- function(
 #'   no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 #'   and Vegelius (2024) cannot be reproduced from them directly (see
 #'   \code{?hks}).
+#' @param weights Optional observation weights (round9 D.2), given as a bare
+#'   column name (\code{weights = wt}), a string naming a column
+#'   (\code{weights = "wt"}), or a numeric vector. Must be positive and
+#'   finite; need not be integers (analytic weights are allowed, not just
+#'   frequency counts). \strong{Frequency-weight semantics}: every
+#'   observation's contribution to the log-likelihood and to the EM/M-step
+#'   accumulations is multiplied by its weight, and \code{nobs()} -- and
+#'   therefore \code{AIC}, \code{BIC} and the approximate t-based p-values --
+#'   use \code{sum(weights)}, not the row count (see \code{sum_weights} in
+#'   \code{\link{glance.evzinb}}). This interpretation of AIC/BIC assumes the
+#'   weights really are frequency weights (repeat-count equivalents); for
+#'   analytic weights the information-criterion values are still computed
+#'   this way but their usual interpretation is weaker. \strong{\code{weights}
+#'   does not give design-based standard errors for survey data} -- a
+#'   sampling weight changes the point estimate, not the variance under the
+#'   sampling design; for that, resample primary sampling units with
+#'   \code{block =} instead. The bootstrap resamples rows exactly as without
+#'   weights and carries each drawn row's weight along (the resampling
+#'   probabilities themselves are not reweighted).
 #' @param boot_seed Optional bootstrap seed for reproducibility. When supplied
 #'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
 #'   \code{object$boot_seeds} is always populated for a bootstrapped model
@@ -322,6 +374,7 @@ evzinb <- function(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -332,6 +385,13 @@ evzinb <- function(
   verbose = FALSE
 ) {
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
+  # round9 D.2: weights = accepts a bare column name, a string naming a
+  # column, or a numeric vector; a raw vector is injected into `data` under a
+  # reserved name so it survives na.omit() exactly like every other model
+  # variable (evinf_resolve_weights()).
+  weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
+  data <- weights_resolved$data
+  weights_col <- weights_resolved$weights_col
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evzinb")
 
@@ -355,8 +415,10 @@ evzinb <- function(
     data = data,
     control = ctrl,
     block = block,
+    weights = weights_col,
     verbose = verbose
   )
+  full_run$weights_col <- weights_col
   full_run$call <- stored_call
 
   runtime <- difftime(Sys.time(), t1)
@@ -439,6 +501,14 @@ bootrun_evzinb <- function(
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
     object$offset_nb[boot_id]
+  OBS.X.obj$offset.zc <- if (is.null(object$offset_zc)) rep(0, length(boot_id)) else
+    object$offset_zc[boot_id]
+  OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
+    object$offset_pl_mult[boot_id]
+  # round9 D.2: resample rows as above, carrying each row's weight along --
+  # do not reweight the resampling probabilities themselves.
+  OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
+    object$weights[boot_id]
   Control <- object$control
 
   Ini.Val <- list()

@@ -57,7 +57,12 @@ evinf_boot_coef_matrix <- function(object, exclude_degenerate = TRUE) {
   m
 }
 
-evinf_nobs <- function(object) nrow(object$data$x.nb)
+# round9 D.2 (audit §5.6): sum(weights) -- the row count when weights = 1
+# (the default, including every fit from before D.2).
+evinf_nobs <- function(object) {
+  w <- object$weights
+  if (is.null(w)) nrow(object$data$x.nb) else sum(w)
+}
 
 
 # --- coef / vcov / confint -------------------------------------------------
@@ -432,6 +437,15 @@ evinf_update_impl <- function(object, f_nb, f_zi, f_evi, f_pareto,
     cl$control$init.C <- NULL
   }
   cl$block <- object$block
+  # round9 D.2: reuse the weights column name, same as block -- but only when
+  # it names a real column of the data (a raw weights = <numeric vector> was
+  # injected into the *original* data under a reserved name that does not
+  # survive a fresh evaluation of `data`, so update() would error on that
+  # column rather than silently reuse stale weight values; the user must
+  # re-pass weights = explicitly in that case).
+  if (!is.null(object$weights_col) && !identical(object$weights_col, ".evinf_weights")) {
+    cl$weights <- object$weights_col
+  }
 
   chg <- function(component, change) {
     old <- object$formulas[[.evinf_formula_slot[[component]]]]

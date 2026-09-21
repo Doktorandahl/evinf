@@ -4,6 +4,7 @@
 #' @param data Data to run the model on.
 #' @param control An \code{evinf_control()} object.
 #' @param block Optional string naming a case-identifier column for block bootstrapping; included in the na.omit() so the returned block vector aligns with the model data.
+#' @param weights Optional string naming a weight column (round9 D.2); included in the na.omit() so the returned weight vector aligns with the model data, same as block.
 #' @param verbose Should progress be printed for the first run of evinb.
 #'
 #' @return An object of class 'evinb'
@@ -15,6 +16,7 @@ run_evinb <- function(
   data,
   control = evinf_control(),
   block = NULL,
+  weights = NULL,
   verbose = FALSE
 ) {
   control <- validate_evinf_control(control)
@@ -22,9 +24,12 @@ run_evinb <- function(
     stop("`block` must be NULL or a single string naming a column of `data`.",
          call. = FALSE)
   }
-  # audit 4.4: offsets are only supported in the count component.
+  # round9 D.1 (audit §5.6): offset() is supported in the count and
+  # EVI-inflation components; not in the Pareto shape component. evinb has no
+  # zero-inflation component at all.
   formula_evi <- evinf_component_formula(formula_evi, formula_nb, "formula_evi")
-  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto")
+  formula_pareto <- evinf_component_formula(formula_pareto, formula_nb, "formula_pareto",
+                                            allow_offset = FALSE)
 
   # Restrict to the union of variables used by any component (plus the block
   # variable, audit R0.1) and drop incomplete rows once, so the design matrices
@@ -33,7 +38,8 @@ run_evinb <- function(
     all.vars(formula_nb),
     all.vars(formula_evi),
     all.vars(formula_pareto),
-    block
+    block,
+    weights
   ))
   model_data <- data %>%
     dplyr::select(dplyr::all_of(model_vars)) %>%
@@ -43,6 +49,9 @@ run_evinb <- function(
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
   offset_nb <- d_nb$offset
+  offset_pl_mult <- d_evi$offset
+  weights_vec <- if (!is.null(weights)) model_data[[weights]] else rep(1, nrow(model_data))
+  evinf_check_weights(weights_vec, nrow(model_data))
 
   OBS.Y <- as.matrix(model.response(model.frame(formula_nb, model_data)))
   evinf_check_response(as.numeric(OBS.Y))
@@ -66,6 +75,8 @@ run_evinb <- function(
   OBS.X.obj$X.NB <- d_nb$X
   OBS.X.obj$X.PL <- d_pareto$X
   OBS.X.obj$offset.nb <- offset_nb
+  OBS.X.obj$offset.pl_mult <- offset_pl_mult
+  OBS.X.obj$weights <- weights_vec
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_nb <- ncol(d_nb$X) + 1L
@@ -140,6 +151,8 @@ run_evinb <- function(
   object$c_lim_default <- isTRUE(control$c_lim_default)
   object$has_offset <- isTRUE(d_nb$has_offset)
   object$offset_nb <- offset_nb
+  object$offset_pl_mult <- offset_pl_mult
+  object$weights <- weights_vec
   object$data <- list()
 
   object$data$data <- model_data
@@ -169,7 +182,7 @@ run_evinb <- function(
   n_zc <- length(Ini.Val$Beta.multinom.ZC)
   object$par.all <- object$par.all[-seq_len(n_zc)]
   n_par <- length(object$par.all)
-  n_obs <- length(object$data$y)
+  n_obs <- sum(object$weights)  # round9 D.2: sum(weights), row count when unweighted
   object$AIC <- 2 * n_par - 2 * object$log.lik
   object$BIC <- log(n_obs) * n_par - 2 * object$log.lik
 
@@ -248,6 +261,10 @@ bootrun_evinb <- function(
   OBS.X.obj$X.PL <- object$data$x.pl[boot_id, , drop = FALSE]
   OBS.X.obj$offset.nb <- if (is.null(object$offset_nb)) rep(0, length(boot_id)) else
     object$offset_nb[boot_id]
+  OBS.X.obj$offset.pl_mult <- if (is.null(object$offset_pl_mult)) rep(0, length(boot_id)) else
+    object$offset_pl_mult[boot_id]
+  OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
+    object$weights[boot_id]
   Control <- object$control
 
   Ini.Val <- list()
@@ -318,9 +335,19 @@ bootrun_evinb <- function(
 
 #' Running an extreme value inflated negative binomial model with bootstrapping
 #'
-#' @param formula_nb Formula for the negative binomial (count) component of the model
-#' @param formula_evi Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb
-#' @param formula_pareto Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb
+#' @param formula_nb Formula for the negative binomial (count) component of the model.
+#'   May include an \code{offset()} term (\eqn{\mu_{NB} = \exp(x'\beta + offset)}).
+#' @param formula_evi Formula for the extreme-value inflation component of the model.
+#'   If NULL taken as the same formula as nb, with any \code{offset()} term stripped
+#'   (an offset applies only where it is written explicitly, never by inheritance).
+#'   May include its own \code{offset()} term: the EVI logit is the log-odds of the
+#'   extreme-value state against the count state, so an offset there shifts that
+#'   log-odds, e.g. \code{offset(log(population))} for a probability of an extreme
+#'   event that scales with exposure.
+#' @param formula_pareto Formula for the pareto (extreme value) component of the
+#'   model. If NULL taken as the same formula as nb, offset stripped as above.
+#'   \code{offset()} is \strong{not} supported here (errors if present): an offset
+#'   on a shape parameter has no clear reading.
 #' @param data Data to run the model on
 #' @param bootstrap Should bootstrapping be performed. Needed to obtain standard errors and p-values
 #' @param n_bootstraps Number of bootstraps to run. For use of bootstrapped p-values, at least 1,000 bootstraps are recommended. For approximate p-values, a lower number can be sufficient
@@ -374,6 +401,7 @@ evinb <- function(
   multicore = NULL,
   ncores = NULL,
   block = NULL,
+  weights = NULL,
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
@@ -384,6 +412,9 @@ evinb <- function(
   verbose = FALSE
 ) {
   block <- evinf_block_name(rlang::enquo(block), parent.frame(), data)
+  weights_resolved <- evinf_resolve_weights(rlang::enquo(weights), parent.frame(), data)
+  data <- weights_resolved$data
+  weights_col <- weights_resolved$weights_col
   mc <- match.call()
   ctrl <- resolve_evinf_control(control, mc, environment(), fn = "evinb")
 
@@ -402,8 +433,10 @@ evinb <- function(
     data = data,
     control = ctrl,
     block = block,
+    weights = weights_col,
     verbose = verbose
   )
+  full_run$weights_col <- weights_col
   full_run$call <- stored_call
   runtime <- difftime(Sys.time(), t1)
 

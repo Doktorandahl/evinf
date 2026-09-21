@@ -63,7 +63,10 @@ em_fit <- function(y, x.obj, ini.val, control,
                    model = c("evzinb", "evinb"), full_sample = TRUE) {
   model <- match.arg(model)
   ext <- em_extend_design(x.obj, length(y))
-  n <- length(y)
+  # round9 D.2 (audit §5.6): BIC's `n` is sum(weights) -- the row count when
+  # weights = 1 (the default), the effective sample size for frequency
+  # weights otherwise.
+  n <- sum(ext$weights)
 
   max_c_iter <- control$max.c.iter %||% 50
   c.range <- em_c_candidates(y, control$c.lim, control$prune.c.range)
@@ -175,8 +178,8 @@ em_fit <- function(y, x.obj, ini.val, control,
   # C++ E-step (fill_props_row()) and the R-side E-step responsibilities
   # formula.
   final.val$Props <- evinf_stable_props3(
-    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
-    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
+    as.numeric(ext$zc %*% final.val$Beta.multinom.ZC) + ext$offset_zc,
+    as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL) + ext$offset_pl_mult
   )
 
   # round8 0.3 (review §4): em_fitted_values() used to run on props.old (the
@@ -204,7 +207,8 @@ em_fit <- function(y, x.obj, ini.val, control,
   ll.at.par <- log_lik_fun(
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
     final.val$Alpha.NB, final.val$Beta.PL, final.val$C,
-    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset
+    ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
+    ext$offset_zc, ext$offset_pl_mult, ext$weights
   )
   loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
                                 abs(ll.at.par - func.val) > 1e-6)

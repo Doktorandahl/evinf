@@ -58,17 +58,20 @@ test_that("predict(newdata=) needs the offset column (audit 4.4)", {
   )
 })
 
-test_that("offset() in a non-count component is an error (audit 4.4)", {
+test_that("offset() in the Pareto shape component is an error (audit 4.4; round9 D.1)", {
+  # round9 D.1 (audit §5.6): offset() in formula_zi/formula_evi is now
+  # supported -- see test-offset-components.R. formula_pareto still errors: a
+  # shape parameter has no clear reading for an offset.
   d <- make_offset_data()
   expect_error(
-    suppressMessages(evzinb(y ~ x1, formula_zi = ~ x1 + offset(loff), data = d,
+    suppressMessages(evzinb(y ~ x1, formula_pareto = ~ x1 + offset(loff), data = d,
                             bootstrap = FALSE)),
-    "count component"
+    "formula_pareto"
   )
   expect_error(
     suppressMessages(evinb(y ~ x1, formula_pareto = ~ x1 + offset(loff), data = d,
                            bootstrap = FALSE)),
-    "count component"
+    "formula_pareto"
   )
 })
 

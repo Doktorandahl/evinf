@@ -86,11 +86,15 @@ em_c_candidates <- function(y, c.lim, prune.c.range) {
 #'
 #' @param x_obj List with elements \code{X.multinom.ZC}, \code{X.multinom.PL},
 #'   \code{X.NB}, \code{X.PL} (each a numeric matrix \eqn{n \times p} without an
-#'   intercept column, or \code{NULL}) and optionally \code{offset.nb}.
+#'   intercept column, or \code{NULL}) and optionally \code{offset.nb},
+#'   \code{offset.zc}, \code{offset.pl_mult} (round9 D.1) and \code{weights}
+#'   (round9 D.2).
 #' @param n Number of observations.
 #'
 #' @return A list with elements \code{zc}, \code{pl_mult}, \code{nb}, \code{pl}
-#'   (the extended numeric matrices) and \code{offset} (length-\code{n} numeric).
+#'   (the extended numeric matrices), \code{offset}, \code{offset_zc},
+#'   \code{offset_pl_mult} (length-\code{n} numeric, zero when not supplied)
+#'   and \code{weights} (length-\code{n} numeric, one when not supplied).
 #'
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
@@ -98,13 +102,15 @@ em_extend_design <- function(x_obj, n) {
   extend <- function(x) {
     if (is.null(dim(x))) matrix(1, nrow = n, ncol = 1) else cbind(1, x)
   }
-  offset <- x_obj$offset.nb
-  if (is.null(offset)) offset <- rep(0, n)
+  zero_default <- function(x) if (is.null(x)) rep(0, n) else x
   list(
-    zc      = extend(x_obj$X.multinom.ZC),
-    pl_mult = extend(x_obj$X.multinom.PL),
-    nb      = extend(x_obj$X.NB),
-    pl      = extend(x_obj$X.PL),
-    offset  = offset
+    zc             = extend(x_obj$X.multinom.ZC),
+    pl_mult        = extend(x_obj$X.multinom.PL),
+    nb             = extend(x_obj$X.NB),
+    pl             = extend(x_obj$X.PL),
+    offset         = zero_default(x_obj$offset.nb),
+    offset_zc      = zero_default(x_obj$offset.zc),
+    offset_pl_mult = zero_default(x_obj$offset.pl_mult),
+    weights        = if (is.null(x_obj$weights)) rep(1, n) else x_obj$weights
   )
 }

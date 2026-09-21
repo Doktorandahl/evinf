@@ -145,7 +145,7 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
     approx_t_value <- FALSE
   }
 
-  nobs <- nrow(object$data$x.nb)
+  nobs <- evinf_nobs(object)  # round9 D.2: sum(weights), row count when unweighted
   npar <- length(object$par.all)
 
   prop_names <- if (has_zi) c('zero', 'count', 'evi') else c('count', 'evi')
