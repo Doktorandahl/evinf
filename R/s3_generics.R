@@ -302,12 +302,12 @@ residuals.evzinb <- function(object, type = c("response", "quantile"),
   }
   mu <- object$fitted$mu.nb
   alph <- object$fitted$alpha.pl
-  fam_count <- (object$family %||% evinf_family())$count
+  fam <- object$family %||% evinf_family()
   Fy <- mixture_p(y, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
-                  family_count = fam_count)
+                  family_count = fam$count, family_zero = fam$zero)
   Fy1 <- ifelse(y <= 0, 0,
                 mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
-                          family_count = fam_count))
+                          family_count = fam$count, family_zero = fam$zero))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
   # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG

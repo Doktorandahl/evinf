@@ -79,6 +79,60 @@ double ell_pois_i_fun(arma::vec beta_nb, arma::vec x_nb_ext_i, int y_i, double o
   return y_i*log(mu_i) - mu_i - R::lgammafn(y_i + 1);
 }
 
+// round9 E.2 (audit §5.5): derivatives of G(mu, alpha) = -log(1 - f0), where
+// f0 = P(Y=0) under the untruncated count distribution -- the term a hurdle
+// zero process adds to the count state's log-density for every y > 0 row
+// (the count state is zero-truncated: its emission density is
+// f_count(y)/(1-f0)). f0 = (1+alpha*mu)^(-1/alpha) (NB) or exp(-mu)
+// (Poisson, the alpha -> 0 limit); with logf0 = log(f0):
+//   d logf0/dmu       = -1/(1+alpha*mu)                                (NB)
+//                      = -1                                            (Poisson)
+//   d logf0/dalpha    = log(1+alpha*mu)/alpha^2 - mu/(alpha*(1+alpha*mu))  (NB only)
+//   d2 logf0/dmu2     = alpha/(1+alpha*mu)^2                           (NB)
+//                      = 0                                             (Poisson)
+//   d2 logf0/dmu dalpha = mu/(1+alpha*mu)^2                            (NB only)
+//   d2 logf0/dalpha2  = mu*(2+3*alpha*mu)/(alpha^2*(1+alpha*mu)^2)
+//                        - 2*log(1+alpha*mu)/alpha^3                   (NB only)
+// G = h(logf0) with h(L) = -log(1-exp(L)); h'(L) = f0/(1-f0),
+// h''(L) = f0/(1-f0)^2. Chain rule: dG/dx = h'*Lx,
+// d2G/dxdy = h''*Lx*Ly + h'*Lxy for x, y in {mu, alpha}. All of the above
+// (and the formulas below) were verified against central finite differences
+// over a grid of mu in {0.5,...,50} x alpha in {0.05,...,3} (max relative
+// error < 1e-5) before being committed -- see tests/testthat/test-hurdle.R.
+struct hurdle_trunc_derivs {
+  double f0, G, dGdmu, dGdalpha, d2Gdmu2, d2Gdmudalpha, d2Gdalpha2;
+};
+hurdle_trunc_derivs hurdle_trunc_derivs_fun(double mu, double alpha_nb, int family_count) {
+  double logf0, q_mu, q_alpha = 0.0, Q_mumu, Q_mualpha = 0.0, Q_alphaalpha = 0.0;
+  if (family_count == 1) {
+    logf0 = -mu;
+    q_mu = -1.0;
+    Q_mumu = 0.0;
+  } else {
+    double oam = 1 + alpha_nb*mu;
+    logf0 = -(1/alpha_nb) * log(oam);
+    q_mu = -1.0/oam;
+    Q_mumu = alpha_nb/(oam*oam);
+    q_alpha = log(oam)/(alpha_nb*alpha_nb) - mu/(alpha_nb*oam);
+    Q_mualpha = mu/(oam*oam);
+    Q_alphaalpha = mu*(2+3*alpha_nb*mu)/(alpha_nb*alpha_nb*oam*oam) - 2*log(oam)/(alpha_nb*alpha_nb*alpha_nb);
+  }
+  double f0 = exp(logf0);
+  // log(1-f0) via -expm1(logf0), the same overflow/cancellation-free idiom
+  // used elsewhere in this file (ell_pl_i_fun()).
+  double log_1m_f0 = log(-expm1(logf0));
+  double G = -log_1m_f0;
+  double p = f0/(1-f0);      // h'(L)
+  double hpp = p*(1+p);      // h''(L) = f0/(1-f0)^2
+  double dGdmu = p * q_mu;
+  double dGdalpha = p * q_alpha;
+  double d2Gdmu2 = hpp*q_mu*q_mu + p*Q_mumu;
+  double d2Gdmudalpha = hpp*q_mu*q_alpha + p*Q_mualpha;
+  double d2Gdalpha2 = hpp*q_alpha*q_alpha + p*Q_alphaalpha;
+  hurdle_trunc_derivs out = {f0, G, dGdmu, dGdalpha, d2Gdmu2, d2Gdmudalpha, d2Gdalpha2};
+  return out;
+}
+
 //[[Rcpp::export]]
 arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
   int n_beta_nb = beta_nb.size();
@@ -270,7 +324,7 @@ arma::mat d2elldbeta2_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_
 }
 
 //[[Rcpp::export]]
-double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, int family_count = 0){
+double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, int family_count = 0, int family_zero = 0){
 
   int n = x_mult_z_ext.n_rows;
   arma::mat props = zeros<mat>(n,3) ;
@@ -317,7 +371,26 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
     // all information) well before the sum itself would over/underflow.
     // round9 D.2: w(i) is a frequency/analytic weight multiplying this row's
     // contribution to the total log-likelihood.
-    if(y(i)==0){
+    if (family_zero == 1) {
+      // round9 E.2: hurdle zero process -- the zero state owns y=0 entirely
+      // (no separate count-state density factor there), and the count
+      // state is zero-truncated for y>0: -log(1-f0) (see
+      // hurdle_trunc_derivs_fun()) is added to its log-density in both the
+      // 0<y<c and y>=c branches.
+      if (y(i) == 0) {
+        func_val = func_val + w(i) * log(props(i,0));
+      } else {
+        double ell_nb_trunc_i = ell_nb_i + hurdle_trunc_derivs_fun(mu_i, alpha_nb, family_count).G;
+        if (y(i) < c_pl) {
+          func_val = func_val + w(i) * (log(props(i,1)) + ell_nb_trunc_i);
+        } else {
+          double exp_xtb_pl_i = exp(eta_pl_vec(i));
+          double ell_pl_i = exp_xtb_pl_i * log(c_pl / y(i)) +
+            log(-expm1(exp_xtb_pl_i * log(y(i) / (y(i) + 1))));
+          func_val = func_val + w(i) * log_sum_exp2(log(props(i,1)) + ell_nb_trunc_i, log(props(i,2)) + ell_pl_i);
+        }
+      }
+    } else if(y(i)==0){
       func_val = func_val + w(i) * log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb_i);
     }else if(y(i)>0 && y(i)<c_pl){
       func_val = func_val + w(i) * (log(props(i,1)) + ell_nb_i);
@@ -349,7 +422,7 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
                               arma::mat x_nb_ext, arma::mat x_pl_ext,
                               arma::vec y, arma::vec offset_nb,
                               arma::vec offset_zc, arma::vec offset_pl_mult,
-                              arma::vec w, int family_count = 0){
+                              arma::vec w, int family_count = 0, int family_zero = 0){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -382,6 +455,11 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
       ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
       ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
     }
+    // round9 E.2: precompute the zero-truncation correction once per
+    // observation too (it doesn't depend on C), same as ell_nb_i itself.
+    if (family_zero == 1 && y(i) > 0) {
+      ell_nb_i = ell_nb_i + hurdle_trunc_derivs_fun(mu_i, alpha_nb, family_count).G;
+    }
     ell_nb(i) = ell_nb_i;
 
     arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
@@ -399,7 +477,21 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
     double c_pl = c_candidates(g);
     double func_val = 0;
     for (int i = 0; i < n; i++) {
-      if (y(i) == 0) {
+      // round9 E.2: under a hurdle zero process, y=0 rows are entirely the
+      // zero state's (no C-dependence there), and ell_nb(i) already carries
+      // the zero-truncation correction for y>0 rows (precomputed above).
+      if (family_zero == 1) {
+        if (y(i) == 0) {
+          func_val += w(i) * log(props(i,0));
+        } else if (y(i) < c_pl) {
+          func_val += w(i) * (log(props(i,1)) + ell_nb(i));
+        } else {
+          double a = alpha_pl_vec(i);
+          double ell_pl_i = a * log(c_pl / y(i)) +
+            log(-expm1(a * log(y(i) / (y(i) + 1))));
+          func_val += w(i) * log_sum_exp2(log(props(i,1)) + ell_nb(i), log(props(i,2)) + ell_pl_i);
+        }
+      } else if (y(i) == 0) {
         func_val += w(i) * log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb(i));
       } else if (y(i) > 0 && y(i) < c_pl) {
         func_val += w(i) * (log(props(i,1)) + ell_nb(i));
@@ -445,7 +537,7 @@ arma::mat safe_newton_step(const arma::mat &H, const arma::mat &g) {
 }
 
 //[[Rcpp::export]]
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, int family_count = 0, bool exact_pl = false){
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, int family_count = 0, bool exact_pl = false, int family_zero = 0){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -480,13 +572,23 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   for (int i=0; i<n; i++){
   // Marginal probability mass function of y and x (sum over components) - marginal._x_i
     if(y(i)==0){
-      double d_nb = (family_count == 1)
-        ? exp(ell_pois_i_fun(beta_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)))
-        : exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
-      marginal_yx_i = props(i,0) + props(i,1)*d_nb;
-      resp(i,0) = props(i,0)/marginal_yx_i;
-      resp(i,1) = props(i,1)*d_nb/marginal_yx_i;
-      resp(i,2) = 0;
+      // round9 E.2: under a hurdle zero process the count state cannot
+      // produce y=0 at all (it's zero-truncated), so the posterior is
+      // degenerate -- forced to the zero state, not derived from a
+      // props/density ratio.
+      if (family_zero == 1) {
+        resp(i,0) = 1;
+        resp(i,1) = 0;
+        resp(i,2) = 0;
+      } else {
+        double d_nb = (family_count == 1)
+          ? exp(ell_pois_i_fun(beta_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)))
+          : exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
+        marginal_yx_i = props(i,0) + props(i,1)*d_nb;
+        resp(i,0) = props(i,0)/marginal_yx_i;
+        resp(i,1) = props(i,1)*d_nb/marginal_yx_i;
+        resp(i,2) = 0;
+      }
     }else if(y(i)>0 && y(i)<c_pl){
       resp(i,0) = 0;
       resp(i,1) = 1;
@@ -495,6 +597,12 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       double d_nb = (family_count == 1)
         ? exp(ell_pois_i_fun(beta_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)))
         : exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
+      if (family_zero == 1) {
+        // round9 E.2: the count state's emission density is zero-truncated
+        // (f_count(y)/(1-f0)); exp(G) = 1/(1-f0).
+        double mu_i = exp((trans(beta_nb_old)*trans(x_nb_ext.submat(i,0,i,n_nb-1))).eval()(0,0) + offset_nb(i));
+        d_nb = d_nb * exp(hurdle_trunc_derivs_fun(mu_i, alpha_nb_old, family_count).G);
+      }
       double d_pl = exp(ell_pl_i_fun(beta_pl_old,c_pl,trans(x_pl_ext.submat(i,0,i,n_pl-1)),y(i)));
       marginal_yx_i = props(i,1)*d_nb  + props(i,2)*d_pl;
       resp(i,0) = 0;
@@ -504,7 +612,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   }
 
   //Calculate function value before the algorithm starts
-  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
+  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count,family_zero);
 
   arma::mat d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
   arma::mat dQdtheta_nb = zeros<mat>(n_nb+1,1);
@@ -548,6 +656,18 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       // never moves, and R drops it from par.all entirely for this family.
       arma::vec b_grad = y - mu_vec;
       arma::vec b_hess = -mu_vec;
+      if (family_zero == 1) {
+        // round9 E.2: hurdle correction -- the count state's emission
+        // density is zero-truncated for y>0; resp.col(1) is already
+        // exactly 0 for y=0 rows (forced in the E-step above), so this
+        // addition only affects rows that actually contribute to this
+        // block.
+        for (int i = 0; i < n; i++) {
+          hurdle_trunc_derivs hd = hurdle_trunc_derivs_fun(mu_vec(i), alpha_nb_old, family_count);
+          b_grad(i) += hd.dGdmu * mu_vec(i);
+          b_hess(i) += hd.d2Gdmu2 * mu_vec(i) * mu_vec(i) + hd.dGdmu * mu_vec(i);
+        }
+      }
       arma::vec w_beta = w % resp.col(1) % b_grad;
       grad_beta = trans(x_nb_ext) * w_beta;
       arma::vec w_hess_beta = w % resp.col(1) % b_hess;
@@ -589,6 +709,18 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
         }
         d2elldalpha2_vec(i) = -loop_term - 2/(alpha_nb_old*alpha_nb_old*alpha_nb_old)*log(oam_i)
           + (2/(alpha_nb_old*alpha_nb_old))*mu_i/oam_i + (y(i)+r_nb)*mu_i*mu_i/(oam_i*oam_i);
+
+        if (family_zero == 1) {
+          // round9 E.2: hurdle correction, same rationale as the Poisson
+          // block above -- resp.col(1) is 0 for y=0 rows, so this addition
+          // is inert there regardless.
+          hurdle_trunc_derivs hd = hurdle_trunc_derivs_fun(mu_i, alpha_nb_old, family_count);
+          b_grad(i) += hd.dGdmu * mu_i;
+          b_hess(i) += hd.d2Gdmu2 * mu_i * mu_i + hd.dGdmu * mu_i;
+          b2_hess(i) += hd.d2Gdmudalpha * mu_i;
+          delldalpha_vec(i) += hd.dGdalpha;
+          d2elldalpha2_vec(i) += hd.d2Gdalpha2;
+        }
       }
 
       // round9 D.2: w (the frequency/analytic weight, distinct from the
@@ -636,7 +768,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
+  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count,family_zero);
 
   //Update beta_pl with BFGS
   // round8 A.3: restrict to the y >= c_pl rows once (arma::find()), then
@@ -705,7 +837,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
+  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count,family_zero);
 
   //Update gamma_z with BFGS
   // round8 A.3: X'w / X' diag(w) X instead of a per-row loop building a
@@ -736,7 +868,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
+  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count,family_zero);
 
   //Update gamma_pl with BFGS
   // round8 A.3: same pattern as the gamma_z block; gamma_z_old is now fixed
@@ -764,7 +896,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
+  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count,family_zero);
 
   return Rcpp::List::create(
     Rcpp::Named("props") = props,

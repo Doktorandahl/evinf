@@ -40,6 +40,7 @@
 em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_family()) {
   n_beta_nb <- ncol(ext$nb)
   family_count_code <- evinf_family_count_code(family)
+  family_zero_code <- evinf_family_zero_code(family)
 
   zc_old      <- par$Beta.multinom.ZC
   pl_mult_old <- par$Beta.multinom.PL
@@ -53,7 +54,8 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_famil
   ll <- function(zc, plm, nb, al, pl) {
     log_lik_fun(zc, plm, nb, al, pl, c_pl,
                 ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
-                ext$offset_zc, ext$offset_pl_mult, ext$weights, family_count_code)
+                ext$offset_zc, ext$offset_pl_mult, ext$weights, family_count_code,
+                family_zero_code)
   }
 
   # audit0.10 §1.8: pdf.pl.type = "exact" uses the discretised-Pareto
@@ -64,7 +66,7 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_famil
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y,
     control$max.upd.par.nb, control$no.m.bfgs.steps.nb, ext$offset,
     ext$offset_zc, ext$offset_pl_mult, ext$weights,
-    family_count_code, identical(control$pdf.pl.type, "exact")
+    family_count_code, identical(control$pdf.pl.type, "exact"), family_zero_code
   )
 
   # --- take the BFGS values where they are finite, otherwise keep the old ----

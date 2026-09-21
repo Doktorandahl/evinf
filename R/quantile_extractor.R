@@ -74,7 +74,8 @@ quantiles_from_evzinb <- function(
     nb_alpha = object$coef$Alpha.NB,
     probabilities = cbind(prbs$pr_zc, prbs$pr_count, prbs$pr_pareto),
     continuous = !round,
-    family_count = (object$family %||% evinf_family())$count
+    family_count = (object$family %||% evinf_family())$count,
+    family_zero = (object$family %||% evinf_family())$zero
   )
 
   if (return_data) {
@@ -123,7 +124,8 @@ quantiles_from_evinb <- function(
     nb_alpha = object$coef$Alpha.NB,
     probabilities = cbind(0, prbs$pr_count, prbs$pr_pareto),
     continuous = !round,
-    family_count = (object$family %||% evinf_family())$count
+    family_count = (object$family %||% evinf_family())$count,
+    family_zero = (object$family %||% evinf_family())$zero
   )
 
   if (return_data) {
