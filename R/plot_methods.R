@@ -1,5 +1,26 @@
 # audit 4.6 - plot methods for evzinb / evinb models.
 
+# round8 0.1: ggplot2 >= 3.5.0 renamed scale_*_continuous()'s `trans` argument
+# to `transform`; `trans` still works but emits a deprecation message on the
+# newer versions, and `transform` doesn't exist at all before 3.5.0. Keep the
+# package usable across both by picking the argument name at call time.
+# `ggplot2_version` is a parameter (not read internally) so tests can exercise
+# both branches without needing two ggplot2 installations.
+evinf_scale_log1p <- function(axis = c("x", "y"),
+                              ggplot2_version = utils::packageVersion("ggplot2")) {
+  axis <- match.arg(axis)
+  scale_fun <- if (axis == "x") {
+    ggplot2::scale_x_continuous
+  } else {
+    ggplot2::scale_y_continuous
+  }
+  if (ggplot2_version >= "3.5.0") {
+    scale_fun(transform = "log1p")
+  } else {
+    scale_fun(trans = "log1p")
+  }
+}
+
 #' Plots for evzinb / evinb models
 #'
 #' @param x A fitted \code{evzinb} / \code{evinb} model.
@@ -97,7 +118,7 @@ evinf_plot_prediction <- function(x, variable, quantiles, ...) {
   }
   p +
     ggplot2::geom_line() +
-    ggplot2::scale_y_continuous(transform = "log1p") +
+    evinf_scale_log1p("y") +
     ggplot2::labs(x = variable, y = "predicted y (log1p scale)",
                   colour = NULL, fill = NULL) +
     ggplot2::theme_minimal()
@@ -151,7 +172,7 @@ evinf_plot_ppc <- function(x) {
 
   ggplot2::ggplot(freq, ggplot2::aes(.data$bin, .data$count, fill = .data$source)) +
     ggplot2::geom_col(position = "dodge") +
-    ggplot2::scale_y_continuous(transform = "log1p") +
+    evinf_scale_log1p("y") +
     ggplot2::labs(x = "y (binned)", y = "count (log1p scale)", fill = NULL,
                   title = "Posterior predictive check: observed vs expected frequencies") +
     ggplot2::theme_minimal()
@@ -182,8 +203,8 @@ evinf_plot_ppc_quantiles <- function(x) {
     ggplot2::geom_point() +
     ggplot2::geom_text(ggplot2::aes(label = paste0(100 * .data$prob, "%")),
                        vjust = -0.8, size = 3) +
-    ggplot2::scale_x_continuous(transform = "log1p") +
-    ggplot2::scale_y_continuous(transform = "log1p") +
+    evinf_scale_log1p("x") +
+    evinf_scale_log1p("y") +
     ggplot2::labs(x = "observed quantile (log1p scale)",
                   y = "simulated quantile (log1p scale)",
                   title = paste("Posterior predictive check: tail quantiles",

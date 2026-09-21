@@ -48,6 +48,45 @@ test_that("oob_evaluation() on an evzinbcomp gives one column per model", {
   expect_equal(nrow(oe), 8)
 })
 
+test_that("compare_fit() returns NA AIC/BIC for razorised/winsorised slots (round8 0.5, review §6)", {
+  m <- fit_evzinb_fast(n_bootstraps = 8)
+  comp <- suppressWarnings(suppressMessages(
+    compare_models(m, winsorize = TRUE, razorize = TRUE, cutoff_value = 20)
+  ))
+  cf <- suppressWarnings(compare_fit(comp, metrics = c("aic", "bic", "rmse", "rmsle")))
+
+  modified <- cf[grepl("_razor$|_winsor$", cf$model), ]
+  expect_true(all(is.na(modified$median_difference[modified$metric %in% c("aic", "bic")])))
+  expect_true(all(is.na(modified$prop_evinf_better[modified$metric %in% c("aic", "bic")])))
+  # RMSE/RMSLE stay comparable (OOB error is always against the raw outcome).
+  expect_true(all(is.finite(modified$median_difference[modified$metric %in% c("rmse", "rmsle")])))
+
+  unmodified <- cf[!grepl("_razor$|_winsor$", cf$model), ]
+  expect_true(all(is.finite(unmodified$median_difference)))
+
+  expect_output(print(cf), "not comparable to the")
+})
+
+test_that("oob_evaluation() on an evzinbcomp masks every column at the same positions (round8 0.4, review §5)", {
+  comp <- make_comp()
+  # Force one evinf bootstrap replicate to look degenerate (without needing a
+  # genuinely degenerate fit) so its oob error comes back NA -- the nb/zinb
+  # columns must then be NA at that same position too.
+  comp$model$bootstraps[[1]]$degenerate <- TRUE
+
+  oe <- suppressWarnings(oob_evaluation(comp, metric = "rmse"))
+  expect_true(all(is.na(oe[1, ])))
+
+  n_nonmissing <- vapply(oe, function(col) sum(!is.na(col)), integer(1))
+  expect_length(unique(n_nonmissing), 1L)
+
+  excluded <- attr(oe, "excluded")
+  expect_true(is.logical(excluded))
+  expect_length(excluded, nrow(oe))
+  expect_true(excluded[1])
+  expect_identical(which(excluded), which(apply(is.na(oe), 1, any)))
+})
+
 test_that("tidy() / glance() on an evzinbcomp stack the models with a model column", {
   comp <- make_comp()
   td <- suppressWarnings(generics::tidy(comp))

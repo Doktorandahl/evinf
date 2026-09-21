@@ -54,7 +54,15 @@ double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, in
   // Pochhammer identity), sum_{j=0}^{y-1} log(j + 1/alpha) - sum_{j=1}^{y}
   // log(j) = lgamma(y + 1/alpha) - lgamma(1/alpha) - lgamma(y + 1); valid at
   // y = 0 too (gives 0, matching the previous loops which never ran there).
-  double ell_nb_i = lgamma(y_i + 1/alpha_nb) - lgamma(1/alpha_nb) - lgamma(y_i + 1);
+  // round8 0.9: for a large y with a small 1/alpha the three lgamma() terms
+  // above partially cancel (max relative error ~1.5e-10 at y=1e6, alpha=5,
+  // against a Kahan-summed reference loop -- the naive-summation loop drifts
+  // by ~1e-8 there on its own and is not a reliable reference at that scale).
+  // -log(y + 1/alpha) - lbeta(y + 1, 1/alpha) is algebraically identical (via
+  // Gamma(y+1+r) = (y+r)*Gamma(y+r)) but R::lbeta() avoids the cancellation,
+  // and was at least as accurate as the lgamma form in every case checked.
+  double r = 1 / alpha_nb;
+  double ell_nb_i = -log(y_i + r) - R::lbeta(y_i + 1, r);
 
   ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y_i*log(1 + alpha_nb*mu_i) + y_i*log(alpha_nb) + y_i*log(mu_i);
 
@@ -76,10 +84,14 @@ arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb
     delldalpha_nb_i = log(1 + alpha_nb*mu_i)/(alpha_nb*alpha_nb) - mu_i/(alpha_nb*(1+alpha_nb*mu_i));
   }else{
 
-    delldalpha_nb_i = log(1 + alpha_nb*mu_i);
-    for(int j=0; j<y_i; j++){
-      delldalpha_nb_i = delldalpha_nb_i - 1/(j+1/alpha_nb);
-    }
+    // round8 A.2 (audit §5.4): sum_{j=0}^{y-1} 1/(j + 1/alpha) is the
+    // digamma difference digamma(y + r) - digamma(r) with r = 1/alpha
+    // (verified numerically against the loop over y in {0,1,5,100,1e4,1e5}
+    // x alpha in {1e-3,0.01,0.5,1,5,50}, max relative error < 1e-9).
+    double r_nb = 1 / alpha_nb;
+    double sum_inv_j_plus_r = R::digamma(y_i + r_nb) - R::digamma(r_nb);
+
+    delldalpha_nb_i = log(1 + alpha_nb*mu_i) - sum_inv_j_plus_r;
     delldalpha_nb_i = delldalpha_nb_i/(alpha_nb*alpha_nb);
 
     delldalpha_nb_i = delldalpha_nb_i + (y_i-mu_i)/(alpha_nb*(1+alpha_nb*mu_i));
@@ -118,8 +130,34 @@ arma::mat d2elldtheta2_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_
   arma::vec d2elldalphadbeta_nb_i = b2*x_nb_ext_i;
 
   if(y_i>0){
-    for(int j=0; j<y_i; j++){
-      d2elldalpha2_nb_i = d2elldalpha2_nb_i - (j/(1+alpha_nb*j))*(j/(1+alpha_nb*j));
+    // round8 A.2: this loop is sum_{j=0}^{y-1} (j / (1 + alpha*j))^2, which
+    // is NOT sum 1/(j+r)^2 (r = 1/alpha). Writing j/(1+alpha*j) =
+    // 1/alpha - 1/(alpha^2*(j+r)) (check: alpha*(1+alpha*j) = alpha^2*(j+r))
+    // and squaring gives, after summing over j,
+    //   sum_j (j/(1+alpha*j))^2 = y/alpha^2
+    //     - (2/alpha^3) * (digamma(y+r) - digamma(r))
+    //     + (1/alpha^4) * (trigamma(r) - trigamma(y+r))
+    // (the 2/alpha^3 and 1/alpha^4 factors are the chain rule through
+    // r = 1/alpha, dr/dalpha = -1/alpha^2, applied twice). Verified
+    // numerically against the loop, but this closed form cancels
+    // catastrophically for a small y *and* a small alpha (large r) -- e.g.
+    // y=5, alpha=1e-3 loses ~9 significant digits, failing the 1e-10 target
+    // -- because the true value is then a small difference of O(1/alpha^4)
+    // terms. The loop is trivially cheap at small y regardless of alpha, so
+    // just keep it exact there; only y > 30 (where the closed form is
+    // accurate to beyond 1e-10 even at alpha = 1e-3) uses the closed form.
+    // This still removes the loop for the large-y regime that motivated it.
+    if (y_i <= 30) {
+      for (int j = 0; j < y_i; j++) {
+        d2elldalpha2_nb_i = d2elldalpha2_nb_i - (j/(1+alpha_nb*j))*(j/(1+alpha_nb*j));
+      }
+    } else {
+      double r_nb2 = 1 / alpha_nb;
+      double loop_term =
+        y_i / (alpha_nb*alpha_nb)
+        - (2 / (alpha_nb*alpha_nb*alpha_nb)) * (R::digamma(y_i + r_nb2) - R::digamma(r_nb2))
+        + (1 / (alpha_nb*alpha_nb*alpha_nb*alpha_nb)) * (R::trigamma(r_nb2) - R::trigamma(y_i + r_nb2));
+      d2elldalpha2_nb_i = d2elldalpha2_nb_i - loop_term;
     }
   }
 
@@ -172,7 +210,13 @@ arma::mat d2elldbeta2_pl_i_fun_approx(arma::vec beta_pl,double c_pl, arma::vec x
 // L1 = log(C/y), L2 = log(C/(y+1)), l = log(u - v):
 //   dl/dalpha    = (u*L1 - v*L2) / (u - v)
 //   d2l/dalpha2  = (u*L1^2 - v*L2^2) / (u - v) - (dl/dalpha)^2
-// u - v is computed in the same cancellation-free form as ell_pl_i_fun().
+// round8 0.2 (review §3): forming u and v separately here (even though the
+// denominator already used the cancellation-free product below) underflowed
+// both to exactly 0 for a sharply peaked block -- large alpha * |L1| -- giving
+// 0/0 = NaN despite the log-likelihood itself (ell_pl_i_fun()) staying finite.
+// Factor u out of the numerator the same way: with r = v/u = exp(alpha*(L2-L1))
+// in (0, 1), (u*L1 - v*L2)/(u - v) = (L1 - r*L2)/(1 - r), and 1 - r is
+// -expm1(alpha*(L2-L1)) for the same reason ell_pl_i_fun() uses it.
 struct pareto_exact_derivs {
   double alpha_i, dl_dalpha, d2l_dalpha2;
 };
@@ -182,11 +226,10 @@ pareto_exact_derivs pareto_exact_derivs_fun(arma::vec beta_pl, double c_pl,
   double alpha_i = exp(lp);
   double L1 = log(c_pl / y_i);
   double L2 = log(c_pl / (y_i + 1));
-  double u = exp(alpha_i * L1);
-  double v = exp(alpha_i * L2);
-  double diff = u * (-expm1(alpha_i * (L2 - L1)));
-  double dl_dalpha = (u * L1 - v * L2) / diff;
-  double d2l_dalpha2 = (u * L1 * L1 - v * L2 * L2) / diff - dl_dalpha * dl_dalpha;
+  double r = exp(alpha_i * (L2 - L1));
+  double one_minus_r = -expm1(alpha_i * (L2 - L1));
+  double dl_dalpha = (L1 - r * L2) / one_minus_r;
+  double d2l_dalpha2 = (L1 * L1 - r * L2 * L2) / one_minus_r - dl_dalpha * dl_dalpha;
   pareto_exact_derivs out = {alpha_i, dl_dalpha, d2l_dalpha2};
   return out;
 }
@@ -210,26 +253,29 @@ arma::mat d2elldbeta2_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_
 double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb){
 
   int n = x_mult_z_ext.n_rows;
-  int n_mult_z = x_mult_z_ext.n_cols;
-  int n_mult_pl = x_mult_pl_ext.n_cols;
-  int n_nb = x_nb_ext.n_cols;
-  int n_pl = x_pl_ext.n_cols;
   arma::mat props = zeros<mat>(n,3) ;
 
+  // round8 A.3 (audit §5.4): one matrix-vector product per linear predictor
+  // instead of trans(X.submat(i,...)) allocated fresh every row. This
+  // function is called from every stats::optimise() line search in
+  // R/em_step.R (dozens of evaluations per em_step() call across the four
+  // blocks), so it's the single highest-leverage target in this file.
+  arma::vec eta_z_vec = x_mult_z_ext * gamma_z;
+  arma::vec eta_pl_mult_vec = x_mult_pl_ext * gamma_pl;
   for(int i=0; i<n; i++){
-    double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
-    double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
-    fill_props_row(props, i, eta_z, eta_pl);
+    fill_props_row(props, i, eta_z_vec(i), eta_pl_mult_vec(i));
   }
+
+  arma::vec eta_nb_vec = x_nb_ext * beta_nb;
+  arma::vec eta_pl_vec = x_pl_ext * beta_pl;
+  double r_nb = 1 / alpha_nb;
 
   double func_val = 0;
 
   for(int i=0; i<n; i++){
-    arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
-    double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
-    double mu_i = exp(xtb_nb_i + offset_nb(i));
-    // audit0.10 §1.11: closed form, see ell_nb_i_fun().
-    double ell_nb_i = lgamma(y(i) + 1/alpha_nb) - lgamma(1/alpha_nb) - lgamma(y(i) + 1);
+    double mu_i = exp(eta_nb_vec(i) + offset_nb(i));
+    // audit0.10 §1.11 / round8 0.9: closed form, see ell_nb_i_fun().
+    double ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
     ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
 
     // audit0.10 §1.11: combine the mixture terms with a log-sum-exp instead of
@@ -240,9 +286,7 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
     }else if(y(i)>0 && y(i)<c_pl){
       func_val = func_val + log(props(i,1)) + ell_nb_i;
     }else{
-      arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
-      double xtb_pl_i = (trans(x_pl_ext_i)*beta_pl).eval()(0,0);
-      double exp_xtb_pl_i = exp(xtb_pl_i);
+      double exp_xtb_pl_i = exp(eta_pl_vec(i));
       // audit0.10 §1.11: stable Pareto log-pmf, see ell_pl_i_fun().
       double ell_pl_i = exp_xtb_pl_i * log(c_pl / y(i)) +
         log(-expm1(exp_xtb_pl_i * log(y(i) / (y(i) + 1))));
@@ -252,6 +296,81 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
   }
 
   return(func_val);
+}
+
+// round8 A.1 (audit §5.4): em_profile_c() used to call log_lik_fun() once per
+// C_EV candidate, and every call redid the O(n) work above (state
+// probabilities, the whole NB log-likelihood) even though neither depends on
+// C. Here that work happens once; only the branch selection and, for
+// y >= c, the Pareto term are evaluated per candidate. No monotone-tail
+// incremental accumulation (sorting y once and updating as c rises) -- the
+// benchmark (A.4) didn't call for it; if it ever does, that's its own commit.
+//[[Rcpp::export]]
+arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
+                              arma::vec beta_nb, double alpha_nb, arma::vec beta_pl,
+                              arma::vec c_candidates,
+                              arma::mat x_mult_z_ext, arma::mat x_mult_pl_ext,
+                              arma::mat x_nb_ext, arma::mat x_pl_ext,
+                              arma::vec y, arma::vec offset_nb){
+
+  int n = x_mult_z_ext.n_rows;
+  int n_mult_z = x_mult_z_ext.n_cols;
+  int n_mult_pl = x_mult_pl_ext.n_cols;
+  int n_nb = x_nb_ext.n_cols;
+  int n_pl = x_pl_ext.n_cols;
+  int n_c = c_candidates.n_elem;
+
+  arma::mat props = zeros<mat>(n,3);
+  arma::vec ell_nb = zeros<vec>(n);
+  arma::vec alpha_pl_vec = zeros<vec>(n);
+
+  double r_nb = 1 / alpha_nb;
+
+  // Steps 1-3: state probabilities, the count log-likelihood (ell_nb_i, see
+  // ell_nb_i_fun()) and the Pareto shape (alpha_pl_vec) -- none of these
+  // depend on C, so each is computed once per observation.
+  for (int i = 0; i < n; i++) {
+    double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
+    double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
+    fill_props_row(props, i, eta_z, eta_pl);
+
+    arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
+    double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
+    double mu_i = exp(xtb_nb_i + offset_nb(i));
+    double ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
+    ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
+    ell_nb(i) = ell_nb_i;
+
+    arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
+    double xtb_pl_i = (trans(x_pl_ext_i)*beta_pl).eval()(0,0);
+    alpha_pl_vec(i) = exp(xtb_pl_i);
+  }
+
+  arma::vec loglik = zeros<vec>(n_c);
+
+  // Step 4-5: per candidate, branch on y_i == 0 / y_i < c / y_i >= c exactly
+  // as log_lik_fun() does, reusing props/ell_nb/alpha_pl_vec from above; only
+  // the Pareto term (y_i >= c) is evaluated fresh per candidate, combined via
+  // the same log_sum_exp2() as log_lik_fun().
+  for (int g = 0; g < n_c; g++) {
+    double c_pl = c_candidates(g);
+    double func_val = 0;
+    for (int i = 0; i < n; i++) {
+      if (y(i) == 0) {
+        func_val += log_sum_exp2(log(props(i,0)), log(props(i,1)) + ell_nb(i));
+      } else if (y(i) > 0 && y(i) < c_pl) {
+        func_val += log(props(i,1)) + ell_nb(i);
+      } else {
+        double a = alpha_pl_vec(i);
+        double ell_pl_i = a * log(c_pl / y(i)) +
+          log(-expm1(a * log(y(i) / (y(i) + 1))));
+        func_val += log_sum_exp2(log(props(i,1)) + ell_nb(i), log(props(i,2)) + ell_pl_i);
+      }
+    }
+    loglik(g) = func_val;
+  }
+
+  return loglik;
 }
 
 // Bounded Newton step -H^{-1}*g, robust to a singular Hessian (audit0.10
@@ -303,11 +422,12 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   arma::vec beta_pl_after_bfgs = beta_pl_in;
 
 
-  double denominator = 0;
+  // round8 A.3: precomputed linear predictor instead of trans(X.submat(i,...))
+  // per row (same pattern as log_lik_fun()).
+  arma::vec eta_z_vec0 = x_mult_z_ext * gamma_z_old;
+  arma::vec eta_pl_mult_vec0 = x_mult_pl_ext * gamma_pl_old;
   for(int i=0; i<n; i++){
-    double eta_z = (trans(gamma_z_old)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0);
-    double eta_pl = (trans(gamma_pl_old)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0);
-    fill_props_row(props, i, eta_z, eta_pl);
+    fill_props_row(props, i, eta_z_vec0(i), eta_pl_mult_vec0(i));
   }
 
   arma::mat resp = zeros<mat>(n,3);
@@ -355,15 +475,68 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
 
   //Update beta_nb and alpha_nb with BFGS
+  // round8 A.3: the per-row loop rebuilt mu_i (via a fresh submat/trans) and
+  // allocated a new gradient/Hessian block on every row, every sub-iteration,
+  // by calling delldtheta_nb_i_fun()/d2elldtheta2_nb_i_fun(). Precompute the
+  // linear predictor and the per-row weights in one pass, then accumulate the
+  // beta block as X'w (gradient) and X' diag(w) X (Hessian) -- the digamma/
+  // trigamma alpha terms (A.2, including its y <= 30 loop fallback) are
+  // scalar and still computed per row, but with no matrix allocation.
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
-    d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
-    dQdtheta_nb = zeros<mat>(n_nb+1,1);
+    arma::vec eta_nb_i = x_nb_ext * beta_nb_old;
+    arma::vec mu_vec = exp(eta_nb_i + offset_nb);
+    arma::vec one_plus_am = 1 + alpha_nb_old*mu_vec;
 
-    for(int i=0; i<n; i++){
+    arma::vec b_grad = (y - mu_vec) / one_plus_am;
+    arma::vec b_hess = -1.0*mu_vec % (1 + alpha_nb_old*y) / arma::square(one_plus_am);
+    arma::vec b2_hess = -1.0*mu_vec % (y - mu_vec) / arma::square(one_plus_am);
 
-      dQdtheta_nb = dQdtheta_nb + delldtheta_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i))*resp(i,1);
-      d2Qdtheta2_nb = d2Qdtheta2_nb + d2elldtheta2_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i))*resp(i,1);
+    double r_nb = 1 / alpha_nb_old;
+    arma::vec delldalpha_vec(n), d2elldalpha2_vec(n);
+    for (int i=0; i<n; i++){
+      double mu_i = mu_vec(i);
+      double oam_i = one_plus_am(i);
+      int yi = (int) y(i);
+
+      // audit0.10 §1.11 / round8 A.2: digamma(y+r)-digamma(r) is exactly 0 at
+      // y=0 (same argument on both sides), so this one formula covers both
+      // branches of the original delldtheta_nb_i_fun().
+      double sum_inv = R::digamma(y(i) + r_nb) - R::digamma(r_nb);
+      delldalpha_vec(i) = (log(oam_i) - sum_inv)/(alpha_nb_old*alpha_nb_old) + (y(i)-mu_i)/(alpha_nb_old*oam_i);
+
+      double loop_term = 0;
+      if (yi > 30) {
+        loop_term = y(i)/(alpha_nb_old*alpha_nb_old)
+          - (2/(alpha_nb_old*alpha_nb_old*alpha_nb_old))*sum_inv
+          + (1/(alpha_nb_old*alpha_nb_old*alpha_nb_old*alpha_nb_old))*(R::trigamma(r_nb) - R::trigamma(y(i)+r_nb));
+      } else if (yi > 0) {
+        for (int j=0; j<yi; j++) {
+          loop_term += (j/(1+alpha_nb_old*j))*(j/(1+alpha_nb_old*j));
+        }
+      }
+      d2elldalpha2_vec(i) = -loop_term - 2/(alpha_nb_old*alpha_nb_old*alpha_nb_old)*log(oam_i)
+        + (2/(alpha_nb_old*alpha_nb_old))*mu_i/oam_i + (y(i)+r_nb)*mu_i*mu_i/(oam_i*oam_i);
     }
+
+    arma::vec w_beta = resp.col(1) % b_grad;
+    arma::vec grad_beta = trans(x_nb_ext) * w_beta;
+    double grad_alpha = arma::sum(resp.col(1) % delldalpha_vec);
+
+    arma::vec w_hess_beta = resp.col(1) % b_hess;
+    arma::mat H_beta = trans(x_nb_ext) * (x_nb_ext.each_col() % w_hess_beta);
+    arma::vec w_hess_cross = resp.col(1) % b2_hess;
+    arma::vec H_cross = trans(x_nb_ext) * w_hess_cross;
+    double H_alpha = arma::sum(resp.col(1) % d2elldalpha2_vec);
+
+    dQdtheta_nb = zeros<mat>(n_nb+1,1);
+    dQdtheta_nb.submat(0,0,n_nb-1,0) = grad_beta;
+    dQdtheta_nb(n_nb,0) = grad_alpha;
+
+    d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
+    d2Qdtheta2_nb.submat(0,0,n_nb-1,n_nb-1) = H_beta;
+    d2Qdtheta2_nb.submat(n_nb,0,n_nb,n_nb-1) = trans(H_cross);
+    d2Qdtheta2_nb.submat(0,n_nb,n_nb-1,n_nb) = H_cross;
+    d2Qdtheta2_nb(n_nb,n_nb) = H_alpha;
 
     change_nb_bfgs = safe_newton_step(d2Qdtheta2_nb, dQdtheta_nb);
     if (change_nb_bfgs.has_nan()) {
@@ -389,21 +562,55 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   //Update beta_pl with BFGS
+  // round8 A.3: restrict to the y >= c_pl rows once (arma::find()), then
+  // accumulate as X'w / X' diag(w) X on that subset instead of a per-row
+  // loop that allocated a fresh gradient/Hessian block (and re-evaluated
+  // x_i'beta_pl) every row, every sub-iteration. The nonlinear per-row terms
+  // (dl_dalpha etc.) are still scalar, but only over the active subset,
+  // which review's own framing puts at "typically a few percent of n".
+  arma::uvec pl_idx = arma::find(y >= c_pl);
+  int n_pl_active = pl_idx.n_elem;
+  arma::mat x_pl_sub;
+  arma::vec y_pl_sub, resp2_sub;
+  if (n_pl_active > 0) {
+    x_pl_sub = x_pl_ext.rows(pl_idx);
+    y_pl_sub = y.elem(pl_idx);
+    arma::vec resp2_full = resp.col(2);
+    resp2_sub = resp2_full.elem(pl_idx);
+  }
+
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
     d2Qdbeta2_pl = zeros<mat>(n_pl,n_pl);
     dQdbeta_pl = zeros<mat>(n_pl,1);
 
-    for(int i=0; i<n; i++){
-      if(y(i)>=c_pl){
-        arma::vec x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
+    if (n_pl_active > 0) {
+      arma::vec eta_pl_sub = x_pl_sub * beta_pl_old;
+      arma::vec alpha_sub = exp(eta_pl_sub);
+      arma::vec grad_w(n_pl_active), hess_w(n_pl_active);
+
+      for (int k = 0; k < n_pl_active; k++) {
+        double y_k = y_pl_sub(k);
+        double alpha_k = alpha_sub(k);
         if (exact_pl) {
-          dQdbeta_pl = dQdbeta_pl + delldbeta_pl_i_fun_exact(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
-          d2Qdbeta2_pl = d2Qdbeta2_pl + d2elldbeta2_pl_i_fun_exact(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
+          double L1 = log(c_pl / y_k);
+          double L2 = log(c_pl / (y_k + 1));
+          double r = exp(alpha_k * (L2 - L1));
+          double one_minus_r = -expm1(alpha_k * (L2 - L1));
+          double dl_dalpha = (L1 - r*L2) / one_minus_r;
+          double d2l_dalpha2 = (L1*L1 - r*L2*L2)/one_minus_r - dl_dalpha*dl_dalpha;
+          grad_w(k) = alpha_k * dl_dalpha;
+          hess_w(k) = alpha_k*dl_dalpha + alpha_k*alpha_k*d2l_dalpha2;
         } else {
-          dQdbeta_pl = dQdbeta_pl + delldbeta_pl_i_fun_approx(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
-          d2Qdbeta2_pl = d2Qdbeta2_pl + d2elldbeta2_pl_i_fun_approx(beta_pl_old,c_pl,x_pl_ext_i,y(i))*resp(i,2);
+          double term = log(c_pl)*alpha_k - log(y_k)*alpha_k;
+          grad_w(k) = 1 + term;
+          hess_w(k) = term;
         }
       }
+
+      arma::vec w_grad = resp2_sub % grad_w;
+      dQdbeta_pl = x_pl_sub.t() * w_grad;
+      arma::vec w_hess = resp2_sub % hess_w;
+      d2Qdbeta2_pl = x_pl_sub.t() * (x_pl_sub.each_col() % w_hess);
     }
 
     change_pl_bfgs = safe_newton_step(d2Qdbeta2_pl, dQdbeta_pl);
@@ -423,21 +630,19 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   //Update gamma_z with BFGS
+  // round8 A.3: X'w / X' diag(w) X instead of a per-row loop building a
+  // fresh outer product x_i x_i' (and re-evaluating both linear predictors)
+  // every row, every sub-iteration. gamma_pl_old is fixed throughout this
+  // block (the gamma_pl block runs after), so its linear predictor is
+  // computed once, outside the loop.
+  arma::vec eta_pl_mult_fixed = x_mult_pl_ext * gamma_pl_old;
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
-    dQdgamma_z = zeros<mat>(n_mult_z,1);
-    d2Qdgamma2_z = zeros<mat>(n_mult_z,n_mult_z);
-
-    for(int i=0; i<n; i++){
-      double xtgamma_z_i = (x_mult_z_ext.submat(i,0,i,n_mult_z-1)*gamma_z_old).eval()(0,0);
-      double xtgamma_pl_i = (x_mult_pl_ext.submat(i,0,i,n_mult_pl-1)*gamma_pl_old).eval()(0,0);
-      arma::mat xtx_gamma_z_i = trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))*x_mult_z_ext.submat(i,0,i,n_mult_z-1);
-      denominator = (1 + exp(xtgamma_z_i) + exp(xtgamma_pl_i));
-      arma::mat dQdgamma_z_i = trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))*(resp(i,0) - exp(xtgamma_z_i)/denominator);
-      arma::mat d2Qdgamma2_z_i = -1.0*xtx_gamma_z_i/denominator;
-
-      dQdgamma_z = dQdgamma_z + dQdgamma_z_i;
-      d2Qdgamma2_z = d2Qdgamma2_z + d2Qdgamma2_z_i;
-    }
+    arma::vec eta_z_i = x_mult_z_ext * gamma_z_old;
+    arma::vec denom_vec = 1 + exp(eta_z_i) + exp(eta_pl_mult_fixed);
+    arma::vec w_grad_z = resp.col(0) - exp(eta_z_i)/denom_vec;
+    dQdgamma_z = x_mult_z_ext.t() * w_grad_z;
+    arma::vec w_hess_z = 1.0/denom_vec;
+    d2Qdgamma2_z = -1.0 * (x_mult_z_ext.t() * (x_mult_z_ext.each_col() % w_hess_z));
 
     change_mult_z_bfgs = safe_newton_step(d2Qdgamma2_z, dQdgamma_z);
     if (change_mult_z_bfgs.has_nan()) {
@@ -456,21 +661,16 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb);
 
   //Update gamma_pl with BFGS
+  // round8 A.3: same pattern as the gamma_z block; gamma_z_old is now fixed
+  // (already updated above), so its linear predictor is computed once.
+  arma::vec eta_z_fixed = x_mult_z_ext * gamma_z_old;
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
-    dQdgamma_pl = zeros<mat>(n_mult_pl,1);
-    d2Qdgamma2_pl = zeros<mat>(n_mult_pl,n_mult_pl);
-
-    for(int i=0; i<n; i++){
-      double xtgamma_z_i = (x_mult_z_ext.submat(i,0,i,n_mult_z-1)*gamma_z_old).eval()(0,0);
-      double xtgamma_pl_i = (x_mult_pl_ext.submat(i,0,i,n_mult_pl-1)*gamma_pl_old).eval()(0,0);
-      arma::mat xtx_gamma_pl_i = trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))*x_mult_pl_ext.submat(i,0,i,n_mult_pl-1);
-      denominator = (1 + exp(xtgamma_z_i) + exp(xtgamma_pl_i));
-      arma::mat dQdgamma_pl_i = trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))*(resp(i,2) - exp(xtgamma_pl_i)/denominator);
-      arma::mat d2Qdgamma2_pl_i = -1.0*xtx_gamma_pl_i/denominator;
-
-      dQdgamma_pl = dQdgamma_pl + dQdgamma_pl_i;
-      d2Qdgamma2_pl = d2Qdgamma2_pl + d2Qdgamma2_pl_i;
-    }
+    arma::vec eta_pl_mult_i = x_mult_pl_ext * gamma_pl_old;
+    arma::vec denom_vec2 = 1 + exp(eta_z_fixed) + exp(eta_pl_mult_i);
+    arma::vec w_grad_pl = resp.col(2) - exp(eta_pl_mult_i)/denom_vec2;
+    dQdgamma_pl = x_mult_pl_ext.t() * w_grad_pl;
+    arma::vec w_hess_pl = 1.0/denom_vec2;
+    d2Qdgamma2_pl = -1.0 * (x_mult_pl_ext.t() * (x_mult_pl_ext.each_col() % w_hess_pl));
 
     change_mult_pl_bfgs = safe_newton_step(d2Qdgamma2_pl, dQdgamma_pl);
     if (change_mult_pl_bfgs.has_nan()) {

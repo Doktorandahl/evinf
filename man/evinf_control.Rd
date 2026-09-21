@@ -93,7 +93,11 @@ against the profile oscillating between two candidate values forever. If the
 convergence-phase loop hits this cap, the fit's \code{converge} is set to
 \code{FALSE} (see \code{$c_converged} to tell this apart from the EM inner
 loop not converging) and, for a full-sample fit, a \code{warning()} names the
-last two \eqn{C_{EV}} values visited.}
+last two \eqn{C_{EV}} values visited. The warm-up phase is capped
+independently and recorded in \code{$c_warmup_capped} (with its own
+\code{warning()} for a full-sample fit); it does not affect \code{converge},
+since warm-up is a short exploratory phase and not settling there is not by
+itself a sign the fit failed.}
 }
 \value{
 A list of class \code{"evinf_control"}.

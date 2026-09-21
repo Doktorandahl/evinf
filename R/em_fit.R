@@ -45,11 +45,13 @@
 #'
 #' @return A list with, among others, \code{par.mat} (estimated parameters),
 #'   \code{log.lik}, \code{AIC}, \code{BIC}, \code{resp} (posterior state
-#'   probabilities), \code{converge}, \code{c_profile}, \code{c_trace},
-#'   \code{log.lik.vec.all}, \code{loglik_recomputed}, the fitted-value vectors
-#'   (\code{mu.nb.vec}, \code{alpha.pl.vec}, \code{y.hat.pl*}, ...) and the design
-#'   matrices. The exact set and names are consumed by \code{run_evzinb()} /
-#'   \code{run_evinb()}.
+#'   probabilities), \code{converge}, \code{c_converged} (did the
+#'   convergence-phase C_EV profile settle within \code{max.c.iter}),
+#'   \code{c_warmup_capped} (the same, for the warm-up phase), \code{c_profile},
+#'   \code{c_trace}, \code{log.lik.vec.all}, \code{loglik_recomputed}, the
+#'   fitted-value vectors (\code{mu.nb.vec}, \code{alpha.pl.vec},
+#'   \code{y.hat.pl*}, ...) and the design matrices. The exact set and names
+#'   are consumed by \code{run_evzinb()} / \code{run_evinb()}.
 #'
 #' @details For \code{model = "evinb"} the zero-inflation multinomial block is
 #'   held at its initial value (\code{ini.val$Beta.multinom.ZC}) throughout both
@@ -102,6 +104,23 @@ em_fit <- function(y, x.obj, ini.val, control,
     prel.val$C <- c.pl.new
   }
 
+  # round8 0.6 (review §7): the warm-up phase can hit max.c.iter exactly like
+  # the convergence phase does (audit0.10 §1.4), but until now nothing
+  # recorded it -- c_converged below only covers the convergence-phase loop.
+  # Capture the warm-up exit condition before c.abs.diff is reset for the
+  # convergence phase.
+  c_warmup_capped <- c.abs.diff > 0 && n.c.iter.warmup >= max_c_iter
+  if (c_warmup_capped && full_sample) {
+    warning(
+      "em_fit(): the warm-up C_EV profile did not settle within ",
+      "max.c.iter = ", max_c_iter, " iterations. Warm-up is a short ",
+      "exploratory phase, so this alone is not necessarily a problem, but ",
+      "if the convergence phase below also fails to settle, consider ",
+      "raising max.c.iter.",
+      call. = FALSE
+    )
+  }
+
   # --- convergence phase --------------------------------------------------
   cat("End warm-up. Run until convergence", "\n", sep = "")
   c.abs.diff <- 100
@@ -146,14 +165,6 @@ em_fit <- function(y, x.obj, ini.val, control,
   }
 
   final.val <- prel.val
-  props.old <- prel.val$Props
-
-  # audit0.10 §1.11 (D.3): keep computing the point predictions (y.hat.pl_*)
-  # from the pre-recompute props.old, exactly as before -- em_fitted_values()'s
-  # mu.nb.vec / alpha.pl.vec don't depend on props at all, only its y.hat.pl_*
-  # weighting does, and that weighting is out of scope for this item (D.4
-  # covers point predictions separately).
-  fv <- em_fitted_values(x.obj, final.val, props.old, c.pl.new, model = model)
 
   # par.mat$Props / resp came from step$upd_obj at the START of the last EM
   # step (em_fit_fixed_c()), i.e. one step behind the returned parameters
@@ -167,6 +178,15 @@ em_fit <- function(y, x.obj, ini.val, control,
     as.numeric(ext$zc %*% final.val$Beta.multinom.ZC),
     as.numeric(ext$pl_mult %*% final.val$Beta.multinom.PL)
   )
+
+  # round8 0.3 (review §4): em_fitted_values() used to run on props.old (the
+  # one-step-stale E-step prior), so object$fitted$y.hat.pl_* disagreed with
+  # object$fitted$prob_* / predict(type = "harmonic") -- both should reflect
+  # the same, final-parameter props. final.val$Props above doesn't depend on
+  # fv, so this is a reorder, not a second pass: compute it first and feed it
+  # into em_fitted_values() instead of props.old.
+  fv <- em_fitted_values(x.obj, final.val, final.val$Props, c.pl.new, model = model)
+
   final.resp <- evinf_responsibilities(
     y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props
   )
@@ -201,6 +221,7 @@ em_fit <- function(y, x.obj, ini.val, control,
     resp             = final.resp,
     converge         = est.obj$converge && c_converged,
     c_converged      = c_converged,
+    c_warmup_capped  = c_warmup_capped,
     ini.val          = ini.val,
     x.nb             = x.obj$X.NB,
     x.pl             = x.obj$X.PL,

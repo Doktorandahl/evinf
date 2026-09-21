@@ -41,6 +41,10 @@ log_lik_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_m
     .Call(`_evinf_log_lik_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb)
 }
 
+log_lik_profile_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb) {
+    .Call(`_evinf_log_lik_profile_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb)
+}
+
 update_bfgs_fun <- function(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, exact_pl = FALSE) {
     .Call(`_evinf_update_bfgs_fun`, gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, exact_pl)
 }

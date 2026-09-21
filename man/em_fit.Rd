@@ -40,11 +40,13 @@ a \code{warning()} (bootstrap replicates already record it via
 \value{
 A list with, among others, \code{par.mat} (estimated parameters),
   \code{log.lik}, \code{AIC}, \code{BIC}, \code{resp} (posterior state
-  probabilities), \code{converge}, \code{c_profile}, \code{c_trace},
-  \code{log.lik.vec.all}, \code{loglik_recomputed}, the fitted-value vectors
-  (\code{mu.nb.vec}, \code{alpha.pl.vec}, \code{y.hat.pl*}, ...) and the design
-  matrices. The exact set and names are consumed by \code{run_evzinb()} /
-  \code{run_evinb()}.
+  probabilities), \code{converge}, \code{c_converged} (did the
+  convergence-phase C_EV profile settle within \code{max.c.iter}),
+  \code{c_warmup_capped} (the same, for the warm-up phase), \code{c_profile},
+  \code{c_trace}, \code{log.lik.vec.all}, \code{loglik_recomputed}, the
+  fitted-value vectors (\code{mu.nb.vec}, \code{alpha.pl.vec},
+  \code{y.hat.pl*}, ...) and the design matrices. The exact set and names
+  are consumed by \code{run_evzinb()} / \code{run_evinb()}.
 }
 \description{
 Estimates an EVZINB or EVINB model by the generalised-EM / ECME algorithm of

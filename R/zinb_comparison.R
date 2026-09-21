@@ -205,8 +205,23 @@ boot_refit_family <- function(specs, boots, seed) {
   }), names(specs))
 }
 
-inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
+# round8 0.7 (review §7): `data[-boot_id, ]` with `boot_id` of length zero
+# returns zero rows (via `data[integer(0), ]`), not all of them -- a
+# pathological but reachable case if razorising leaves no drawn row behind.
+# Fail the same way a caught error from MASS::glm.nb()/pscl::zeroinfl()
+# would, so every existing `inherits(b, "try-error")` check already handles it.
+empty_boot_id_error <- function(fn_name) {
+  try(stop(
+    fn_name, "(): boot_id is empty for this resample (no rows survived ",
+    "razorising), so data[-boot_id, ] would silently return zero rows ",
+    "instead of all of them; skipping this replicate."
+  ), silent = TRUE)
+}
 
+inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
+  if (length(bootstrap$boot_id) == 0) {
+    return(empty_boot_id_error("inner_nb"))
+  }
 
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
@@ -236,6 +251,10 @@ inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
 }
 
 inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig){
+  if (length(bootstrap$boot_id) == 0) {
+    return(empty_boot_id_error("inner_zinb"))
+  }
+
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
   # audit0.10 §1.5: see inner_nb() -- original outcome, not `data`'s.

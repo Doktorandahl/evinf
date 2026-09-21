@@ -261,6 +261,64 @@ review follow-ups in `dev/review_round1.md`.
   E-step. Point predictions (`predict(type = "harmonic")` etc.) are
   unaffected -- only these diagnostic quantities change, by up to ~0.008 on
   the bundled example data (audit0.10 §1.11).
+* `plot()` on a fitted model errored on ggplot2 < 3.5.0 (`scale_*_continuous()`
+  didn't gain the `transform =` argument until 3.5.0). The four log1p-scale
+  call sites in `plot.evzinb()` / `plot.evinb()` now pick `transform =` or the
+  older `trans =` based on the installed ggplot2 version, and the `(>= 3.5.0)`
+  floor on `ggplot2` in `Suggests` is removed (round8 0.1).
+* `pdf.pl.type = "exact"`'s gradient/Hessian went to `NaN` for a sharply
+  peaked Pareto block (large `alpha * |log(C/y)|`, e.g. `C = 100`, `y = 1e4`,
+  `alpha ~ 403`) because `pareto_exact_derivs_fun()` formed `(C/y)^alpha` and
+  `(C/(y+1))^alpha` separately in its numerator even though the denominator
+  already used a cancellation-free form; both underflow to exactly 0 there,
+  giving `0/0`. The `NaN` failed safe -- the M-step just stopped updating the
+  Pareto block silently -- but is now fixed by factoring the same term out of
+  the numerator (review §3, round8 0.2).
+* `object$fitted$y.hat.pl_*` (the state-probability-weighted point
+  predictions) were computed from the E-step's one-step-stale prior state
+  probabilities, while `object$props` / `object$resp` (and the
+  `fitted$prob_*` / `posterior_*` vectors derived from them) already used the
+  final, recomputed ones -- so `fitted$y.hat.pl_E.inv.y` and
+  `predict(type = "harmonic")` disagreed by a small but nonzero amount
+  (`cor() = 0.9999999`, not 1). Both are now computed from the same final
+  props (review §4, round8 0.3).
+* `oob_evaluation()` on an `evzinbcomp` object masked a degenerate evinf
+  bootstrap replicate's out-of-bag error to `NA` in the `evinf` column only,
+  leaving the compared `nb` / `zinb` columns unmasked at that row -- so a
+  column-wise `na.rm = TRUE` summary (as the vignette's model-evaluation
+  section does) compared medians computed over different replicate sets.
+  Every column is now masked at the union of `NA` positions, and the row
+  mask is exposed as `attr(out, "excluded")` (review §5, round8 0.4).
+* `compare_fit()`'s `aic` / `bic` rows for a `*_razor` or `*_winsor` slot are
+  not comparable to the evinf model's -- a razorised fit is estimated on
+  fewer observations, and a winsorised fit on a different outcome -- even
+  though the `rmse` / `rmsle` rows now are (OOB error is always against the
+  raw outcome). Those two metrics now come back `NA` for those slots, with a
+  one-line footnote from `print()` when any are present (review §6, round8
+  0.5).
+* The warm-up phase's C_EV profile could hit `max.c.iter` without settling,
+  same as the convergence phase, but nothing recorded it -- `$c_converged`
+  and its `warning()` only ever covered the convergence-phase loop. Recorded
+  now as `$c_warmup_capped`, with its own `warning()` for a full-sample fit;
+  it does not affect `$converge` (review §7, round8 0.6).
+* `inner_nb()` / `inner_zinb()` (the per-bootstrap refits behind
+  `compare_models()`) computed out-of-bag error against `data[-boot_id, ]`,
+  which silently returns zero rows rather than all of them when `boot_id` is
+  empty -- a resample where razorising leaves no drawn row behind. Both now
+  guard explicitly and fail the same way a caught `MASS::glm.nb()` /
+  `pscl::zeroinfl()` error already does, so every existing
+  `inherits(b, "try-error")` check picks it up (review §7, round8 0.7).
+* CI: added an `ubuntu-latest` / `oldrel-1` job to `R-CMD-check.yaml` -- the
+  job that would have caught round8 0.1's ggplot2-version failure (round7
+  prompt E.4, review §2, round8 0.8).
+* The count-likelihood closed form `lgamma(y + 1/alpha) - lgamma(1/alpha) -
+  lgamma(y + 1)` (round 7) partially cancels for a large `y` with a small
+  `1/alpha` -- checked against a Kahan-summed reference loop (plain
+  summation of the pre-round-7 loop is not itself a trustworthy reference at
+  this scale) at up to ~1.5e-10 relative error for `y` up to 1e6 and `alpha`
+  down to `1e-3`. Switched to the algebraically identical, cancellation-free
+  `-log(y + 1/alpha) - lbeta(y + 1, 1/alpha)`, which was at least as
+  accurate in every case checked (review §7, round8 0.9).
 
 ## Breaking changes / deprecations
 
@@ -390,6 +448,38 @@ review follow-ups in `dev/review_round1.md`.
   the bundled data carry no conflict identifier.
 * `?marginal_effects` / `?tidy.evzinb` / `?gof_map_evinf` gain guidance on
   harmonic-mean effect intervals and on the `modelsummary` `shape` argument.
+* Internal (audit §5.4, round8 A.1): `em_profile_c()` used to call
+  `log_lik_fun()` once per `C_EV` candidate, redoing the state-probability
+  and count-log-likelihood computation (which doesn't depend on `C`) every
+  time. New C++ `log_lik_profile_fun()` computes that shared work once and
+  profiles the whole candidate grid in one call; `em_profile_c()`'s return
+  shape, `which.max()` behaviour and all-infinite error are unchanged.
+  Verified to `1e-10` against the old per-candidate calls, and the selected
+  `c_hat` is unchanged (not just close) on every identity fixture.
+* Internal (audit §5.4, round8 A.2): the two remaining O(y) loops in
+  `delldtheta_nb_i_fun()` / `d2elldtheta2_nb_i_fun()` (the NB dispersion
+  score and Hessian) are closed forms via `digamma()`/`trigamma()`. The
+  Hessian's closed form cancels catastrophically for a small `y` *and* a
+  small `alpha` (e.g. loses ~9 significant digits at `y = 5`,
+  `alpha = 1e-3`), so it's used only for `y > 30`; the loop (already
+  trivially cheap there) is kept below that. Verified to `1e-9` against the
+  old loops over `y` in `{0, 1, 5, 100, 1e4, 1e5}` x `alpha` in
+  `{1e-3, 0.01, 0.5, 1, 5, 50}`; the M-step gradient/Hessian are unchanged
+  on the identity fixtures.
+* Internal (audit §5.4, round8 A.3): `log_lik_fun()` and
+  `update_bfgs_fun()`'s per-observation loops rebuilt a linear predictor
+  (`trans(X.submat(i, ...))`) and, for the four M-step BFGS blocks,
+  allocated a fresh gradient/Hessian block via a per-row function call --
+  on every row, every BFGS sub-iteration, and `log_lik_fun()` alone is
+  called dozens of times per `em_step()` (once per evaluation of each of
+  the four `stats::optimise()` line searches in `R/em_step.R`). Replaced
+  with precomputed linear predictors (one matrix-vector product per block)
+  and gradient/Hessian accumulation as `X' w` / `X' diag(w) X`. A full
+  `hks` fit went from 1.1x faster (A.1 + A.2 alone) to 8.4x faster; see
+  `A.4`'s benchmark table. Verified against the pre-A.3 code on 5 cases
+  (`genevzinb2` and `hks`, both Pareto types, plus an `evinb` fit) at
+  machine precision (max abs diff ~2e-12); the identity fixtures are
+  unchanged at `1e-8`, with `c_hat` exactly (not just closely) unchanged.
 
 
 # evinf 0.9.4
