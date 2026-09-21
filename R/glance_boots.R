@@ -56,3 +56,64 @@ glance.nbboot <- function(x, ...) {
     n_failed_bootstraps = boot$n_failed_bootstraps
   )
 }
+
+#' zipboot and poissonboot glance functions
+#'
+#' @param x A poissonboot or zipboot object
+#' @param ... Further arguments to be passed to glance()
+#'
+#' @return A one-row tibble of goodness-of-fit statistics, including whether the
+#'   full-sample model converged and the number of (failed) bootstraps.
+#'   \code{alpha} is \code{NA}: neither baseline has a dispersion parameter
+#'   (round9 E.3).
+#' @seealso \code{\link[generics]{glance}}
+#' @export
+#'
+#' @examples
+#' \donttest{
+#' data(genevzinb2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, family = "poisson", n_bootstraps = 5)
+#' zip_comp <- compare_models(model)
+#' glance(zip_comp$zip)
+#' }
+glance.zipboot <- function(x, ...) {
+  boot <- evinf_boot_counts(x)
+
+  tibble::tibble(
+    nobs = x$full_run$n,
+    npar = nrow(x$full_run$vcov),
+    alpha = NA_real_,
+    aic = AIC(x$full_run),
+    bic = BIC(x$full_run),
+    logLik = x$full_run$loglik,
+    converged = isTRUE(x$full_run$converged),
+    n_bootstraps = boot$n_bootstraps,
+    n_failed_bootstraps = boot$n_failed_bootstraps
+  )
+}
+
+#' @rdname glance.zipboot
+#' @export
+#'
+#' @examples
+#' \donttest{
+#' data(genevzinb2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2, family = "poisson", n_bootstraps = 5)
+#' zip_comp <- compare_models(model)
+#' glance(zip_comp$poisson)
+#' }
+glance.poissonboot <- function(x, ...) {
+  boot <- evinf_boot_counts(x)
+
+  tibble::tibble(
+    nobs = nrow(x$full_run$model),
+    npar = x$full_run$rank,
+    alpha = NA_real_,
+    aic = AIC(x$full_run),
+    bic = BIC(x$full_run),
+    logLik = as.numeric(logLik(x$full_run)),
+    converged = isTRUE(x$full_run$converged),
+    n_bootstraps = boot$n_bootstraps,
+    n_failed_bootstraps = boot$n_failed_bootstraps
+  )
+}
