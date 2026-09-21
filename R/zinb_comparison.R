@@ -14,6 +14,15 @@ inv <- function(x){
 #'   available for \code{evinb} objects (there is no zero-inflation component); it
 #'   defaults to \code{FALSE} for those, with a message, and errors if set to
 #'   \code{TRUE} explicitly.
+#' @param poisson_comparison Should comparison be made with a Poisson model?
+#'   Defaults to \code{TRUE} when \code{object} was itself fitted with
+#'   \code{family = "poisson"}, \code{FALSE} otherwise (round9 E.3);
+#'   user-overridable either way.
+#' @param zip_comparison Should comparisons be made with a zero-inflated
+#'   Poisson (ZIP) model? Same default as \code{poisson_comparison}. Not
+#'   available for \code{evinb} objects, with the same
+#'   defaults-to-\code{FALSE}-with-a-message / errors-if-\code{TRUE} behaviour
+#'   as \code{zinb_comparison}.
 #' @inheritParams evzinb
 #'
 #' @inheritSection evzinb Parallel processing
@@ -41,7 +50,10 @@ inv <- function(x){
 #' cmp <- compare_models(hks_mod)
 #' compare_fit(cmp)
 #' }
-compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE, winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = NULL, ncores=NULL){
+compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
+                           poisson_comparison = identical((object$family %||% evinf_family())$count, "poisson"),
+                           zip_comparison = identical((object$family %||% evinf_family())$count, "poisson"),
+                           winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = NULL, ncores=NULL){
 
   if(!inherits(object, c('evzinb','evinb'))){
     stop('compare_models() requires a fitted evzinb or evinb object.')
@@ -53,6 +65,12 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
       zinb_comparison <- FALSE
     }else if(isTRUE(zinb_comparison)){
       stop('compare_models(): zinb_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
+    }
+    if(missing(zip_comparison)){
+      message('compare_models(): evinb models have no zero-inflation component; setting zip_comparison = FALSE.')
+      zip_comparison <- FALSE
+    }else if(isTRUE(zip_comparison)){
+      stop('compare_models(): zip_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
     }
   }
 
@@ -69,6 +87,9 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
 if(zinb_comparison){
   f_zinb <- as.formula(paste(dv_f, '~', rhs_nb, '|', rhs_zi))
 }
+if(zip_comparison){
+  f_zip <- as.formula(paste(dv_f, '~', rhs_nb, '|', rhs_zi))
+}
   if(nb_comparison){
     if(!is.null(init_theta)){
   full_nb <- try(MASS::glm.nb(object$formulas$formula_nb,data = object$data$data,init.theta=init_theta))
@@ -79,7 +100,13 @@ if(zinb_comparison){
   if(zinb_comparison){
   full_zinb <- try(pscl::zeroinfl(f_zinb,data = object$data$data,dist = 'negbin'))
   }
-  
+  if(poisson_comparison){
+  full_poisson <- try(stats::glm(object$formulas$formula_nb,data = object$data$data,family = stats::poisson()))
+  }
+  if(zip_comparison){
+  full_zip <- try(pscl::zeroinfl(f_zip,data = object$data$data,dist = 'poisson'))
+  }
+
   if(winsorize){
   #data_winsor <- object$data$data %>% dplyr::mutate(osvAll = dplyr::case_when(osvAll > sort(object$data$data$osvAll,decreasing=T)[cutoff_value] ~ sort(object$data$data$osvAll,decreasing=T)[cutoff_value],
   #                                                         T ~ osvAll))
@@ -94,6 +121,12 @@ if(zinb_comparison){
   }
   if(zinb_comparison){
   full_zinb_winsor <- try(pscl::zeroinfl(f_zinb,data = data_winsor,dist = 'negbin'))
+  }
+  if(poisson_comparison){
+  full_poisson_winsor <- try(stats::glm(object$formulas$formula_nb,data = data_winsor,family = stats::poisson()))
+  }
+  if(zip_comparison){
+  full_zip_winsor <- try(pscl::zeroinfl(f_zip,data = data_winsor,dist = 'poisson'))
   }
   }
   if(razorize){
@@ -114,6 +147,12 @@ if(zinb_comparison){
   if(zinb_comparison){
   full_zinb_razor <- try(pscl::zeroinfl(f_zinb,data = data_razor,dist = 'negbin'))
   }
+  if(poisson_comparison){
+  full_poisson_razor <- try(stats::glm(object$formulas$formula_nb,data = data_razor,family = stats::poisson()))
+  }
+  if(zip_comparison){
+  full_zip_razor <- try(pscl::zeroinfl(f_zip,data = data_razor,dist = 'poisson'))
+  }
   }
   # One spec per family member: its (winsorised / razorised) data set, the
   # full-data fit computed above, and just enough to refit it on a resample
@@ -127,17 +166,24 @@ if(zinb_comparison){
   mk <- function(type, cls, data, full, keep = NULL) {
     list(class = cls, type = type, data = data, full = full,
          formulas = fmls, f_zinb = if (type == "zinb") f_zinb else NULL,
+         f_zip = if (type == "zip") f_zip else NULL,
          has_init_theta = !is.null(init_theta), init_theta = init_theta,
          keep = keep,
          y_orig = if (is.null(keep)) y_orig_full else y_orig_full[keep])
   }
   specs <- list()
-  if (nb_comparison)   specs$nb   <- mk("nb",   "nbboot",  object$data$data, full_nb)
-  if (zinb_comparison) specs$zinb <- mk("zinb", "zinbboot", object$data$data, full_zinb)
-  if (winsorize && nb_comparison)   specs$nb_winsor   <- mk("nb",   "nbboot",  data_winsor, full_nb_winsor)
-  if (winsorize && zinb_comparison) specs$zinb_winsor <- mk("zinb", "zinbboot", data_winsor, full_zinb_winsor)
-  if (razorize && nb_comparison)    specs$nb_razor    <- mk("nb",   "nbboot",  data_razor,  full_nb_razor, keep = keep_rows)
-  if (razorize && zinb_comparison)  specs$zinb_razor  <- mk("zinb", "zinbboot", data_razor,  full_zinb_razor, keep = keep_rows)
+  if (nb_comparison)      specs$nb      <- mk("nb",      "nbboot",      object$data$data, full_nb)
+  if (zinb_comparison)    specs$zinb    <- mk("zinb",    "zinbboot",    object$data$data, full_zinb)
+  if (poisson_comparison) specs$poisson <- mk("poisson", "poissonboot", object$data$data, full_poisson)
+  if (zip_comparison)     specs$zip     <- mk("zip",     "zipboot",     object$data$data, full_zip)
+  if (winsorize && nb_comparison)      specs$nb_winsor      <- mk("nb",      "nbboot",      data_winsor, full_nb_winsor)
+  if (winsorize && zinb_comparison)    specs$zinb_winsor    <- mk("zinb",    "zinbboot",    data_winsor, full_zinb_winsor)
+  if (winsorize && poisson_comparison) specs$poisson_winsor <- mk("poisson", "poissonboot", data_winsor, full_poisson_winsor)
+  if (winsorize && zip_comparison)     specs$zip_winsor     <- mk("zip",     "zipboot",     data_winsor, full_zip_winsor)
+  if (razorize && nb_comparison)      specs$nb_razor      <- mk("nb",      "nbboot",      data_razor, full_nb_razor, keep = keep_rows)
+  if (razorize && zinb_comparison)    specs$zinb_razor    <- mk("zinb",    "zinbboot",    data_razor, full_zinb_razor, keep = keep_rows)
+  if (razorize && poisson_comparison) specs$poisson_razor <- mk("poisson", "poissonboot", data_razor, full_poisson_razor, keep = keep_rows)
+  if (razorize && zip_comparison)     specs$zip_razor     <- mk("zip",     "zipboot",     data_razor, full_zip_razor, keep = keep_rows)
 
   fam <- evinf_with_plan(multicore, ncores, {
     boot_refit_family(specs, object$bootstraps, object$boot_seeds[[1]])
@@ -168,6 +214,10 @@ boot_refit_one <- function(sp, boot_id) {
     } else {
       try(inner_nb(b_stub, sp$data, sp$formulas, y_orig = sp$y_orig), silent = TRUE)
     }
+  } else if (sp$type == "poisson") {
+    try(inner_poisson(b_stub, sp$data, sp$formulas, sp$y_orig), silent = TRUE)
+  } else if (sp$type == "zip") {
+    try(inner_zip(b_stub, sp$data, sp$formulas, sp$f_zip, sp$y_orig), silent = TRUE)
   } else {
     try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb, sp$y_orig), silent = TRUE)
   }
@@ -280,6 +330,66 @@ inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig){
     boot_zinb$fitted.values <- NULL
   }
   return(boot_zinb)
+}
+
+# round9 E.3 (audit §5.5): Poisson competitor baseline, mirroring inner_nb()
+# above but via glm(family = poisson()) -- no dispersion parameter, so
+# npar = rank (not rank + 1).
+inner_poisson <- function(bootstrap,data,formulas,y_orig){
+  if (length(bootstrap$boot_id) == 0) {
+    return(empty_boot_id_error("inner_poisson"))
+  }
+
+  data_ib <- data[bootstrap$boot_id,]
+  data_oob <- data[-bootstrap$boot_id,]
+  dv <- y_orig[-bootstrap$boot_id]
+  boot_pois <- try(stats::glm(formulas$formula_nb,data = data_ib,family = stats::poisson()), silent = TRUE)
+  if(!('try-error' %in% class(boot_pois))){
+  boot_pois$oob_predictions <- exp(predict(boot_pois,newdata=data_oob))
+  boot_pois$oob_rmse <- sqrt(mean((dv-boot_pois$oob_predictions)^2))
+  boot_pois$oob_rmsle <- sqrt(mean((log1p(dv)-log1p(boot_pois$oob_predictions))^2))
+  boot_pois$fit_stats <- c(logLik = as.numeric(stats::logLik(boot_pois)),
+                           npar = boot_pois$rank,
+                           AIC = stats::AIC(boot_pois),
+                           BIC = stats::BIC(boot_pois))
+  boot_pois$model <- NULL
+  boot_pois$y <- NULL
+  boot_pois$linear.predictors <- NULL
+  boot_pois$weights <- NULL
+  boot_pois$residuals <- NULL
+  boot_pois$fitted.values <- NULL
+  boot_pois$effects <- NULL
+  }
+  return(boot_pois)
+}
+
+# round9 E.3: zero-inflated-Poisson competitor baseline, mirroring
+# inner_zinb() above but via pscl::zeroinfl(dist = "poisson").
+inner_zip <- function(bootstrap,data,formulas,f_zip,y_orig){
+  if (length(bootstrap$boot_id) == 0) {
+    return(empty_boot_id_error("inner_zip"))
+  }
+
+  data_ib <- data[bootstrap$boot_id,]
+  data_oob <- data[-bootstrap$boot_id,]
+  dv <- y_orig[-bootstrap$boot_id]
+  boot_zip <- try(pscl::zeroinfl(f_zip,data = data_ib,dist = 'poisson'), silent = TRUE)
+  if(!('try-error' %in% class(boot_zip))){
+    boot_zip$oob_predictions <- predict(boot_zip,newdata=data_oob)
+    boot_zip$oob_rmse <- sqrt(mean((dv-boot_zip$oob_predictions)^2))
+    boot_zip$oob_rmsle <- sqrt(mean((log1p(dv)-log1p(boot_zip$oob_predictions))^2))
+    ll <- stats::logLik(boot_zip)
+    boot_zip$fit_stats <- c(logLik = as.numeric(ll),
+                            npar = attr(ll, "df"),
+                            AIC = stats::AIC(boot_zip),
+                            BIC = stats::BIC(boot_zip))
+    boot_zip$model <- NULL
+    boot_zip$y <- NULL
+    boot_zip$weights <- NULL
+    boot_zip$residuals <- NULL
+    boot_zip$fitted.values <- NULL
+  }
+  return(boot_zip)
 }
 
 
@@ -396,6 +506,36 @@ quantiles_from_nb <- function(quantile,nb,
       out <- qnbinom(quantile,mu=exp(predict(nb,newdata=newdata)),size=nb$theta)
     }
     return(out)
+}
+
+# round9 E.3: Poisson / ZIP counterparts of quantiles_from_nb()/
+# quantiles_zinb()/quantiles_from_zinb() above -- qpois() has no dispersion
+# argument, so these are otherwise identical. prob_from_znb()/count_from_znb()
+# are reused as-is for ZIP: neither touches the count distribution's
+# dispersion, only pscl::zeroinfl()'s zero/count coefficients, which are
+# structured the same way regardless of dist.
+quantiles_from_poisson <- function(quantile,pois,
+                                   newdata = NULL){
+  if(is.null(newdata)){
+    out <- qpois(quantile,lambda=exp(predict(pois)))
+  }else{
+    out <- qpois(quantile,lambda=exp(predict(pois,newdata=newdata)))
+  }
+  return(out)
+}
+
+quantiles_zip <- function(quantile,mu,p_zero){
+  qpois(ifelse(quantile-p_zero>0,(quantile-p_zero)/(1-p_zero),0),lambda=mu)
+}
+
+quantiles_from_zip <- function(quantile,zip,
+                               newdata = NULL){
+  prbs <- prob_from_znb(zip,
+                        newdata = newdata)
+  cnts <- count_from_znb(zip,
+                         newdata = newdata)
+  out <- quantiles_zip(quantile,mu=cnts,p_zero=prbs$pr_zc)
+  return(out)
 }
 
 
@@ -586,7 +726,197 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
                                              prbs,cnts)))
     }
   }
-  
+
+}
+
+#' Prediction for zipboot
+#'
+#' @param object a fitted zipboot object
+#' @param newdata Data to make predictions on
+#' @param type What prediction should be computed? One of \code{"predicted"},
+#'   \code{"counts"}, \code{"zi"}, \code{"count_state"}, \code{"states"},
+#'   \code{"all"} or \code{"quantile"}. (A zero-inflated Poisson has no
+#'   extreme-value state, so \code{"evinf"} is not accepted.)
+#' @param pred Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'
+#' @param quantile Quantile for quantile prediction
+#' @param confint Should confidence intervals be created?
+#' @param conf_level Confidence level when predicting with CIs
+#' @param ... Not used
+#'
+#' @importFrom rlang :=
+#'
+#' @return Predictions from zipboot
+#' @export
+predict.zipboot <- function(object,newdata=NULL, type = c('predicted','counts','zi','count_state','states','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
+
+  pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
+
+  type <- match.arg(type,c('predicted','counts','zi','count_state','states','all', 'quantile'))
+
+  if(type %in% c('states','all') & confint){
+    stop('Confidence interval prediction only available for vector outputs')
+  }
+
+  if(pred %in% c('bootstrap_median','bootstrap_mean') | confint){
+    object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
+    nboots <- length(object$bootstraps)
+    if(is.null(newdata)){
+      newdata <- object$full_run$model
+    }
+    prbs_boot <- purrr::map(object$bootstraps, function(b)
+      dplyr::bind_cols(prob_from_znb(b, newdata = newdata),
+                       tibble::tibble(id = 1:nrow(newdata))))
+    cnts_boot <- purrr::map(object$bootstraps, function(b)
+      dplyr::bind_cols(tibble::tibble(count = count_from_znb(b, newdata = newdata)),
+                       tibble::tibble(id = 1:nrow(newdata))))
+
+    if(type %in% c('quantile','all')){
+      if(type == 'quantile' & is.null(quantile)){
+        stop('quantile must be provided for quantile prediction')
+      }else if(!is.null(quantile)){
+        q_boot <- purrr::map(object$bootstraps, function(b)
+          tibble::tibble(q = quantiles_from_zip(quantile, b, newdata = newdata),
+                         id = 1:nrow(newdata)))
+      }else{
+        q_boot <- NULL
+      }
+    }else{
+      q_boot <- NULL
+    }
+
+    prediction_boot <- purrr::map(object$bootstraps, function(b)
+      tibble::tibble(pred = predict(b, type = 'r', newdata = newdata),
+                     id = 1:nrow(newdata)))
+
+  }
+
+
+  if(pred == 'original'){
+    if(type %in% c('quantile','all')){
+      if(type == 'quantile' & is.null(quantile)){
+        stop('quantile must be provided for quantile prediction')
+      }else if(!is.null(quantile)){
+        q <- quantiles_from_zip(quantile,object$full_run,newdata = newdata)
+      }else{
+        q <- NULL
+      }
+    }
+    ## Estimate component probabilities for all individuals
+    prbs <- prob_from_znb(object$full_run,
+                             newdata = newdata)
+    ## Estimate mu_nb for all individuals
+    cnts <- tibble::tibble(count = as.numeric(count_from_znb(object$full_run,
+                               newdata = newdata)))
+
+    predicted <- if(is.null(newdata)){
+      predict(object$full_run, type = 'r')
+    }else{
+      predict(object$full_run, type = 'r', newdata = newdata)
+    }
+
+  }else if(pred=='bootstrap_median'){
+    prbs <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(median) %>% dplyr::select(-"id")
+    cnts <- cnts_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(median) %>% dplyr::select(-"id")
+
+    if(!is.null(q_boot)){
+      q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize_all(median) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)
+    }else{
+      q <- NULL
+    }
+
+    predicted <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>% dplyr::summarize(predicted = median(.data$pred)) %>% dplyr::pull(.data$predicted)
+
+  }else if(pred=='bootstrap_mean'){
+    warning('Bootstrapped mean predictions are experimental and may yield infinite values')
+    prbs <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(mean) %>% dplyr::select(-"id")
+    cnts <- cnts_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(mean) %>% dplyr::select(-"id")
+
+    if(!is.null(q_boot)){
+      q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize_all(mean) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)
+    }else{
+      q <- NULL
+    }
+    predicted <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>% dplyr::summarize(predicted = mean(.data$pred)) %>% dplyr::pull(.data$predicted)
+
+  }
+
+
+  if(confint){
+    if(type %in% c('states','all')){
+      stop("Confidence interval prediction only available for vector predictions (not 'states' or 'all')")
+    }
+    qs <- c((1-conf_level)/2,1-(1-conf_level)/2)
+
+    if(type == 'predicted'){
+      ci <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pred,qs[1]),
+                         ci_ub = quantile(.data$pred,qs[2])) %>%
+        dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(predicted=predicted),ci))
+    }
+
+    if(type == 'counts'){
+      ci <- cnts_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$count,qs[1]),
+                         ci_ub = quantile(.data$count,qs[2])) %>% dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(count=cnts$count),ci))
+
+    }
+    if(type == 'zi'){
+      ci <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pr_zc,qs[1]),
+                         ci_ub = quantile(.data$pr_zc,qs[2])) %>% dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(pr_zc=prbs$pr_zc),ci))
+    }
+
+    if(type == 'count_state'){
+      ci <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pr_count,qs[1]),
+                         ci_ub = quantile(.data$pr_count,qs[2])) %>% dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(pr_count=prbs$pr_count),ci))
+    }
+    if(type == 'quantile'){
+      warning('Confidence interval prediction with Quantiles may yield unstable results')
+      ci <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$q,qs[1]),
+                         ci_ub = quantile(.data$q,qs[2])) %>% dplyr::select(-"id")
+      q_name <- paste0('q',100*quantile)
+      return(dplyr::bind_cols(tibble::tibble(!!q_name:=q),ci))
+    }
+
+  }else{
+    if(type == "predicted"){
+      return(predicted)
+    }
+    if(type == "counts"){
+      return(cnts$count)
+    }
+    if(type == "zi"){
+      return(prbs$pr_zc)
+    }
+    if(type == "count_state"){
+      return(prbs$pr_count)
+    }
+    if(type == 'states'){
+      return(prbs)
+    }
+    if(type == 'quantile'){
+      return(q)
+    }
+    if(type == 'all'){
+      q_name <- paste0('q',100*quantile)
+      return(dplyr::bind_cols(tibble::tibble(predicted = predicted,
+                                             !!q_name := q,
+                                             prbs,cnts)))
+    }
+  }
+
 }
 
 #' Prediction for nbboot
@@ -722,5 +1052,141 @@ predict.nbboot <- function(object,newdata=NULL, type = c('predicted','all', 'qua
                                              !!q_name := q)))
     }
   }
-  
+
+}
+
+#' Prediction for poissonboot
+#'
+#' @param object a fitted poissonboot object
+#' @param newdata Data to make predictions on
+#' @param type What prediction should be computed?
+#' @param pred Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'
+#' @param quantile Quantile for quantile prediction
+#' @param confint Should confidence intervals be created?
+#' @param conf_level Confidence level when predicting with CIs
+#' @param ... Not used
+#'
+#' @importFrom rlang :=
+#'
+#' @return Predictions from poissonboot
+#' @export
+predict.poissonboot <- function(object,newdata=NULL, type = c('predicted','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
+
+  pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
+
+  type <- match.arg(type,c('predicted','all', 'quantile'))
+
+  if(type %in% c('states','all') & confint){
+    stop('Confidence interval prediction only available for vector outputs')
+  }
+
+  if(pred %in% c('bootstrap_median','bootstrap_mean') | confint){
+    object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
+    nboots <- length(object$bootstraps)
+    if(is.null(newdata)){
+      newdata <- object$full_run$model
+    }
+
+
+    if(type %in% c('quantile','all')){
+      if(type == 'quantile' & is.null(quantile)){
+        stop('quantile must be provided for quantile prediction')
+      }else if(!is.null(quantile)){
+        q_boot <- purrr::map(object$bootstraps, function(b)
+          tibble::tibble(q = quantiles_from_poisson(quantile, b, newdata = newdata),
+                         id = 1:nrow(newdata)))
+      }else{
+        q_boot <- NULL
+      }
+    }else{
+      q_boot <- NULL
+    }
+
+    prediction_boot <- purrr::map(object$bootstraps, function(b)
+      tibble::tibble(pred = predict(b, type = 'r', newdata = newdata),
+                     id = 1:nrow(newdata)))
+
+  }
+
+
+  if(pred == 'original'){
+    if(type %in% c('quantile','all')){
+      if(type == 'quantile' & is.null(quantile)){
+        stop('quantile must be provided for quantile prediction')
+      }else if(!is.null(quantile)){
+        q <- quantiles_from_poisson(quantile,object$full_run,newdata = newdata)
+      }else{
+        q <- NULL
+      }
+    }
+
+    ## Estimate mu_nb for all individuals
+
+    predicted <- if(is.null(newdata)){
+      predict(object$full_run, type = 'r')
+    }else{
+      predict(object$full_run, type = 'r', newdata = newdata)
+    }
+
+  }else if(pred=='bootstrap_median'){
+
+    if(!is.null(q_boot)){
+      q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize_all(median) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)
+    }else{
+      q <- NULL
+    }
+
+    predicted <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>% dplyr::summarize(predicted = median(.data$pred)) %>% dplyr::pull(.data$predicted)
+
+  }else if(pred=='bootstrap_mean'){
+    warning('Bootstrapped mean predictions are experimental and may yield infinite values')
+
+    if(!is.null(q_boot)){
+      q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize_all(mean) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)
+    }else{
+      q <- NULL
+    }
+    predicted <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>% dplyr::summarize(predicted = mean(.data$pred)) %>% dplyr::pull(.data$predicted)
+
+  }
+
+
+  if(confint){
+    if(type %in% c('states','all')){
+      stop("Confidence interval prediction only available for vector predictions (not 'states' or 'all')")
+    }
+    qs <- c((1-conf_level)/2,1-(1-conf_level)/2)
+
+    if(type == 'predicted'){
+      ci <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pred,qs[1]),
+                         ci_ub = quantile(.data$pred,qs[2])) %>%
+        dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(predicted=predicted),ci))
+    }
+    if(type == 'quantile'){
+      warning('Confidence interval prediction with Quantiles may yield unstable results')
+      ci <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$q,qs[1]),
+                         ci_ub = quantile(.data$q,qs[2])) %>% dplyr::select(-"id")
+      q_name <- paste0('q',100*quantile)
+      return(dplyr::bind_cols(tibble::tibble(!!q_name:=q),ci))
+    }
+
+  }else{
+    if(type == "predicted"){
+      return(predicted)
+    }
+    if(type == 'quantile'){
+      return(q)
+    }
+    if(type == 'all'){
+      q_name <- paste0('q',100*quantile)
+      return(dplyr::bind_cols(tibble::tibble(predicted = predicted,
+                                             !!q_name := q)))
+    }
+  }
+
 }

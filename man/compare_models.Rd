@@ -8,6 +8,8 @@ compare_models(
   object,
   nb_comparison = TRUE,
   zinb_comparison = TRUE,
+  poisson_comparison = identical((object$family \%||\% evinf_family())$count, "poisson"),
+  zip_comparison = identical((object$family \%||\% evinf_family())$count, "poisson"),
   winsorize = FALSE,
   razorize = FALSE,
   cutoff_value = 10,
@@ -25,6 +27,17 @@ compare_models(
 available for \code{evinb} objects (there is no zero-inflation component); it
 defaults to \code{FALSE} for those, with a message, and errors if set to
 \code{TRUE} explicitly.}
+
+\item{poisson_comparison}{Should comparison be made with a Poisson model?
+Defaults to \code{TRUE} when \code{object} was itself fitted with
+\code{family = "poisson"}, \code{FALSE} otherwise (round9 E.3);
+user-overridable either way.}
+
+\item{zip_comparison}{Should comparisons be made with a zero-inflated
+Poisson (ZIP) model? Same default as \code{poisson_comparison}. Not
+available for \code{evinb} objects, with the same
+defaults-to-\code{FALSE}-with-a-message / errors-if-\code{TRUE} behaviour
+as \code{zinb_comparison}.}
 
 \item{winsorize}{Should winsorizing be done in the comparisons?}
 

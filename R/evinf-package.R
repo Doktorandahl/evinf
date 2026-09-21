@@ -31,6 +31,7 @@
 #' @importFrom stats pt
 #' @importFrom stats qchisq
 #' @importFrom stats qnbinom
+#' @importFrom stats qpois
 #' @importFrom stats rnbinom
 #' @importFrom stats rpois
 #' @importFrom stats runif
