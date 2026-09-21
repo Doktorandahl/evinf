@@ -1,11 +1,11 @@
-# Tidy function for zinbboot
+# Tidy function for zipboot
 
-Tidy function for zinbboot
+Tidy function for zipboot
 
 ## Usage
 
 ``` r
-# S3 method for class 'zinbboot'
+# S3 method for class 'zipboot'
 tidy(
   x,
   component = c("all", "count", "zero"),
@@ -24,7 +24,7 @@ tidy(
 
 - x:
 
-  A fitted bootstrapped zero-inflated model
+  A fitted bootstrapped zero-inflated Poisson model
 
 - component:
 
@@ -69,42 +69,17 @@ tidy(
 
 ## Value
 
-A tidy function for a bootstrapped zinb model
+A tidy function for a bootstrapped ZIP model
 
 ## Examples
 
 ``` r
 # \donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, family = "poisson", n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-zinb_comp <- compare_models(model)
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: alternation limit reached
+#> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
+zip_comp <- compare_models(model)
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
 #> Warning: iteration limit reached
@@ -158,17 +133,43 @@ zinb_comp <- compare_models(model)
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
 #> Warning: alternation limit reached
-tidy(zinb_comp$zinb)
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+tidy(zip_comp$zip)
 #> # A tibble: 8 × 6
 #>   y.level term        estimate std.error statistic p.value
 #>   <chr>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
-#> 1 zero    (Intercept)   0.288      0.683    0.422      0.8
-#> 2 zero    x1           -0.835      0.271   -3.08       0.2
-#> 3 zero    x2            0.603      0.291    2.07       0.2
-#> 4 zero    x3           -0.493      0.523   -0.943      0.4
-#> 5 count   (Intercept)   4.07       0.471    8.64       0.2
-#> 6 count   x1            0.767      0.642    1.19       0.2
-#> 7 count   x2           -0.151      0.302   -0.499      0.4
-#> 8 count   x3            0.0373     0.617    0.0604     0.8
+#> 1 zero    (Intercept)   0.508      0.185     2.74      0.2
+#> 2 zero    x1           -0.855      0.250    -3.42      0.2
+#> 3 zero    x2            0.575      0.248     2.31      0.2
+#> 4 zero    x3           -0.455      0.178    -2.55      0.2
+#> 5 count   (Intercept)   4.24       0.502     8.44      0.2
+#> 6 count   x1            0.599      0.645     0.928     0.2
+#> 7 count   x2           -0.0685     0.355    -0.193     0.8
+#> 8 count   x3            0.0700     0.187     0.373     0.8
 # }
 ```

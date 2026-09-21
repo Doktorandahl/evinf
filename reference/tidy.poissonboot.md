@@ -1,11 +1,11 @@
-# Tidy function for nbboot
+# Tidy function for poissonboot
 
-Tidy function for nbboot
+Tidy function for poissonboot
 
 ## Usage
 
 ``` r
-# S3 method for class 'nbboot'
+# S3 method for class 'poissonboot'
 tidy(
   x,
   coef_type = c("original", "bootstrap_mean", "bootstrap_median"),
@@ -24,7 +24,7 @@ tidy(
 
 - x:
 
-  A fitted bootstrapped zero-inflated model
+  A fitted bootstrapped Poisson model
 
 - coef_type:
 
@@ -70,16 +70,32 @@ tidy(
 
 ## Value
 
-A tidy function for a bootstrapped nb model
+A tidy function for a bootstrapped Poisson model
 
 ## Examples
 
 ``` r
 # \donttest{
 data(genevzinb2)
-model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2, family = "poisson", n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-zinb_comp <- compare_models(model)
+#> Warning: C_EV equalled the lower endpoint (173) in 3 of 5 bootstrap replicates; consider widening c.lim.
+zip_comp <- compare_models(model)
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
@@ -91,13 +107,13 @@ zinb_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
-tidy(zinb_comp$nb)
+tidy(zip_comp$poisson)
 #> # A tibble: 4 × 5
 #>   term        estimate std.error statistic p.value
 #>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
-#> 1 (Intercept)    3.11      0.215    14.5       0.2
-#> 2 x1             1.40      0.188     7.41      0.2
-#> 3 x2            -0.488     0.593    -0.823     0.8
-#> 4 x3             0.477     0.463     1.03      0.4
+#> 1 (Intercept)    3.20      0.116     27.6      0.2
+#> 2 x1             1.10      0.350      3.14     0.2
+#> 3 x2            -0.449     0.305     -1.47     0.2
+#> 4 x3             0.327     0.233      1.40     0.4
 # }
 ```

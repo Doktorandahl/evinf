@@ -157,6 +157,7 @@ a single fixed plan.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
 predict(model)
 #>   [1]   52.3536772   57.1668382  376.9452698   11.1639895   38.8170530
 #>   [6]   35.9055805  126.3183705   90.7615232   37.3853032   34.0306144

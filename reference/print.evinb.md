@@ -43,7 +43,7 @@ print(model)
 #>  Candidate range for C_EV:       [173, 263]  (data-driven) 
 #>  Observations at or above C_EV:  10 
 #>  Parameters:                     14 
-#>  Bootstraps (failed, degenerate): 4 (0, 1)
+#>  Bootstraps (failed, degenerate): 1 (0, 4)
 #>    (call failed_bootstraps() for the details)
 #>  Note: C_EV reached the boundary of the candidate range in 1 of 5 bootstrap replicates.
 # }

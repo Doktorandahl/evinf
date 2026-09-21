@@ -37,6 +37,7 @@
 <url><loc>/reference/glance.evinb.html</loc></url>
 <url><loc>/reference/glance.evzinb.html</loc></url>
 <url><loc>/reference/glance.zinbboot.html</loc></url>
+<url><loc>/reference/glance.zipboot.html</loc></url>
 <url><loc>/reference/gm_evzinb.html</loc></url>
 <url><loc>/reference/gof_map_evinf.html</loc></url>
 <url><loc>/reference/hks.html</loc></url>
@@ -50,7 +51,9 @@
 <url><loc>/reference/predict.evinb.html</loc></url>
 <url><loc>/reference/predict.evzinb.html</loc></url>
 <url><loc>/reference/predict.nbboot.html</loc></url>
+<url><loc>/reference/predict.poissonboot.html</loc></url>
 <url><loc>/reference/predict.zinbboot.html</loc></url>
+<url><loc>/reference/predict.zipboot.html</loc></url>
 <url><loc>/reference/predict_grid.html</loc></url>
 <url><loc>/reference/print.evinb.html</loc></url>
 <url><loc>/reference/print.evzinb.html</loc></url>
@@ -65,7 +68,9 @@
 <url><loc>/reference/tidy.evinb.html</loc></url>
 <url><loc>/reference/tidy.evzinb.html</loc></url>
 <url><loc>/reference/tidy.nbboot.html</loc></url>
+<url><loc>/reference/tidy.poissonboot.html</loc></url>
 <url><loc>/reference/tidy.zinbboot.html</loc></url>
+<url><loc>/reference/tidy.zipboot.html</loc></url>
 <url><loc>/reference/update.evzinb.html</loc></url>
 <url><loc>/reference/vcov.evzinb.html</loc></url>
 </urlset>
