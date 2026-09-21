@@ -90,14 +90,83 @@ zinb_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
 tidy(zinb_comp$nb)
 #> # A tibble: 4 × 5
 #>   term        estimate std.error statistic p.value
 #>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
-#> 1 (Intercept)    3.11      0.215    14.5       0.2
-#> 2 x1             1.40      0.188     7.41      0.2
-#> 3 x2            -0.488     0.593    -0.823     0.8
-#> 4 x3             0.477     0.463     1.03      0.4
+#> 1 (Intercept)    3.11      0.489     6.35      0.2
+#> 2 x1             1.40      0.875     1.60      0.2
+#> 3 x2            -0.488     0.435    -1.12      1  
+#> 4 x3             0.477     0.701     0.680     0.4
 # }
 ```

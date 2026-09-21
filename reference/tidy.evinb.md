@@ -110,21 +110,22 @@ each component becomes its own block of rows.
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 tidy(model)
 #> # A tibble: 12 × 6
 #>    y.level term        estimate std.error statistic p.value
 #>    <fct>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
-#>  1 evi     (Intercept)   -2.69      0.341    -7.89    0.333
-#>  2 evi     x1             0.902     0.523     1.73    0.333
-#>  3 evi     x2            -0.580     0.475    -1.22    0.333
-#>  4 evi     x3             0.354     0.153     2.32    0.333
-#>  5 count   (Intercept)    2.25      0.375     6.00    0.333
-#>  6 count   x1             1.39      0.389     3.58    0.333
-#>  7 count   x2             0.192     0.316     0.606   0.667
-#>  8 count   x3             0.386     0.683     0.565   0.333
-#>  9 pareto  (Intercept)    2.80      0.401     6.99    0.333
-#> 10 pareto  x1            -2.45      0.352    -6.95    0.333
-#> 11 pareto  x2             1.57      0.688     2.28    0.333
-#> 12 pareto  x3             1.68      0.552     3.04    0.333
+#>  1 evi     (Intercept)   -2.69    0.183     -14.7       0.5
+#>  2 evi     x1             0.902   0.213       4.24      0.5
+#>  3 evi     x2            -0.580   0.337      -1.72      0.5
+#>  4 evi     x3             0.354   0.0746      4.74      0.5
+#>  5 count   (Intercept)    2.25    0.197      11.4       0.5
+#>  6 count   x1             1.39    0.129      10.8       0.5
+#>  7 count   x2             0.192   0.0206      9.32      0.5
+#>  8 count   x3             0.386   0.00275   141.        0.5
+#>  9 pareto  (Intercept)    2.80    1.46        1.92      0.5
+#> 10 pareto  x1            -2.45    0.179     -13.7       0.5
+#> 11 pareto  x2             1.57    0.833       1.89      0.5
+#> 12 pareto  x3             1.68    1.82        0.920     1  
 # }
 ```

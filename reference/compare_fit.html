@@ -17,7 +17,7 @@ both fits succeeded."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@ both fits succeeded."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Compare the extreme-value model against its plainer counterparts</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/compare_fit.R" class="external-link"><code>R/compare_fit.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/compare_fit.R" class="external-link"><code>R/compare_fit.R</code></a></small>
       <div class="d-none name"><code>compare_fit.Rd</code></div>
     </div>
 
@@ -102,21 +102,7 @@ replicates is preserved.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A tibble of class <code>evinf_compare_fit</code> with columns <code>model</code>,
   <code>metric</code>, <code>median_difference</code>, <code>prop_evinf_better</code>,
-  <code>n_pairs</code>. <code>median_difference</code> / <code>prop_evinf_better</code> are
-  <code>NA</code> for the <code>aic</code> / <code>bic</code> rows of a <code>*_razor</code> or
-  <code>*_winsor</code> slot (see Details); <code>n_pairs</code> is left as computed on
-  the returned object (<code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> blanks it for those rows instead,
-  since a pair count next to an <code>NA</code> metric reads like a bug).</p>
-    </div>
-    <div class="section level2">
-    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The <code>aic</code> / <code>bic</code> rows are <code>NA</code> for a <code>*_razor</code> or
-<code>*_winsor</code> slot (round8 0.5): a razorised fit is estimated on fewer
-observations than the evinf model, and a winsorised fit is estimated on a
-different outcome, so their AIC/BIC are not on the same scale as the evinf
-model's and a difference between them is not meaningful. The RMSE / RMSLE
-rows for those slots remain comparable, because out-of-bag error is always
-computed against the raw (un-winsorised, un-razorised) outcome.</p>
+  <code>n_pairs</code>.</p>
     </div>
 
     <div class="section level2">
@@ -199,11 +185,11 @@ computed against the raw (un-winsorised, un-razorised) outcome.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  model metric median_difference prop_evinf_better n_pairs</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     nb    aic          -76.0200             1.000       3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     nb    bic          -42.1500             0.667       3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     nb   rmse           23.2300             0.000       3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     nb   rmse           33.4700             0.000       3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     nb  rmsle            0.2116             0.000       3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   zinb    aic          -26.5600             1.000       3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   zinb    bic           -3.1160             0.667       3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   zinb   rmse           52.2100             0.000       3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   zinb   rmse           62.5200             0.000       3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   zinb  rmsle            0.2452             0.000       3</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>

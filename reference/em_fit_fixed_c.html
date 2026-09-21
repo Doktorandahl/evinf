@@ -17,7 +17,7 @@ of \(C_{EV}\) (em_profile_c)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@ of \(C_{EV}\) (em_profile_c)."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>EM iterations for the EVZINB / EVINB mixture at a fixed \(C_{EV}\)</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/em_fixed_c.R" class="external-link"><code>R/em_fixed_c.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/em_fixed_c.R" class="external-link"><code>R/em_fixed_c.R</code></a></small>
       <div class="d-none name"><code>em_fit_fixed_c.Rd</code></div>
     </div>
 
@@ -54,14 +54,7 @@ of \(C_{EV}\) (<code><a href="em_profile_c.html">em_profile_c</a></code>).</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">em_fit_fixed_c</span><span class="op">(</span></span>
-<span>  <span class="va">y</span>,</span>
-<span>  <span class="va">x_obj</span>,</span>
-<span>  <span class="va">ini.val</span>,</span>
-<span>  <span class="va">control</span>,</span>
-<span>  fixed_zc <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  family <span class="op">=</span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">em_fit_fixed_c</span><span class="op">(</span><span class="va">y</span>, <span class="va">x_obj</span>, <span class="va">ini.val</span>, <span class="va">control</span>, fixed_zc <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -90,10 +83,6 @@ of \(C_{EV}\) (<code><a href="em_profile_c.html">em_profile_c</a></code>).</p>
 <dt id="arg-fixed-zc">fixed_zc<a class="anchor" aria-label="anchor" href="#arg-fixed-zc"></a></dt>
 <dd><p>When <code>TRUE</code> (EVINB) the zero-inflation multinomial block
 is held at <code>ini.val$Beta.multinom.ZC</code>.</p></dd>
-
-
-<dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>An <code><a href="evinf_family.html">evinf_family()</a></code> object (round9 E.1).</p></dd>
 
 </dl></div>
     <div class="section level2">

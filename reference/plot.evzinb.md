@@ -67,26 +67,8 @@ A `ggplot` object.
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 3 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 plot(model, type = "coefficients")
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Groups with fewer than two data points have been dropped.
-#> Warning: Removed 16 rows containing missing values or values outside the scale range
-#> (`geom_density()`).
 
 plot(model, type = "prediction", variable = "x1")
 #> Warning: Removed 100 rows containing missing values or values outside the scale range

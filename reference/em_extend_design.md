@@ -19,8 +19,7 @@ em_extend_design(x_obj, n)
 
   List with elements `X.multinom.ZC`, `X.multinom.PL`, `X.NB`, `X.PL`
   (each a numeric matrix \\n \times p\\ without an intercept column, or
-  `NULL`) and optionally `offset.nb`, `offset.zc`, `offset.pl_mult`
-  (round9 D.1) and `weights` (round9 D.2).
+  `NULL`) and optionally `offset.nb`.
 
 - n:
 
@@ -29,9 +28,7 @@ em_extend_design(x_obj, n)
 ## Value
 
 A list with elements `zc`, `pl_mult`, `nb`, `pl` (the extended numeric
-matrices), `offset`, `offset_zc`, `offset_pl_mult` (length-`n` numeric,
-zero when not supplied) and `weights` (length-`n` numeric, one when not
-supplied).
+matrices) and `offset` (length-`n` numeric).
 
 ## See also
 

@@ -96,8 +96,44 @@ default, misleadingly precise `"<2e-16"`.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
 summary(model)
-#> Error in repaired_names(names2(x), repair_hint, .name_repair = .name_repair,     quiet = quiet, call = call): Repaired names have length 3 instead of length 1.
+#> EVZINB model summary
+#> ====================
+#> 
+#> Count component (negative binomial)
+#>             Estimate Std. Error approx t Pr(boot)
+#> (Intercept)   3.1305     0.3708    8.442     <0.2
+#> x1            0.8432     0.4595    1.835     <0.2
+#> x2            0.5987     0.3678    1.628     <0.2
+#> x3            0.2411     0.4552    0.530      0.4
+#> 
+#> Zero-inflation component
+#>             Estimate Std. Error approx t Pr(boot)
+#> (Intercept)   0.5109     0.5085    1.005      0.4
+#> x1           -0.6738     0.4244   -1.587     <0.2
+#> x2            0.6071     0.3350    1.812     <0.2
+#> x3           -0.4197     0.3242   -1.295      0.4
+#> 
+#> Extreme-value inflation component
+#>             Estimate Std. Error approx t Pr(boot)
+#> (Intercept)  -1.7286     3.7981   -0.455     <0.2
+#> x1            0.7356     3.8051    0.193     <0.2
+#> x2           -0.4289     2.2152   -0.194     <0.2
+#> x3            0.1662     0.6213    0.268     <0.2
+#> 
+#> Pareto (extreme value) component
+#>             Estimate Std. Error approx t Pr(boot)
+#> (Intercept)    2.714      3.584    0.757     <0.2
+#> x1            -2.278      3.831   -0.595     <0.2
+#> x2             1.449      1.771    0.818     <0.2
+#> x3             1.503      2.696    0.558     <0.2
+#> 
+#> ----------------------------------------
+#> alpha_NB: 1.431   C_EV: 184
+#> Observations at or above C_EV: 10
+#> Mean state proportions:  zero = 0.575   count = 0.341   evi = 0.084
+#> Observations: 100   Parameters: 18   df: 82
+#> logLik: -254   AIC: 544.1   BIC: 591   Converged: TRUE
+#> Bootstraps: failed = 0, degenerate = 0
 # }
 ```

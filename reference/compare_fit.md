@@ -55,22 +55,7 @@ plot(
 ## Value
 
 A tibble of class `evinf_compare_fit` with columns `model`, `metric`,
-`median_difference`, `prop_evinf_better`, `n_pairs`. `median_difference`
-/ `prop_evinf_better` are `NA` for the `aic` / `bic` rows of a `*_razor`
-or `*_winsor` slot (see Details); `n_pairs` is left as computed on the
-returned object ([`print()`](https://rdrr.io/r/base/print.html) blanks
-it for those rows instead, since a pair count next to an `NA` metric
-reads like a bug).
-
-## Details
-
-The `aic` / `bic` rows are `NA` for a `*_razor` or `*_winsor` slot
-(round8 0.5): a razorised fit is estimated on fewer observations than
-the evinf model, and a winsorised fit is estimated on a different
-outcome, so their AIC/BIC are not on the same scale as the evinf model's
-and a difference between them is not meaningful. The RMSE / RMSLE rows
-for those slots remain comparable, because out-of-bag error is always
-computed against the raw (un-winsorised, un-razorised) outcome.
+`median_difference`, `prop_evinf_better`, `n_pairs`.
 
 ## Examples
 
@@ -153,11 +138,11 @@ compare_fit(compare_models(model))
 #>  model metric median_difference prop_evinf_better n_pairs
 #>     nb    aic          -76.0200             1.000       3
 #>     nb    bic          -42.1500             0.667       3
-#>     nb   rmse           23.2300             0.000       3
+#>     nb   rmse           33.4700             0.000       3
 #>     nb  rmsle            0.2116             0.000       3
 #>   zinb    aic          -26.5600             1.000       3
 #>   zinb    bic           -3.1160             0.667       3
-#>   zinb   rmse           52.2100             0.000       3
+#>   zinb   rmse           62.5200             0.000       3
 #>   zinb  rmsle            0.2452             0.000       3
 # }
 ```

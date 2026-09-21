@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Function to compare evzinb or evinb models with zinb and nb models</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/zinb_comparison.R" class="external-link"><code>R/zinb_comparison.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/zinb_comparison.R" class="external-link"><code>R/zinb_comparison.R</code></a></small>
       <div class="d-none name"><code>compare_models.Rd</code></div>
     </div>
 
@@ -43,8 +43,6 @@
 <span>  <span class="va">object</span>,</span>
 <span>  nb_comparison <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  zinb_comparison <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  poisson_comparison <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="op">(</span><span class="va">object</span><span class="op">$</span><span class="va">family</span> <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">count</span>, <span class="st">"poisson"</span><span class="op">)</span>,</span>
-<span>  zip_comparison <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="op">(</span><span class="va">object</span><span class="op">$</span><span class="va">family</span> <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">count</span>, <span class="st">"poisson"</span><span class="op">)</span>,</span>
 <span>  winsorize <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  razorize <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  cutoff_value <span class="op">=</span> <span class="fl">10</span>,</span>
@@ -71,21 +69,6 @@
 available for <code>evinb</code> objects (there is no zero-inflation component); it
 defaults to <code>FALSE</code> for those, with a message, and errors if set to
 <code>TRUE</code> explicitly.</p></dd>
-
-
-<dt id="arg-poisson-comparison">poisson_comparison<a class="anchor" aria-label="anchor" href="#arg-poisson-comparison"></a></dt>
-<dd><p>Should comparison be made with a Poisson model?
-Defaults to <code>TRUE</code> when <code>object</code> was itself fitted with
-<code>family = "poisson"</code>, <code>FALSE</code> otherwise (round9 E.3);
-user-overridable either way.</p></dd>
-
-
-<dt id="arg-zip-comparison">zip_comparison<a class="anchor" aria-label="anchor" href="#arg-zip-comparison"></a></dt>
-<dd><p>Should comparisons be made with a zero-inflated
-Poisson (ZIP) model? Same default as <code>poisson_comparison</code>. Not
-available for <code>evinb</code> objects, with the same
-defaults-to-<code>FALSE</code>-with-a-message / errors-if-<code>TRUE</code> behaviour
-as <code>zinb_comparison</code>.</p></dd>
 
 
 <dt id="arg-winsorize">winsorize<a class="anchor" aria-label="anchor" href="#arg-winsorize"></a></dt>

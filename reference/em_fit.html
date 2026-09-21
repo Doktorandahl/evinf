@@ -17,7 +17,7 @@ then in a "convergence" phase that runs to control$max.diff.par.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@ then in a "convergence" phase that runs to control$max.diff.par.'></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>EM / ECME driver for the EVZINB and EVINB models</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/em_fit.R" class="external-link"><code>R/em_fit.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/em_fit.R" class="external-link"><code>R/em_fit.R</code></a></small>
       <div class="d-none name"><code>em_fit.Rd</code></div>
     </div>
 
@@ -60,8 +60,7 @@ then in a "convergence" phase that runs to <code>control$max.diff.par</code>.</p
 <span>  <span class="va">ini.val</span>,</span>
 <span>  <span class="va">control</span>,</span>
 <span>  model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"evzinb"</span>, <span class="st">"evinb"</span><span class="op">)</span>,</span>
-<span>  full_sample <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  family <span class="op">=</span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  full_sample <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -103,24 +102,16 @@ bootstrap replicate. Controls only whether a <code>max.c.iter</code> cap-out emi
 a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> (bootstrap replicates already record it via
 <code>converge</code> / <code>c_converged</code> without one).</p></dd>
 
-
-<dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>An <code><a href="evinf_family.html">evinf_family()</a></code> object (round9 E.1); the
-default reproduces today's NB/mixture model exactly. For
-<code>count = "poisson"</code>, <code>Alpha.NB</code> is dropped from <code>par.all</code>.</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with, among others, <code>par.mat</code> (estimated parameters),
   <code>log.lik</code>, <code>AIC</code>, <code>BIC</code>, <code>resp</code> (posterior state
-  probabilities), <code>converge</code>, <code>c_converged</code> (did the
-  convergence-phase C_EV profile settle within <code>max.c.iter</code>),
-  <code>c_warmup_capped</code> (the same, for the warm-up phase), <code>c_profile</code>,
-  <code>c_trace</code>, <code>log.lik.vec.all</code>, <code>loglik_recomputed</code>, the
-  fitted-value vectors (<code>mu.nb.vec</code>, <code>alpha.pl.vec</code>,
-  <code>y.hat.pl*</code>, ...) and the design matrices. The exact set and names
-  are consumed by <code>run_evzinb()</code> / <code>run_evinb()</code>.</p>
+  probabilities), <code>converge</code>, <code>c_profile</code>, <code>c_trace</code>,
+  <code>log.lik.vec.all</code>, <code>loglik_recomputed</code>, the fitted-value vectors
+  (<code>mu.nb.vec</code>, <code>alpha.pl.vec</code>, <code>y.hat.pl*</code>, ...) and the design
+  matrices. The exact set and names are consumed by <code>run_evzinb()</code> /
+  <code>run_evinb()</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

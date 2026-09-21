@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Out of bag predictive performance of EVZINB and EVINB models</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/oob_evaluation.R" class="external-link"><code>R/oob_evaluation.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/oob_evaluation.R" class="external-link"><code>R/oob_evaluation.R</code></a></small>
       <div class="d-none name"><code>oob_evaluation.Rd</code></div>
     </div>
 
@@ -76,14 +76,7 @@ so positions still line up with the compared models' replicates; see the
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>For a single model, a vector of length <code>n_bootstraps</code>. For an
   <code>evzinbcomp</code> object, a tibble with one column per compared model
-  (<code>evinf</code>, <code>nb</code>, <code>zinb</code>, ...) and one row per bootstrap. A
-  replicate that is <code>NA</code> in any column (a degenerate evinf replicate,
-  or a compared model's fit that errored) is <code>NA</code> in <em>every</em>
-  column, so a column-wise <code>na.rm = TRUE</code> summary (e.g.
-  <code>summarize(oob, across(everything(), median, na.rm = TRUE))</code>)
-  compares the same set of replicates across models rather than silently
-  different ones; the row mask itself is available as
-  <code>attr(out, "excluded")</code> (round8 0.4, review §5).</p>
+  (<code>evinf</code>, <code>nb</code>, <code>zinb</code>, ...) and one row per bootstrap.</p>
     </div>
 
     <div class="section level2">
@@ -92,11 +85,8 @@ so positions still line up with the compared models' replicates; see the
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu">oob_evaluation</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (harmonic prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (explog prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3.325499 2.603393       NA 3.127722       NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3.053584       NA       NA       NA 4.003586</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

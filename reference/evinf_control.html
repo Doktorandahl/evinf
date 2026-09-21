@@ -13,7 +13,7 @@ argument of evzinb() / evinb()."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +35,7 @@ argument of evzinb() / evinb()."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Control settings for evzinb() / evinb()</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/control.R" class="external-link"><code>R/control.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/control.R" class="external-link"><code>R/control.R</code></a></small>
       <div class="d-none name"><code>evinf_control.Rd</code></div>
     </div>
 
@@ -71,8 +71,7 @@ argument of <code><a href="evzinb.html">evzinb()</a></code> / <code><a href="evi
 <span>  init.C <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  alpha_floor <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  coef_limit <span class="op">=</span> <span class="fl">50</span>,</span>
-<span>  max.c.iter <span class="op">=</span> <span class="fl">50</span>,</span>
-<span>  alpha_pl_floor <span class="op">=</span> <span class="fl">0.01</span></span>
+<span>  max.c.iter <span class="op">=</span> <span class="fl">50</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -169,26 +168,7 @@ against the profile oscillating between two candidate values forever. If the
 convergence-phase loop hits this cap, the fit's <code>converge</code> is set to
 <code>FALSE</code> (see <code>$c_converged</code> to tell this apart from the EM inner
 loop not converging) and, for a full-sample fit, a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> names the
-last two \(C_{EV}\) values visited. The warm-up phase is capped
-independently and recorded in <code>$c_warmup_capped</code> (with its own
-<code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> for a full-sample fit); it does not affect <code>converge</code>,
-since warm-up is a short exploratory phase and not settling there is not by
-itself a sign the fit failed.</p></dd>
-
-
-<dt id="arg-alpha-pl-floor">alpha_pl_floor<a class="anchor" aria-label="anchor" href="#arg-alpha-pl-floor"></a></dt>
-<dd><p>Floor for the fitted Pareto shape \(\alpha_{PL}\)
-(round9 0.1). Some observations' fitted \(\alpha_{PL}\) can collapse
-toward 0 (heaviest possible tail); several downstream quantities involve
-\(\exp(1/\alpha_{PL})\) or \(1/\alpha_{PL}\) and silently return
-<code>Inf</code> or an astronomically large finite number when that happens
-(<code>predict(type = "harmonic")</code>, <code>predict(type = "explog")</code>, the
-continuous-Pareto mixture quantile, and the <code>$fitted</code> tail
-summaries). Any fitted \(\alpha_{PL}\) below <code>alpha_pl_floor</code> is
-clamped to it before these calculations, with a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> naming
-how many observations were clamped; the unclamped values are still what
-<code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>'s <code>min_alpha_pl</code> and <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>'s note report, so
-a collapsed EV shape stays visible.</p></dd>
+last two \(C_{EV}\) values visited.</p></dd>
 
 </dl></div>
     <div class="section level2">

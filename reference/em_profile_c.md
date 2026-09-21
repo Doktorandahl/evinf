@@ -10,7 +10,7 @@ phase.
 ## Usage
 
 ``` r
-em_profile_c(y, x_obj, par, c_candidates, family = evinf_family())
+em_profile_c(y, x_obj, par, c_candidates)
 ```
 
 ## Arguments
@@ -33,10 +33,6 @@ em_profile_c(y, x_obj, par, c_candidates, family = evinf_family())
 
   Numeric vector of candidate \\C\_{EV}\\ values, from
   [`em_c_candidates`](em_c_candidates.md).
-
-- family:
-
-  An [`evinf_family()`](evinf_family.md) object (round9 E.1).
 
 ## Value
 

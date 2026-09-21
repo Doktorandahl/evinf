@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Running an extreme value and zero inflated negative binomial model with bootstrapping</h1>
-      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/families-0.11.0-partF/R/evzinb.R" class="external-link"><code>R/evzinb.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/Doktorandahl/evinf/blob/main/R/evzinb.R" class="external-link"><code>R/evzinb.R</code></a></small>
       <div class="d-none name"><code>evzinb.Rd</code></div>
     </div>
 
@@ -50,11 +50,6 @@
 <span>  multicore <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ncores <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  block <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  weights <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  time <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  bootstrap_scheme <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  block_length <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  family <span class="op">=</span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  boot_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="evinf_control.html">evinf_control</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">max.diff.par</span>,</span>
@@ -86,33 +81,19 @@
 
 
 <dl><dt id="arg-formula-nb">formula_nb<a class="anchor" aria-label="anchor" href="#arg-formula-nb"></a></dt>
-<dd><p>Formula for the negative binomial (count) component of the model.
-May include an <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term (\(\mu_{NB} = \exp(x'\beta + offset)\)).</p></dd>
+<dd><p>Formula for the negative binomial (count) component of the model</p></dd>
 
 
 <dt id="arg-formula-zi">formula_zi<a class="anchor" aria-label="anchor" href="#arg-formula-zi"></a></dt>
-<dd><p>Formula for the zero-inflation component of the model. If NULL
-taken as the same formula as nb, with any <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term stripped (an
-offset applies only where it is written explicitly, never by inheritance).
-May include its own <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term: since the zero-inflation logit is
-the log-odds of the zero state <em>against</em> the count state, an offset there
-shifts that log-odds, e.g. <code>offset(log(exposure))</code> makes a larger
-exposure relatively less likely to land in the structural-zero state.</p></dd>
+<dd><p>Formula for the zero-inflation component of the model. If NULL taken as the same formula as nb</p></dd>
 
 
 <dt id="arg-formula-evi">formula_evi<a class="anchor" aria-label="anchor" href="#arg-formula-evi"></a></dt>
-<dd><p>Formula for the extreme-value inflation component of the model.
-If NULL taken as the same formula as nb, offset stripped as above. May include
-its own <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term (e.g. <code>offset(log(population))</code> for a
-probability of an extreme event that scales with exposure), read the same way:
-it shifts the EVI log-odds against the count state.</p></dd>
+<dd><p>Formula for the extreme-value inflation component of the model. If NULL taken as the same formula as nb</p></dd>
 
 
 <dt id="arg-formula-pareto">formula_pareto<a class="anchor" aria-label="anchor" href="#arg-formula-pareto"></a></dt>
-<dd><p>Formula for the pareto (extreme value) component of the
-model. If NULL taken as the same formula as nb, offset stripped as above.
-<code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> is <strong>not</strong> supported here (errors if present): an offset
-on a shape parameter has no clear reading.</p></dd>
+<dd><p>Formula for the pareto (extreme value) component of the model. If NULL taken as the same formula as nb</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
@@ -149,77 +130,6 @@ either as a bare column name (<code>block = id</code>) or a string
 no conflict identifier, so the conflict-level cluster bootstrap in Randahl
 and Vegelius (2024) cannot be reproduced from them directly (see
 <code><a href="hks.html">?hks</a></code>).</p></dd>
-
-
-<dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
-<dd><p>Optional observation weights (round9 D.2), given as a bare
-column name (<code>weights = wt</code>), a string naming a column
-(<code>weights = "wt"</code>), or a numeric vector. Must be positive and
-finite; need not be integers (analytic weights are allowed, not just
-frequency counts). <strong>Frequency-weight semantics</strong>: every
-observation's contribution to the log-likelihood and to the EM/M-step
-accumulations is multiplied by its weight, and <code><a href="https://rdrr.io/r/stats/nobs.html" class="external-link">nobs()</a></code> – and
-therefore <code>AIC</code>, <code>BIC</code> and the approximate t-based p-values –
-use <code>sum(weights)</code>, not the row count (see <code>sum_weights</code> in
-<code><a href="glance.evzinb.html">glance.evzinb</a></code>). This interpretation of AIC/BIC assumes the
-weights really are frequency weights (repeat-count equivalents); for
-analytic weights the information-criterion values are still computed
-this way but their usual interpretation is weaker. <strong><code>weights</code>
-does not give design-based standard errors for survey data</strong> – a
-sampling weight changes the point estimate, not the variance under the
-sampling design; for that, resample primary sampling units with
-<code>block =</code> instead. The bootstrap resamples rows exactly as without
-weights and carries each drawn row's weight along (the resampling
-probabilities themselves are not reweighted).</p></dd>
-
-
-<dt id="arg-time">time<a class="anchor" aria-label="anchor" href="#arg-time"></a></dt>
-<dd><p>Optional time index for panel/time-series bootstrap resampling
-(round9 F), given as a bare column name (<code>time = t</code>) or a string
-(<code>time = "t"</code>); required for <code>bootstrap_scheme %in%
-c("moving_block", "stationary")</code>. Must be strictly increasing within
-every <code>block</code> unit's rows as they already appear in the data –
-this is never sorted for you; sort <code>data</code> by <code>(block, time)</code>
-first if it isn't already.</p></dd>
-
-
-<dt id="arg-bootstrap-scheme">bootstrap_scheme<a class="anchor" aria-label="anchor" href="#arg-bootstrap-scheme"></a></dt>
-<dd><p>One of <code>"iid"</code> (plain row resampling, the
-default when <code>block</code> is not given), <code>"cluster"</code> (resample
-whole <code>block</code> units, the default when <code>block</code> is given – what
-<code>block =</code> has always done), <code>"moving_block"</code> or
-<code>"stationary"</code> (block-resample each unit's own time series; see
-Kunsch 1989 / Politis and Romano 1994). The two block schemes need
-<code>time</code>; <code>block</code> is optional for them (the whole data is
-treated as one unit when omitted). With overlapping blocks the
-out-of-bag set is smaller and more temporally correlated than under iid
-resampling, so out-of-bag error (<code><a href="oob_evaluation.html">oob_evaluation</a></code>) is
-optimistic relative to genuine forecasting performance; each bootstrap
-replicate's realised out-of-bag fraction is stored as
-<code>$oob_fraction</code> next to <code>$boot_id</code>.</p></dd>
-
-
-<dt id="arg-block-length">block_length<a class="anchor" aria-label="anchor" href="#arg-block-length"></a></dt>
-<dd><p>Block length for <code>bootstrap_scheme %in%
-c("moving_block", "stationary")</code>; <code>NULL</code> (the default) uses
-<code>ceiling(T^(1/3))</code> for each unit's own length \(T\) (a message
-names the value(s) used, once, at the original fit – not on every
-bootstrap replicate).</p></dd>
-
-
-<dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>An <code><a href="evinf_family.html">evinf_family()</a></code> object, or a string as
-shorthand for its <code>count</code> argument (round9 E.0/E.1/E.2), e.g.
-<code>family = "poisson"</code>. The default reproduces today's
-negative-binomial, mixture-zero model exactly. <code>count = "poisson"</code>
-drops <code>Alpha.NB</code> entirely (not merely fixes it): it is absent from
-<code>par.all</code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> and
-<code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy()</a></code>, and shown as absent (not <code>NA</code>) in <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>
-and <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>. <code>zero = "hurdle"</code> makes the zero state own
-every zero (rather than competing with the count state for them) and
-zero-truncates the count state; verified to match
-<code><a href="https://rdrr.io/pkg/pscl/man/hurdle.html" class="external-link">pscl::hurdle()</a></code>'s coefficients and log-likelihood to numerical
-precision when the extreme-value state is unreachable.</p></dd>
 
 
 <dt id="arg-boot-seed">boot_seed<a class="anchor" aria-label="anchor" href="#arg-boot-seed"></a></dt>

@@ -96,31 +96,30 @@ default, misleadingly precise `"<2e-16"`.
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 summary(model)
 #> EVINB model summary
 #> ===================
 #> 
 #> Count component (negative binomial)
 #>             Estimate Std. Error approx t Pr(boot)
-#> (Intercept)   2.2479     0.5733    3.921     <0.3
-#> x1            1.3922     0.2197    6.337     <0.3
-#> x2            0.1915     0.2479    0.773        1
-#> x3            0.3861     0.2857    1.351     <0.3
+#> (Intercept)   2.2479     0.1112   20.219     <0.3
+#> x1            1.3922     1.1606    1.200     <0.3
+#> x2            0.1915     0.9433    0.203    0.667
+#> x3            0.3861     0.3836    1.007     <0.3
 #> 
 #> Extreme-value inflation component
 #>             Estimate Std. Error approx t Pr(boot)
-#> (Intercept)  -2.6905     0.2304  -11.675     <0.3
-#> x1            0.9018     0.2826    3.192     <0.3
-#> x2           -0.5799     0.5431   -1.068     <0.3
-#> x3            0.3535     0.1207    2.929     <0.3
+#> (Intercept)  -2.6905     0.3615   -7.443     <0.3
+#> x1            0.9018     0.5262    1.714     <0.3
+#> x2           -0.5799     0.4139   -1.401     <0.3
+#> x3            0.3535     0.1724    2.050     <0.3
 #> 
 #> Pareto (extreme value) component
 #>             Estimate Std. Error approx t Pr(boot)
-#> (Intercept)  2.80276    0.09925   28.240     <0.3
-#> x1          -2.44928    0.16461  -14.879     <0.3
-#> x2           1.57041    0.09964   15.762     <0.3
-#> x3           1.67644    0.47380    3.538     <0.3
+#> (Intercept)   2.8028     0.2285   12.269     <0.3
+#> x1           -2.4493     0.8955   -2.735     <0.3
+#> x2            1.5704     0.6219    2.525     <0.3
+#> x3            1.6764     0.5166    3.245     <0.3
 #> 
 #> ----------------------------------------
 #> alpha_NB: 10.05   C_EV: 184
