@@ -23,7 +23,9 @@ evinf_print_fit <- function(x, kind, zi) {
   on_boundary <- !is.null(x$c_profile) &&
     (x$coef$C <= min(x$c_profile$c) || x$coef$C >= max(x$c_profile$c))
 
-  cat('\n', paste0('Fitted ', kind, ' model with formulas:'),
+  fam <- x$family %||% evinf_family()
+  cat('\n', paste0('Fitted ', kind, ' model (', fam$count, ' count, ', fam$zero,
+                   ' zero) with formulas:'),
       '\n NB:    ', fmt_formula(x$formulas$formula_nb), sep = ' ')
   if (zi) {
     cat('\n ZI:    ', fmt_formula(x$formulas$formula_zi), sep = ' ')
@@ -140,7 +142,11 @@ print.summary.evinb <- function(x, digits = max(3L, getOption("digits") - 3L),
 # Shared formatter for print.summary.evzinb() / print.summary.evinb().
 evinf_print_summary <- function(x, model_type, digits, signif.stars) {
 
-  comp_labels <- c(count = 'Count component (negative binomial)',
+  fam <- x$family %||% evinf_family()
+  # round9 E.1: the label names whichever count distribution was actually fit.
+  count_label <- if (fam$count == "poisson") "Count component (Poisson)" else
+    "Count component (negative binomial)"
+  comp_labels <- c(count = count_label,
                    zero = 'Zero-inflation component',
                    evi = 'Extreme-value inflation component',
                    pareto = 'Pareto (extreme value) component')
@@ -191,7 +197,10 @@ evinf_print_summary <- function(x, model_type, digits, signif.stars) {
 
   ms <- x$model_statistics
   cat('\n', strrep('-', 40), '\n', sep = '')
-  cat('alpha_NB: ', signif(ms$Alpha_nb[['Alpha_NB']], digits),
+  # round9 E.1: a Poisson count state has no Alpha.NB (Alpha_nb is a length-1
+  # NA_real_ vector, not empty, so this indexes safely and prints "NA").
+  alpha_nb_est <- if ("Alpha_NB" %in% names(ms$Alpha_nb)) ms$Alpha_nb[['Alpha_NB']] else NA_real_
+  cat('alpha_NB: ', signif(alpha_nb_est, digits),
       '   C_EV: ', ms$C[['C']], '\n', sep = '')
   if (!is.null(ms$n_above_c)) {
     cat('Observations at or above C_EV: ', ms$n_above_c, '\n', sep = '')

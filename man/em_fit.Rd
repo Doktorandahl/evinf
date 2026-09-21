@@ -10,7 +10,8 @@ em_fit(
   ini.val,
   control,
   model = c("evzinb", "evinb"),
-  full_sample = TRUE
+  full_sample = TRUE,
+  family = evinf_family()
 )
 }
 \arguments{
@@ -36,6 +37,10 @@ optional \code{offset.nb}).}
 bootstrap replicate. Controls only whether a \code{max.c.iter} cap-out emits
 a \code{warning()} (bootstrap replicates already record it via
 \code{converge} / \code{c_converged} without one).}
+
+\item{family}{An \code{\link{evinf_family}()} object (round9 E.1); the
+default reproduces today's NB/mixture model exactly. For
+\code{count = "poisson"}, \code{Alpha.NB} is dropped from \code{par.all}.}
 }
 \value{
 A list with, among others, \code{par.mat} (estimated parameters),

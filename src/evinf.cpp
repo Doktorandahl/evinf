@@ -69,6 +69,16 @@ double ell_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, in
   return(ell_nb_i);
 }
 
+// round9 E.1 (audit §5.5): Poisson count-state log-pmf, the alpha_nb -> 0
+// limit of ell_nb_i_fun() above -- no dispersion parameter, no digamma.
+//[[Rcpp::export]]
+double ell_pois_i_fun(arma::vec beta_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
+  arma::mat xtb_nb_i = trans(x_nb_ext_i)*beta_nb;
+  double a = xtb_nb_i.eval()(0,0);
+  double mu_i = exp(a + offset_nb_i);
+  return y_i*log(mu_i) - mu_i - R::lgammafn(y_i + 1);
+}
+
 //[[Rcpp::export]]
 arma::vec delldtheta_nb_i_fun(arma::vec beta_nb, double alpha_nb, arma::vec x_nb_ext_i, int y_i, double offset_nb_i = 0.0){
   int n_beta_nb = beta_nb.size();
@@ -260,7 +270,7 @@ arma::mat d2elldbeta2_pl_i_fun_exact(arma::vec beta_pl,double c_pl, arma::vec x_
 }
 
 //[[Rcpp::export]]
-double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w){
+double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, double alpha_nb, arma::vec beta_pl, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, int family_count = 0){
 
   int n = x_mult_z_ext.n_rows;
   arma::mat props = zeros<mat>(n,3) ;
@@ -283,15 +293,24 @@ double log_lik_fun(arma::vec gamma_z, arma::vec gamma_pl,arma::vec beta_nb, doub
 
   arma::vec eta_nb_vec = x_nb_ext * beta_nb;
   arma::vec eta_pl_vec = x_pl_ext * beta_pl;
-  double r_nb = 1 / alpha_nb;
+  // round9 E.1: r_nb is only meaningful for family_count == 0 (nbinom); the
+  // Poisson branch below never uses it.
+  double r_nb = (family_count == 0) ? 1 / alpha_nb : 0.0;
 
   double func_val = 0;
 
   for(int i=0; i<n; i++){
     double mu_i = exp(eta_nb_vec(i) + offset_nb(i));
-    // audit0.10 §1.11 / round8 0.9: closed form, see ell_nb_i_fun().
-    double ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
-    ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
+    // round9 E.1: Poisson count state is the alpha_nb -> 0 limit of the NB
+    // one below -- see ell_pois_i_fun().
+    double ell_nb_i;
+    if (family_count == 1) {
+      ell_nb_i = y(i)*log(mu_i) - mu_i - R::lgammafn(y(i) + 1);
+    } else {
+      // audit0.10 §1.11 / round8 0.9: closed form, see ell_nb_i_fun().
+      ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
+      ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
+    }
 
     // audit0.10 §1.11: combine the mixture terms with a log-sum-exp instead of
     // log(p1*exp(.) + p2*exp(.)), which underflows exp(.) to exactly 0 (losing
@@ -330,7 +349,7 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
                               arma::mat x_nb_ext, arma::mat x_pl_ext,
                               arma::vec y, arma::vec offset_nb,
                               arma::vec offset_zc, arma::vec offset_pl_mult,
-                              arma::vec w){
+                              arma::vec w, int family_count = 0){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -343,11 +362,11 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
   arma::vec ell_nb = zeros<vec>(n);
   arma::vec alpha_pl_vec = zeros<vec>(n);
 
-  double r_nb = 1 / alpha_nb;
+  double r_nb = (family_count == 0) ? 1 / alpha_nb : 0.0;
 
   // Steps 1-3: state probabilities, the count log-likelihood (ell_nb_i, see
-  // ell_nb_i_fun()) and the Pareto shape (alpha_pl_vec) -- none of these
-  // depend on C, so each is computed once per observation.
+  // ell_nb_i_fun()/ell_pois_i_fun()) and the Pareto shape (alpha_pl_vec) --
+  // none of these depend on C, so each is computed once per observation.
   for (int i = 0; i < n; i++) {
     double eta_z = (trans(gamma_z)*trans(x_mult_z_ext.submat(i,0,i,n_mult_z-1))).eval()(0,0) + offset_zc(i);
     double eta_pl = (trans(gamma_pl)*trans(x_mult_pl_ext.submat(i,0,i,n_mult_pl-1))).eval()(0,0) + offset_pl_mult(i);
@@ -356,8 +375,13 @@ arma::vec log_lik_profile_fun(arma::vec gamma_z, arma::vec gamma_pl,
     arma::mat x_nb_ext_i = trans(x_nb_ext.submat(i,0,i,n_nb-1));
     double xtb_nb_i = (trans(x_nb_ext_i)*beta_nb).eval()(0,0);
     double mu_i = exp(xtb_nb_i + offset_nb(i));
-    double ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
-    ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
+    double ell_nb_i;
+    if (family_count == 1) {
+      ell_nb_i = y(i)*log(mu_i) - mu_i - R::lgammafn(y(i) + 1);
+    } else {
+      ell_nb_i = -log(y(i) + r_nb) - R::lbeta(y(i) + 1, r_nb);
+      ell_nb_i = ell_nb_i - (1/alpha_nb)*log(1 + alpha_nb*mu_i) - y(i)*log(1 + alpha_nb*mu_i) + y(i)*log(alpha_nb) + y(i)*log(mu_i);
+    }
     ell_nb(i) = ell_nb_i;
 
     arma::mat x_pl_ext_i = trans(x_pl_ext.submat(i,0,i,n_pl-1));
@@ -421,7 +445,7 @@ arma::mat safe_newton_step(const arma::mat &H, const arma::mat &g) {
 }
 
 //[[Rcpp::export]]
-List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, bool exact_pl = false){
+List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_nb_in, double alpha_nb_in, arma::vec beta_pl_in, double c_pl,arma::mat x_mult_z_ext,arma::mat x_mult_pl_ext,arma::mat x_nb_ext, arma::mat x_pl_ext, arma::vec y, double max_upd_par, int no_m_bfgs_steps, arma::vec offset_nb, arma::vec offset_zc, arma::vec offset_pl_mult, arma::vec w, int family_count = 0, bool exact_pl = false){
 
   int n = x_mult_z_ext.n_rows;
   int n_mult_z = x_mult_z_ext.n_cols;
@@ -456,7 +480,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   for (int i=0; i<n; i++){
   // Marginal probability mass function of y and x (sum over components) - marginal._x_i
     if(y(i)==0){
-      double d_nb = exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
+      double d_nb = (family_count == 1)
+        ? exp(ell_pois_i_fun(beta_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)))
+        : exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
       marginal_yx_i = props(i,0) + props(i,1)*d_nb;
       resp(i,0) = props(i,0)/marginal_yx_i;
       resp(i,1) = props(i,1)*d_nb/marginal_yx_i;
@@ -466,7 +492,9 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
       resp(i,1) = 1;
       resp(i,2) = 0;
     }else if(y(i)>=c_pl){
-      double d_nb = exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
+      double d_nb = (family_count == 1)
+        ? exp(ell_pois_i_fun(beta_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)))
+        : exp(ell_nb_i_fun(beta_nb_old,alpha_nb_old,trans(x_nb_ext.submat(i,0,i,n_nb-1)),y(i),offset_nb(i)));
       double d_pl = exp(ell_pl_i_fun(beta_pl_old,c_pl,trans(x_pl_ext.submat(i,0,i,n_pl-1)),y(i)));
       marginal_yx_i = props(i,1)*d_nb  + props(i,2)*d_pl;
       resp(i,0) = 0;
@@ -476,7 +504,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   }
 
   //Calculate function value before the algorithm starts
-  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
+  double func_val_before_bfgs = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
 
   arma::mat d2Qdtheta2_nb = zeros<mat>(n_nb+1,n_nb+1);
   arma::mat dQdtheta_nb = zeros<mat>(n_nb+1,1);
@@ -505,55 +533,77 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
   for(int i_bfgs=1; i_bfgs<=no_m_bfgs_steps; i_bfgs++){
     arma::vec eta_nb_i = x_nb_ext * beta_nb_old;
     arma::vec mu_vec = exp(eta_nb_i + offset_nb);
-    arma::vec one_plus_am = 1 + alpha_nb_old*mu_vec;
 
-    arma::vec b_grad = (y - mu_vec) / one_plus_am;
-    arma::vec b_hess = -1.0*mu_vec % (1 + alpha_nb_old*y) / arma::square(one_plus_am);
-    arma::vec b2_hess = -1.0*mu_vec % (y - mu_vec) / arma::square(one_plus_am);
+    arma::vec grad_beta, H_cross;
+    arma::mat H_beta;
+    double grad_alpha = 0.0, H_alpha = -1.0;
 
-    double r_nb = 1 / alpha_nb_old;
-    arma::vec delldalpha_vec(n), d2elldalpha2_vec(n);
-    for (int i=0; i<n; i++){
-      double mu_i = mu_vec(i);
-      double oam_i = one_plus_am(i);
-      int yi = (int) y(i);
+    if (family_count == 1) {
+      // round9 E.1: Poisson count state -- no dispersion parameter. Score
+      // X'(w*resp*(y-mu)), Hessian -X' diag(w*resp*mu) X: simpler and
+      // better conditioned than the NB block below (no digamma, no
+      // dispersion row/col). grad_alpha/H_cross stay 0 and H_alpha stays a
+      // decoupled -1, so the Newton system is block-diagonal and the
+      // alpha coordinate's step is exactly 0 every time -- alpha_nb_old
+      // never moves, and R drops it from par.all entirely for this family.
+      arma::vec b_grad = y - mu_vec;
+      arma::vec b_hess = -mu_vec;
+      arma::vec w_beta = w % resp.col(1) % b_grad;
+      grad_beta = trans(x_nb_ext) * w_beta;
+      arma::vec w_hess_beta = w % resp.col(1) % b_hess;
+      H_beta = trans(x_nb_ext) * (x_nb_ext.each_col() % w_hess_beta);
+      H_cross = zeros<vec>(n_nb);
+    } else {
+      arma::vec one_plus_am = 1 + alpha_nb_old*mu_vec;
 
-      // audit0.10 §1.11 / round8 A.2: digamma(y+r)-digamma(r) is exactly 0 at
-      // y=0 (same argument on both sides), so this one formula covers both
-      // branches of the original delldtheta_nb_i_fun().
-      double sum_inv = R::digamma(y(i) + r_nb) - R::digamma(r_nb);
-      delldalpha_vec(i) = (log(oam_i) - sum_inv)/(alpha_nb_old*alpha_nb_old) + (y(i)-mu_i)/(alpha_nb_old*oam_i);
+      arma::vec b_grad = (y - mu_vec) / one_plus_am;
+      arma::vec b_hess = -1.0*mu_vec % (1 + alpha_nb_old*y) / arma::square(one_plus_am);
+      arma::vec b2_hess = -1.0*mu_vec % (y - mu_vec) / arma::square(one_plus_am);
 
-      // round9 0.4 (review §4): the cancellation this closed form suffers
-      // from is governed by alpha*y, not y alone -- see the comment at the
-      // matching guard in d2elldtheta2_nb_i_fun() above for the
-      // verification grid and the alpha_nb_old * y(i) <= 0.1 cutoff.
-      double loop_term = 0;
-      if (alpha_nb_old * y(i) > 0.1) {
-        loop_term = y(i)/(alpha_nb_old*alpha_nb_old)
-          - (2/(alpha_nb_old*alpha_nb_old*alpha_nb_old))*sum_inv
-          + (1/(alpha_nb_old*alpha_nb_old*alpha_nb_old*alpha_nb_old))*(R::trigamma(r_nb) - R::trigamma(y(i)+r_nb));
-      } else if (yi > 0) {
-        for (int j=0; j<yi; j++) {
-          loop_term += (j/(1+alpha_nb_old*j))*(j/(1+alpha_nb_old*j));
+      double r_nb = 1 / alpha_nb_old;
+      arma::vec delldalpha_vec(n), d2elldalpha2_vec(n);
+      for (int i=0; i<n; i++){
+        double mu_i = mu_vec(i);
+        double oam_i = one_plus_am(i);
+        int yi = (int) y(i);
+
+        // audit0.10 §1.11 / round8 A.2: digamma(y+r)-digamma(r) is exactly 0 at
+        // y=0 (same argument on both sides), so this one formula covers both
+        // branches of the original delldtheta_nb_i_fun().
+        double sum_inv = R::digamma(y(i) + r_nb) - R::digamma(r_nb);
+        delldalpha_vec(i) = (log(oam_i) - sum_inv)/(alpha_nb_old*alpha_nb_old) + (y(i)-mu_i)/(alpha_nb_old*oam_i);
+
+        // round9 0.4 (review §4): the cancellation this closed form suffers
+        // from is governed by alpha*y, not y alone -- see the comment at the
+        // matching guard in d2elldtheta2_nb_i_fun() above for the
+        // verification grid and the alpha_nb_old * y(i) <= 0.1 cutoff.
+        double loop_term = 0;
+        if (alpha_nb_old * y(i) > 0.1) {
+          loop_term = y(i)/(alpha_nb_old*alpha_nb_old)
+            - (2/(alpha_nb_old*alpha_nb_old*alpha_nb_old))*sum_inv
+            + (1/(alpha_nb_old*alpha_nb_old*alpha_nb_old*alpha_nb_old))*(R::trigamma(r_nb) - R::trigamma(y(i)+r_nb));
+        } else if (yi > 0) {
+          for (int j=0; j<yi; j++) {
+            loop_term += (j/(1+alpha_nb_old*j))*(j/(1+alpha_nb_old*j));
+          }
         }
+        d2elldalpha2_vec(i) = -loop_term - 2/(alpha_nb_old*alpha_nb_old*alpha_nb_old)*log(oam_i)
+          + (2/(alpha_nb_old*alpha_nb_old))*mu_i/oam_i + (y(i)+r_nb)*mu_i*mu_i/(oam_i*oam_i);
       }
-      d2elldalpha2_vec(i) = -loop_term - 2/(alpha_nb_old*alpha_nb_old*alpha_nb_old)*log(oam_i)
-        + (2/(alpha_nb_old*alpha_nb_old))*mu_i/oam_i + (y(i)+r_nb)*mu_i*mu_i/(oam_i*oam_i);
+
+      // round9 D.2: w (the frequency/analytic weight, distinct from the
+      // w_* local names below which predate it) multiplies resp the same
+      // way throughout -- score = X'(w*resp*u), Hessian = -X' diag(w*resp*v) X.
+      arma::vec w_beta = w % resp.col(1) % b_grad;
+      grad_beta = trans(x_nb_ext) * w_beta;
+      grad_alpha = arma::sum(w % resp.col(1) % delldalpha_vec);
+
+      arma::vec w_hess_beta = w % resp.col(1) % b_hess;
+      H_beta = trans(x_nb_ext) * (x_nb_ext.each_col() % w_hess_beta);
+      arma::vec w_hess_cross = w % resp.col(1) % b2_hess;
+      H_cross = trans(x_nb_ext) * w_hess_cross;
+      H_alpha = arma::sum(w % resp.col(1) % d2elldalpha2_vec);
     }
-
-    // round9 D.2: w (the frequency/analytic weight, distinct from the
-    // w_* local names below which predate it) multiplies resp the same way
-    // throughout -- score = X'(w*resp*u), Hessian = -X' diag(w*resp*v) X.
-    arma::vec w_beta = w % resp.col(1) % b_grad;
-    arma::vec grad_beta = trans(x_nb_ext) * w_beta;
-    double grad_alpha = arma::sum(w % resp.col(1) % delldalpha_vec);
-
-    arma::vec w_hess_beta = w % resp.col(1) % b_hess;
-    arma::mat H_beta = trans(x_nb_ext) * (x_nb_ext.each_col() % w_hess_beta);
-    arma::vec w_hess_cross = w % resp.col(1) % b2_hess;
-    arma::vec H_cross = trans(x_nb_ext) * w_hess_cross;
-    double H_alpha = arma::sum(w % resp.col(1) % d2elldalpha2_vec);
 
     dQdtheta_nb = zeros<mat>(n_nb+1,1);
     dQdtheta_nb.submat(0,0,n_nb-1,0) = grad_beta;
@@ -586,7 +636,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
+  double func_val_after_nb = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_old,alpha_nb_old,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
 
   //Update beta_pl with BFGS
   // round8 A.3: restrict to the y >= c_pl rows once (arma::find()), then
@@ -655,7 +705,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
+  double func_val_after_pl = log_lik_fun(gamma_z_in,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_old,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
 
   //Update gamma_z with BFGS
   // round8 A.3: X'w / X' diag(w) X instead of a per-row loop building a
@@ -686,7 +736,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
+  double func_val_after_mult_z = log_lik_fun(gamma_z_old,gamma_pl_in,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
 
   //Update gamma_pl with BFGS
   // round8 A.3: same pattern as the gamma_z block; gamma_z_old is now fixed
@@ -714,7 +764,7 @@ List update_bfgs_fun(arma::vec gamma_z_in, arma::vec gamma_pl_in,arma::vec beta_
 
   }
 
-  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w);
+  double func_val_after_mult_pl = log_lik_fun(gamma_z_in,gamma_pl_old,beta_nb_in,alpha_nb_in,beta_pl_in,c_pl,x_mult_z_ext,x_mult_pl_ext,x_nb_ext,x_pl_ext,y,offset_nb,offset_zc,offset_pl_mult,w,family_count);
 
   return Rcpp::List::create(
     Rcpp::Named("props") = props,

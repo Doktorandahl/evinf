@@ -16,6 +16,7 @@ evzinb(
   ncores = NULL,
   block = NULL,
   weights = NULL,
+  family = evinf_family(),
   boot_seed = NULL,
   control = evinf_control(),
   max.diff.par,
@@ -107,6 +108,15 @@ sampling design; for that, resample primary sampling units with
 \code{block =} instead. The bootstrap resamples rows exactly as without
 weights and carries each drawn row's weight along (the resampling
 probabilities themselves are not reweighted).}
+
+\item{family}{An \code{\link{evinf_family}()} object, or a string as
+shorthand for its \code{count} argument (round9 E.0/E.1), e.g.
+\code{family = "poisson"}. The default reproduces today's
+negative-binomial count state exactly. \code{count = "poisson"} drops
+\code{Alpha.NB} entirely (not merely fixes it): it is absent from
+\code{par.all}, \code{coef()}, \code{vcov()}, \code{confint()} and
+\code{tidy()}, and shown as absent (not \code{NA}) in \code{summary()}
+and \code{glance()}.}
 
 \item{boot_seed}{Optional bootstrap seed for reproducibility. When supplied
 it is used as-is; when \code{NULL} a seed is drawn and recorded, so

@@ -19,6 +19,7 @@
 #' @param control An \code{\link{evinf_control}} object.
 #' @param fixed_zc When \code{TRUE} (EVINB) the zero-inflation multinomial block
 #'   is held at \code{ini.val$Beta.multinom.ZC}.
+#' @param family An \code{\link{evinf_family}()} object (round9 E.1).
 #'
 #' @return A list with
 #'   \describe{
@@ -35,7 +36,8 @@
 #'
 #' @seealso \code{\link{em_fit}}, \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
-em_fit_fixed_c <- function(y, x_obj, ini.val, control, fixed_zc = FALSE) {
+em_fit_fixed_c <- function(y, x_obj, ini.val, control, fixed_zc = FALSE,
+                           family = evinf_family()) {
   ext <- em_extend_design(x_obj, length(y))
 
   par <- list(
@@ -54,7 +56,7 @@ em_fit_fixed_c <- function(y, x_obj, ini.val, control, fixed_zc = FALSE) {
 
   while (i_em < control$max.no.em.steps &&
          max_abs_par_diff > control$max.diff.par) {
-    step <- em_step(y, ext, par, control, fixed_zc = fixed_zc)
+    step <- em_step(y, ext, par, control, fixed_zc = fixed_zc, family = family)
     par <- step$par
     max_abs_par_diff <- step$max_abs_par_diff
     log_lik_vec[i_em] <- step$log_lik

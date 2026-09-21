@@ -53,6 +53,7 @@ summary.evzinb <- function(object, coef = c('original', 'bootstrapped_mean', 'bo
   res <- list(coefficients = parts$coefficients,
               model_statistics = parts$model_statistics,
               component_proportions = parts$component_proportions,
+              family = parts$family,
               n_failed_bootstraps = parts$n_failed_bootstraps,
               n_degenerate_bootstraps = parts$n_degenerate_bootstraps,
               n_bootstraps_used = parts$n_bootstraps_used)
@@ -103,6 +104,7 @@ summary.evinb <- function(object, coef = c('original', 'bootstrapped_mean', 'boo
   res <- list(coefficients = parts$coefficients,
               model_statistics = parts$model_statistics,
               component_proportions = parts$component_proportions,
+              family = parts$family,
               n_failed_bootstraps = parts$n_failed_bootstraps,
               n_degenerate_bootstraps = parts$n_degenerate_bootstraps,
               n_bootstraps_used = parts$n_bootstraps_used)
@@ -158,7 +160,11 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
     props <- props %>% dplyr::slice(c(3, 1, 2))
   }
 
-  alpha_nb <- c(Alpha_NB = as.numeric(object$coef$Alpha.NB))
+  # round9 E.1: a Poisson count state has no Alpha.NB at all -- report it as
+  # absent (NA), not as a bootstrap-aggregation error over a list of NULLs.
+  is_poisson <- isTRUE((object$family %||% evinf_family())$count == "poisson")
+  alpha_nb <- if (is_poisson) c(Alpha_NB = NA_real_) else
+    c(Alpha_NB = as.numeric(object$coef$Alpha.NB))
   C_est <- c(C = as.numeric(object$coef$C))
 
   boot_tabs <- list()
@@ -199,9 +205,11 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
       dplyr::select(props_boot, "state", "standard_error"))
     props <- dplyr::left_join(props, props_boot, by = 'state')
 
-    alpha_nb_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Alpha.NB') %>% purrr::reduce(c)
-    alpha_nb <- c(alpha_nb, bootstrap_mean = mean(alpha_nb_boot),
-                  bootstrap_median = median(alpha_nb_boot), standard_error = sd(alpha_nb_boot))
+    if (!is_poisson) {
+      alpha_nb_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('Alpha.NB') %>% purrr::reduce(c)
+      alpha_nb <- c(alpha_nb, bootstrap_mean = mean(alpha_nb_boot),
+                    bootstrap_median = median(alpha_nb_boot), standard_error = sd(alpha_nb_boot))
+    }
     C_est_boot <- object$bootstraps %>% purrr::map('coef') %>% purrr::map('C') %>% purrr::reduce(c)
     C_est <- c(C_est, bootstrap_mean = mean(C_est_boot),
                bootstrap_median = median(C_est_boot), standard_error = sd(C_est_boot))
@@ -266,6 +274,7 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
                             n_above_c = n_above_c,
                             loglik_recomputed = isTRUE(object$loglik_recomputed)),
     component_proportions = props,
+    family = object$family %||% evinf_family(),
     n_failed_bootstraps = n_failed_bootstraps,
     n_degenerate_bootstraps = n_degenerate_bootstraps,
     n_bootstraps_used = n_bootstraps_used

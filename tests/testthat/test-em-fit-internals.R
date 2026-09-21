@@ -61,7 +61,7 @@ test_that("em_fit() stops with converge = FALSE when the C_EV profile oscillates
 
   flip_state <- new.env()
   flip_state$flip <- TRUE
-  fake_profile <- function(y, x_obj, par, c_candidates) {
+  fake_profile <- function(y, x_obj, par, c_candidates, family = evinf_family()) {
     c_hat <- if (flip_state$flip) 100 else 200
     flip_state$flip <- !flip_state$flip
     list(profile = data.frame(c = c_candidates, loglik = rep(-100, length(c_candidates))),
@@ -93,7 +93,7 @@ test_that("em_fit() records a warm-up-only C_EV cap separately from convergence 
 
   call_state <- new.env()
   call_state$n <- 0L
-  fake_profile <- function(y, x_obj, par, c_candidates) {
+  fake_profile <- function(y, x_obj, par, c_candidates, family = evinf_family()) {
     call_state$n <- call_state$n + 1L
     # Oscillate for exactly the warm-up phase's calls (max.c.iter = 3), then
     # settle immediately once the convergence phase starts.

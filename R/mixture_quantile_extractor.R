@@ -2,9 +2,18 @@
 # (pl_alphas, nb_mu and the rows of `probabilities`). The extreme-value piece is
 # the discretised Pareto (see R/dist_pareto.R). `probabilities` has columns
 # (zero, count, extreme-value); the zero column is 0 for evinb.
-mixture_p <- function(x, pl_alphas, C, nb_mu, nb_alpha, probabilities) {
+# round9 E.1: family_count = "poisson" uses ppois() (nb_alpha is unused --
+# and NULL -- in that case, exactly like object$coef$Alpha.NB).
+mixture_p <- function(x, pl_alphas, C, nb_mu, nb_alpha, probabilities,
+                      family_count = c("nbinom", "poisson")) {
+  family_count <- match.arg(family_count)
+  count_cdf <- if (family_count == "poisson") {
+    ppois(x, lambda = nb_mu)
+  } else {
+    pnbinom(x, mu = nb_mu, size = 1 / nb_alpha)
+  }
   probabilities[, 1] +
-    probabilities[, 2] * pnbinom(x, mu = nb_mu, size = 1 / nb_alpha) +
+    probabilities[, 2] * count_cdf +
     probabilities[, 3] * ppareto_disc(x, C, pl_alphas)
 }
 
@@ -13,10 +22,13 @@ mixture_p <- function(x, pl_alphas, C, nb_mu, nb_alpha, probabilities) {
 # interpolated, giving a monotone real-valued surrogate for numerical
 # differentiation in marginal_effects() (audit N1). `p` is a single probability.
 mixture_quantile <- function(p, pl_alphas, C, nb_mu, nb_alpha, probabilities,
-                             continuous = FALSE) {
+                             continuous = FALSE,
+                             family_count = c("nbinom", "poisson")) {
+  family_count <- match.arg(family_count)
   n <- length(nb_mu)
   Fp <- function(x) {
-    mixture_p(x, pl_alphas, C, nb_mu, nb_alpha, probabilities)
+    mixture_p(x, pl_alphas, C, nb_mu, nb_alpha, probabilities,
+              family_count = family_count)
   }
   max_q <- 1e15
   lo <- rep(0, n)

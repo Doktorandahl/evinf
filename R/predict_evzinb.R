@@ -565,6 +565,7 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata) %>% dplyr::pull()
 
   alpha_nb <- object$coef$Alpha.NB
+  family_count <- (object$family %||% evinf_family())$count
 
   C_est <- object$coef$C
 
@@ -575,7 +576,12 @@ revzinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   }
   out <- purrr::map(seq_len(n_draws), function(draw) {
       pl_draws <- rpareto_disc(n, C_est, alphs)
-      count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      # round9 E.1: alpha_nb is NULL for a Poisson count state.
+      count_draws <- if (family_count == "poisson") {
+        rpois(n, lambda = cnts)
+      } else {
+        rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      }
       state_draw <- runif(n)
       prbs %>%
         dplyr::mutate(
@@ -625,6 +631,7 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
   alphs <- fitted_alpha_from_evzinb(object, newdata = newdata) %>% dplyr::pull()
 
   alpha_nb <- object$coef$Alpha.NB
+  family_count <- (object$family %||% evinf_family())$count
 
   C_est <- object$coef$C
   if (is.null(newdata)) {
@@ -635,7 +642,12 @@ revinb_fit <- function(object, newdata = NULL, n_draws = 1) {
 
   out <- purrr::map(seq_len(n_draws), function(draw) {
       pl_draws <- rpareto_disc(n, C_est, alphs)
-      count_draws <- rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      # round9 E.1: alpha_nb is NULL for a Poisson count state.
+      count_draws <- if (family_count == "poisson") {
+        rpois(n, lambda = cnts)
+      } else {
+        rnbinom(n, mu = cnts, size = 1 / alpha_nb)
+      }
       state_draw <- runif(n)
       prbs %>%
         dplyr::mutate(

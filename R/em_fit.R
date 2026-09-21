@@ -42,6 +42,9 @@
 #'   bootstrap replicate. Controls only whether a \code{max.c.iter} cap-out emits
 #'   a \code{warning()} (bootstrap replicates already record it via
 #'   \code{converge} / \code{c_converged} without one).
+#' @param family An \code{\link{evinf_family}()} object (round9 E.1); the
+#'   default reproduces today's NB/mixture model exactly. For
+#'   \code{count = "poisson"}, \code{Alpha.NB} is dropped from \code{par.all}.
 #'
 #' @return A list with, among others, \code{par.mat} (estimated parameters),
 #'   \code{log.lik}, \code{AIC}, \code{BIC}, \code{resp} (posterior state
@@ -60,7 +63,8 @@
 #' @seealso \code{\link{evzinb}()}, \code{\link{evinb}()}
 #' @keywords internal
 em_fit <- function(y, x.obj, ini.val, control,
-                   model = c("evzinb", "evinb"), full_sample = TRUE) {
+                   model = c("evzinb", "evinb"), full_sample = TRUE,
+                   family = evinf_family()) {
   model <- match.arg(model)
   ext <- em_extend_design(x.obj, length(y))
   # round9 D.2 (audit §5.6): BIC's `n` is sum(weights) -- the row count when
@@ -89,11 +93,11 @@ em_fit <- function(y, x.obj, ini.val, control,
   while (c.abs.diff > 0 && n.c.iter.warmup < max_c_iter) {
     n.c.iter.warmup <- n.c.iter.warmup + 1L
     est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control.warmup,
-                              fixed_zc = fixed_zc)
+                              fixed_zc = fixed_zc, family = family)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
 
-    prof <- em_profile_c(y, x.obj, prel.val, c.range)
+    prof <- em_profile_c(y, x.obj, prel.val, c.range, family = family)
     log.lik.vec <- prof$profile$loglik
     c.pl.new <- prof$c_hat
     c_trace <- c(c_trace, c.pl.new)
@@ -130,11 +134,12 @@ em_fit <- function(y, x.obj, ini.val, control,
   n.c.iter.conv <- 0L
   while (c.abs.diff > 0 && n.c.iter.conv < max_c_iter) {
     n.c.iter.conv <- n.c.iter.conv + 1L
-    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = fixed_zc)
+    est.obj <- em_fit_fixed_c(y, x.obj, prel.val, control, fixed_zc = fixed_zc,
+                              family = family)
     log.lik.vec.all <- c(log.lik.vec.all, est.obj$log.lik.vec)
     prel.val <- est.obj$par.mat
 
-    prof <- em_profile_c(y, x.obj, prel.val, c.range)
+    prof <- em_profile_c(y, x.obj, prel.val, c.range, family = family)
     log.lik.vec <- prof$profile$loglik
     c.pl.new <- prof$c_hat
     c_trace <- c(c_trace, c.pl.new)
@@ -192,13 +197,21 @@ em_fit <- function(y, x.obj, ini.val, control,
                         model = model, floor = control$alpha_pl_floor %||% 0.01)
 
   final.resp <- evinf_responsibilities(
-    y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props
+    y, fv$mu.nb.vec, final.val$Alpha.NB, fv$alpha.pl.vec, c.pl.new, final.val$Props,
+    family = family
   )
 
-  par.all <- c(
-    final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
-    final.val$Alpha.NB, final.val$Beta.PL, final.val$C
-  )
+  # round9 E.1 (audit §5.5): Alpha.NB is not a free parameter for a Poisson
+  # count state -- dropped from par.all entirely (not merely fixed), so
+  # npar/AIC/BIC/LR degrees of freedom shrink by one and it never appears in
+  # coef()/vcov()/confint()/tidy() downstream (evinf_flatten_coef()).
+  par.all <- if (family$count == "poisson") {
+    c(final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
+      final.val$Beta.PL, final.val$C)
+  } else {
+    c(final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
+      final.val$Alpha.NB, final.val$Beta.PL, final.val$C)
+  }
   n.par <- length(par.all)
 
   # audit 2.13: the trace maximum is not guaranteed to be the log-likelihood at
@@ -208,7 +221,7 @@ em_fit <- function(y, x.obj, ini.val, control,
     final.val$Beta.multinom.ZC, final.val$Beta.multinom.PL, final.val$Beta.NB,
     final.val$Alpha.NB, final.val$Beta.PL, final.val$C,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
-    ext$offset_zc, ext$offset_pl_mult, ext$weights
+    ext$offset_zc, ext$offset_pl_mult, ext$weights, evinf_family_count_code(family)
   )
   loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
                                 abs(ll.at.par - func.val) > 1e-6)
@@ -218,6 +231,7 @@ em_fit <- function(y, x.obj, ini.val, control,
 
   list(
     control          = control,
+    family           = family,
     par.mat          = final.val,
     log.lik.vec.all  = log.lik.vec.all,
     c_profile        = data.frame(c = c.range, loglik = log.lik.vec),

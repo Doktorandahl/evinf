@@ -4,7 +4,9 @@
 #' @param ... Further arguments to be passed to glance()
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
-#'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+#'   and parameters, family (round9 E.0, e.g. "nbinom/mixture" or "poisson/mixture"),
+#'   alpha_NB (NA when the family has none, round9 E.1), C_EV, AIC, BIC,
+#'   log-likelihood, whether the EM
 #'   algorithm converged (\code{converged}) and whether the C_EV profile settled
 #'   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
 #'   before this field existed), the number of EM steps, the number of
@@ -36,7 +38,8 @@ glance.evzinb <- function(x, ...) {
     nobs = nrow(x$data$x.nb),
     sum_weights = evinf_nobs(x),
     npar = length(x$par.all),
-    alpha = x$coef$Alpha.NB,
+    family = paste0(x$family$count %||% "nbinom", "/", x$family$zero %||% "mixture"),
+    alpha = x$coef$Alpha.NB %||% NA_real_,
     parameter = x$coef$C,
     aic = x$AIC,
     bic = x$BIC,
@@ -59,7 +62,9 @@ glance.evzinb <- function(x, ...) {
 #' @param ... Further arguments to be passed to glance()
 #'
 #' @return A one-row tibble of goodness-of-fit statistics: number of observations
-#'   and parameters, alpha_NB, C_EV, AIC, BIC, log-likelihood, whether the EM
+#'   and parameters, family (round9 E.0, e.g. "nbinom/mixture" or "poisson/mixture"),
+#'   alpha_NB (NA when the family has none, round9 E.1), C_EV, AIC, BIC,
+#'   log-likelihood, whether the EM
 #'   algorithm converged (\code{converged}) and whether the C_EV profile settled
 #'   within \code{max.c.iter} (\code{c_converged}; \code{NA} for a model fitted
 #'   before this field existed), the number of EM steps, the number of
@@ -91,7 +96,8 @@ glance.evinb <- function(x, ...) {
     nobs = nrow(x$data$x.nb),
     sum_weights = evinf_nobs(x),
     npar = length(x$par.all),
-    alpha = x$coef$Alpha.NB,
+    family = paste0(x$family$count %||% "nbinom", "/", x$family$zero %||% "mixture"),
+    alpha = x$coef$Alpha.NB %||% NA_real_,
     parameter = x$coef$C,
     aic = x$AIC,
     bic = x$BIC,

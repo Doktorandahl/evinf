@@ -14,8 +14,10 @@ NULL
 .evinf_coef_slots <- c(count = "Beta.NB", zero = "Beta.multinom.ZC",
                        evi = "Beta.multinom.PL", pareto = "Beta.PL")
 
-# Flatten one $coef list into a named vector: <component>_<term>, then alpha_nb,
-# c_ev. `coefs` is object$coef (full model) or a bootstrap's $coef.
+# Flatten one $coef list into a named vector: <component>_<term>, then alpha_nb
+# (round9 E.1: omitted entirely, not NA, when the fit has no Alpha.NB -- a
+# Poisson count state), then c_ev. `coefs` is object$coef (full model) or a
+# bootstrap's $coef.
 evinf_flatten_coef <- function(coefs, components) {
   pieces <- lapply(components, function(cn) {
     v <- coefs[[.evinf_coef_slots[[cn]]]]
@@ -25,9 +27,12 @@ evinf_flatten_coef <- function(coefs, components) {
     stats::setNames(as.numeric(v), paste0(cn, "_", names(v)))
   })
   flat <- unlist(pieces, use.names = TRUE)
-  c(flat,
-    alpha_nb = as.numeric(coefs$Alpha.NB),
-    c_ev = as.numeric(coefs$C))
+  alpha_piece <- if (is.null(coefs$Alpha.NB)) {
+    NULL
+  } else {
+    stats::setNames(as.numeric(coefs$Alpha.NB), "alpha_nb")
+  }
+  c(flat, alpha_piece, c_ev = as.numeric(coefs$C))
 }
 
 # The canonical component list for an object (count/zero/evi/pareto, no zero for
@@ -297,9 +302,12 @@ residuals.evzinb <- function(object, type = c("response", "quantile"),
   }
   mu <- object$fitted$mu.nb
   alph <- object$fitted$alpha.pl
-  Fy <- mixture_p(y, alph, object$coef$C, mu, object$coef$Alpha.NB, probs)
+  fam_count <- (object$family %||% evinf_family())$count
+  Fy <- mixture_p(y, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
+                  family_count = fam_count)
   Fy1 <- ifelse(y <= 0, 0,
-                mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs))
+                mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
+                          family_count = fam_count))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
   # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG

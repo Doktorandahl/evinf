@@ -4,7 +4,7 @@
 \alias{em_profile_c}
 \title{Profile the log-likelihood over the extreme-value threshold}
 \usage{
-em_profile_c(y, x_obj, par, c_candidates)
+em_profile_c(y, x_obj, par, c_candidates, family = evinf_family())
 }
 \arguments{
 \item{y}{Numeric response vector.}
@@ -18,6 +18,8 @@ em_profile_c(y, x_obj, par, c_candidates)
 
 \item{c_candidates}{Numeric vector of candidate \eqn{C_{EV}} values, from
 \code{\link{em_c_candidates}}.}
+
+\item{family}{An \code{\link{evinf_family}()} object (round9 E.1).}
 }
 \value{
 A list with
