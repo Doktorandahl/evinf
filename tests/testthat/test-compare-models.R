@@ -105,7 +105,7 @@ test_that("boot_refit_one() remaps a resample onto data_razor's own rows (audit0
              keep = keep, y_orig = data_razor$y)
 
   testthat::local_mocked_bindings(
-    inner_nb = function(bootstrap, data, formulas, init_theta, y_orig) bootstrap$boot_id,
+    inner_nb = function(bootstrap, data, formulas, init_theta, y_orig, weights_col = NULL) bootstrap$boot_id,
     .package = "evinf"
   )
   got <- evinf:::boot_refit_one(sp, boot_id)
@@ -208,4 +208,90 @@ test_that("compare_models() winsorize + razorize still name all six slots (issue
     expect_s3_class(comp[[s]], if (grepl("zinb", s)) "zinbboot" else "nbboot")
     expect_length(comp[[s]]$bootstraps, 5L)
   }
+})
+
+# round10 0.2 (review §2): every competitor fit (nb / zinb / poisson / zip,
+# including winsorised/razorised variants and every bootstrap refit) was
+# fitted unweighted, so a weighted evzinb() fit's AIC/BIC comparisons were
+# between a weighted and an unweighted likelihood. nobs.glm() itself counts
+# nonzero-weight rows (base R's convention), not sum(weights), so these
+# tests check the weights that actually reached each fit via weights()/
+# $weights and via reproducing a fit on the row-duplicated data.
+
+test_that("compare_models() competitor fits are weighted (round10 0.2)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  set.seed(31)
+  w_int <- sample(1:3, nrow(genevzinb2), replace = TRUE)
+  d <- genevzinb2
+  d$w <- w_int
+  ctrl <- evinf_control(c.lim = c(50, 1000), init.C = 200)
+
+  m <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1 + x2 + x3, data = d, weights = w,
+    n_bootstraps = 3, boot_seed = 1, multicore = FALSE, verbose = FALSE, control = ctrl
+  )))
+  comp <- suppressWarnings(suppressMessages(
+    compare_models(m, poisson_comparison = TRUE, zip_comparison = TRUE)
+  ))
+
+  expect_equal(sum(stats::weights(comp$nb$full_run)), sum(w_int))
+  expect_equal(sum(comp$zinb$full_run$weights), sum(w_int))
+  expect_equal(sum(stats::weights(comp$poisson$full_run)), sum(w_int))
+  expect_equal(sum(comp$zip$full_run$weights), sum(w_int))
+
+  # The NB baseline -- a well-behaved IRLS fit -- reproduces a fit on the
+  # row-duplicated data essentially exactly. (zeroinfl()'s BFGS optimiser can
+  # land on a different local optimum for the same weighted-vs-duplicated
+  # likelihood depending on its default starting values, so that comparison
+  # is not made here -- see the commit message for a worked example.)
+  idx <- rep(seq_len(nrow(d)), w_int)
+  d_dup <- d[idx, ]
+  m_dup <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1 + x2 + x3, data = d_dup,
+    n_bootstraps = 3, boot_seed = 1, multicore = FALSE, verbose = FALSE, control = ctrl
+  )))
+  comp_dup <- suppressWarnings(suppressMessages(compare_models(m_dup)))
+  expect_equal(unname(coef(comp$nb$full_run)), unname(coef(comp_dup$nb$full_run)),
+               tolerance = 1e-6)
+  expect_equal(as.numeric(logLik(comp$nb$full_run)), as.numeric(logLik(comp_dup$nb$full_run)),
+               tolerance = 1e-6)
+})
+
+test_that("compare_models() carries weights into winsorised/razorised competitor fits (round10 0.2)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  set.seed(32)
+  w_int <- sample(1:3, nrow(genevzinb2), replace = TRUE)
+  d <- genevzinb2
+  d$w <- w_int
+  m <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1 + x2 + x3, data = d, weights = w,
+    n_bootstraps = 3, boot_seed = 1, multicore = FALSE, verbose = FALSE,
+    control = evinf_control(c.lim = c(50, 1000), init.C = 200)
+  )))
+  comp <- suppressWarnings(suppressMessages(
+    compare_models(m, winsorize = TRUE, razorize = TRUE, cutoff_value = 5)
+  ))
+  expect_equal(sum(stats::weights(comp$nb_winsor$full_run)), sum(w_int))
+  keep <- which(d$y < sort(d$y, decreasing = TRUE)[5])
+  expect_equal(sum(stats::weights(comp$nb_razor$full_run)), sum(w_int[keep]))
+})
+
+test_that("compare_models() carries weights into bootstrap competitor refits (round10 0.2)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  set.seed(33)
+  w_int <- sample(1:3, nrow(genevzinb2), replace = TRUE)
+  d <- genevzinb2
+  d$w <- w_int
+  m <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1 + x2 + x3, data = d, weights = w,
+    n_bootstraps = 3, boot_seed = 1, multicore = FALSE, verbose = FALSE,
+    control = evinf_control(c.lim = c(50, 1000), init.C = 200)
+  )))
+  comp <- suppressWarnings(suppressMessages(compare_models(m)))
+
+  b1 <- m$bootstraps[[1]]
+  data_ib <- d[b1$boot_id, ]
+  hand <- MASS::glm.nb(y ~ x1 + x2 + x3, data = data_ib, weights = w)
+  expect_equal(unname(comp$nb$bootstraps[[1]]$fit_stats["logLik"]),
+               as.numeric(logLik(hand)), tolerance = 1e-6)
 })
