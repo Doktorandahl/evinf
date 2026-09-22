@@ -4,6 +4,17 @@ Implements audit §5.6 (offsets and weights), §5.5 (model families) and §5.7
 (panel/time-series resampling): work packages D, E and F of
 `dev/plan_0.12_families_offsets_panel.md`.
 
+## Breaking changes
+
+* The legacy `object$fitted$y.hat.pl_exp.E.logy`, `y.hat.pl_E.inv.y`,
+  `y.hat.pl_median` and `y.hat.pl_mean` fields are no longer stored. They
+  duplicated `predict(type = "explog"/"harmonic"/"quantile")` but were not
+  hurdle-aware (on a hurdle fit, correlation with the corresponding
+  `predict()` output was as low as 0.9988). `fitted()` already routes
+  through `predict()`; use that instead. The other `object$fitted$*` fields
+  (`mu.nb`, `alpha.pl`, the `pl_*`/`prob_*`/`posterior_*` summaries) are
+  unaffected (round10 0.6).
+
 ## Bug fixes
 
 Round-9 follow-ups (`dev/review_round9.md`):
@@ -32,6 +43,12 @@ Round-9 follow-ups (`dev/review_round9.md`):
   ULPs can remain on other inputs, down from up to 8.6e-8. See
   `has_weights` in `src/evinf.cpp` and `test-weights.R`'s round10 0.5 tests
   (round10 0.5).
+* `predict(type = "explog")` warns when any fitted Pareto `alpha_pl` used in
+  the prediction is below 0.1: the geometric-mean prediction
+  `C * exp(1 / alpha_pl)` is effectively undefined well before that (and
+  before `evinf_control(alpha_pl_floor = )`, default 0.01, clamps it to a
+  finite but still absurd value). No separate clamp is applied; see
+  `?predict.evzinb` (round10 0.6).
 
 ## New features
 

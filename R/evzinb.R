@@ -258,13 +258,16 @@ run_evzinb <- function(
   object$n_em_steps <- length(object$log.lik.vec.all)
 
   object$fitted <- list()
-  object$fitted$y.hat.pl_exp.E.logy <- object$y.hat.plexpElogy
+  # round10 0.6 (review §4/§7, breaking change): the legacy y.hat.pl_* point
+  # predictions duplicated predict() (harmonic/explog/quantile) but were not
+  # hurdle-aware (they mix with the raw prior state probabilities, not the
+  # hurdle-adjusted ones) -- cor() with the corresponding predict() output
+  # was as low as 0.9988 on a hurdle fit. No internal reader of
+  # object$fitted$y.hat.pl_* remained (grepped before removing); fitted()
+  # already routes through predict() rather than these fields.
   object$y.hat.plexpElogy <- NULL
-  object$fitted$y.hat.pl_E.inv.y <- object$y.hat.pl.E.inv.y
   object$y.hat.pl.E.inv.y <- NULL
-  object$fitted$y.hat.pl_median <- object$y.hat.plmedian
   object$y.hat.plmedian <- NULL
-  object$fitted$y.hat.pl_mean <- object$y.hat.plmean
   object$y.hat.plmean <- NULL
   object$fitted$mu.nb <- object$mu.nb.vec
   object$mu.nb.vec <- NULL

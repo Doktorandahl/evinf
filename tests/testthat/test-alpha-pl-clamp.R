@@ -20,6 +20,44 @@ test_that("predict(type = 'harmonic'/'explog') clamp near-zero alpha_pl and warn
   expect_true(all(is.finite(e)))
 })
 
+# round10 0.6 (review §4, decision D1): the alpha_pl_floor keeps
+# exp(1/alpha_pl) finite, not sane -- warn well before the floor bites.
+
+test_that("predict(type = 'explog') warns below 0.1 even when the floor is looser", {
+  m <- fit_evzinb_fast(bootstrap = FALSE, control = .fast_control(alpha_pl_floor = 0.001))
+  n <- nobs(m)
+  testthat::local_mocked_bindings(
+    fitted_alpha_from_evzinb = function(object, newdata = NULL, return_data = FALSE) {
+      tibble::tibble(pareto_alpha = c(0.05, rep(0.5, n - 1)))
+    },
+    .package = "evinf"
+  )
+  # 0.05 is above the (looser) 0.001 floor, so no clamp warning fires -- only
+  # the "effectively undefined" one, since explog is unusable there regardless.
+  expect_warning(e <- predict(m, type = "explog"), "1 fitted Pareto alpha value.*below 0\\.1")
+  expect_true(all(is.finite(e)))
+})
+
+test_that("predict(type = 'explog') does not warn when every alpha_pl is >= 0.1", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  n <- nobs(m)
+  testthat::local_mocked_bindings(
+    fitted_alpha_from_evzinb = function(object, newdata = NULL, return_data = FALSE) {
+      tibble::tibble(pareto_alpha = rep(0.5, n))
+    },
+    .package = "evinf"
+  )
+  expect_no_warning(predict(m, type = "explog"))
+})
+
+test_that("the legacy $fitted$y.hat.pl_* fields are gone (round10 0.6)", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  removed <- c("y.hat.pl_exp.E.logy", "y.hat.pl_E.inv.y", "y.hat.pl_median", "y.hat.pl_mean")
+  expect_false(any(removed %in% names(m$fitted)))
+  # fitted() still works, routed through predict() (unaffected by the removal).
+  expect_equal(unname(fitted(m)), unname(predict(m, type = "harmonic")))
+})
+
 test_that("evinf_control(alpha_pl_floor = ) is honoured end-to-end", {
   m <- fit_evzinb_fast(bootstrap = FALSE, control = .fast_control(alpha_pl_floor = 0.2))
   expect_equal(m$control$alpha_pl_floor, 0.2)
@@ -96,6 +134,4 @@ test_that("hks with a four-covariate specification yields finite predictions des
   for (ty in c("harmonic", "explog", "counts", "pareto_alpha")) {
     expect_true(all(is.finite(predict(m, type = ty))), info = ty)
   }
-  expect_true(all(is.finite(m$fitted$y.hat.pl_exp.E.logy)))
-  expect_true(all(is.finite(m$fitted$y.hat.pl_median)))
 })

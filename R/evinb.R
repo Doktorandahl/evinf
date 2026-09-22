@@ -251,13 +251,13 @@ run_evinb <- function(
   object$n_em_steps <- length(object$log.lik.vec.all)
 
   object$fitted <- list()
-  object$fitted$y.hat.pl_exp.E.logy <- object$y.hat.plexpElogy
+  # round10 0.6 (review §4/§7, breaking change): see the matching comment in
+  # run_evzinb() -- the legacy y.hat.pl_* point predictions duplicated
+  # predict() but were not hurdle-aware, and no internal reader of
+  # object$fitted$y.hat.pl_* remained.
   object$y.hat.plexpElogy <- NULL
-  object$fitted$y.hat.pl_E.inv.y <- object$y.hat.pl.E.inv.y
   object$y.hat.pl.E.inv.y <- NULL
-  object$fitted$y.hat.pl_median <- object$y.hat.plmedian
   object$y.hat.plmedian <- NULL
-  object$fitted$y.hat.pl_mean <- object$y.hat.plmean
   object$y.hat.plmean <- NULL
   object$fitted$mu.nb <- object$mu.nb.vec
   object$mu.nb.vec <- NULL

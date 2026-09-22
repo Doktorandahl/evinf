@@ -67,6 +67,16 @@ The likelihood, CDF, quantile prediction, residuals and
   closed-form approximation to the corresponding discretised-Pareto moments;
   this keeps existing point predictions unchanged but means they are not
   computed from exactly the same distribution as the rest of the model.
+
+  \code{type = 'explog'} is \eqn{C \cdot \exp(1/\alpha_{PL})}, which grows
+  explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0 --
+  \code{evinf_control(alpha_pl_floor = )} (default 0.01) keeps it finite,
+  but not sane (\eqn{C \cdot e^{100}} at the floor). A warning fires
+  whenever any \eqn{\alpha_{PL}} used in an explog prediction is below
+  0.1, since the prediction is effectively undefined well before the
+  floor is reached (\eqn{e^{10} \approx 2.2 \times 10^4}); check
+  \code{glance()$min_alpha_pl}, and prefer \code{type = 'harmonic'} when
+  this fires. No separate clamp is applied beyond \code{alpha_pl_floor}.
 }
 \section{Parallel processing}{
 

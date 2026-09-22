@@ -10,16 +10,17 @@ em_extend_design(x_obj, n)
 \item{x_obj}{List with elements \code{X.multinom.ZC}, \code{X.multinom.PL},
 \code{X.NB}, \code{X.PL} (each a numeric matrix \eqn{n \times p} without an
 intercept column, or \code{NULL}) and optionally \code{offset.nb},
-\code{offset.zc}, \code{offset.pl_mult} (round9 D.1) and \code{weights}
-(round9 D.2).}
+\code{offset.zc}, \code{offset.pl_mult} (round9 D.1), \code{weights}
+(round9 D.2) and \code{has_weights} (round10 0.5).}
 
 \item{n}{Number of observations.}
 }
 \value{
 A list with elements \code{zc}, \code{pl_mult}, \code{nb}, \code{pl}
   (the extended numeric matrices), \code{offset}, \code{offset_zc},
-  \code{offset_pl_mult} (length-\code{n} numeric, zero when not supplied)
-  and \code{weights} (length-\code{n} numeric, one when not supplied).
+  \code{offset_pl_mult} (length-\code{n} numeric, zero when not supplied),
+  \code{weights} (length-\code{n} numeric, one when not supplied) and
+  \code{has_weights} (logical, \code{FALSE} when not supplied).
 }
 \description{
 The C++ estimation routines (\code{log_lik_fun()}, \code{update_bfgs_fun()})
