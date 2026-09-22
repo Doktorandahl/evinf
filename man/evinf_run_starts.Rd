@@ -40,7 +40,8 @@ With \code{control$n_starts <= 1} (the default), this is a single,
 unperturbed call to \code{\link{em_fit}} -- bit-identical to before
 \code{n_starts} existed. With \code{control$n_starts > 1}, the default
 start (\code{ini.val} as given) plus \code{control$n_starts - 1} perturbed
-starts (see \code{\link{evinf_jitter_ini_val}}) each run through
+starts (\code{Beta.*} jittered by \code{N(0, start_jitter^2)}, \code{C}
+drawn uniformly from the candidate grid) each run through
 \code{em_fit()}, in parallel via \code{\link{evinf_pmap}} seeded from
 \code{start_seed}, and the replicate with the highest final
 log-likelihood is kept.
