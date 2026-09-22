@@ -49,6 +49,12 @@ Round-9 follow-ups (`dev/review_round9.md`):
   before `evinf_control(alpha_pl_floor = )`, default 0.01, clamps it to a
   finite but still absurd value). No separate clamp is applied; see
   `?predict.evzinb` (round10 0.6).
+* On near-Poisson data, a default (`nbinom`) fit no longer emits a stream of
+  `NA/Inf replaced by maximum positive value` warnings from the NB
+  dispersion line search. The search's `eta` interval is now shrunk (with a
+  small margin) so it never probes a negative `alpha_nb`, instead of relying
+  on `stats::optimise()` to silently recover from evaluating the
+  log-likelihood there; default-family fits are unaffected (round10 0.7).
 
 ## New features
 
