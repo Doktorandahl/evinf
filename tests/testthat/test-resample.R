@@ -166,6 +166,27 @@ test_that("lr_test(bootstrap = TRUE), compare_models() and oob_evaluation() run 
   expect_true("evinf" %in% names(oob))
 })
 
+test_that("glance() reports a fit-level oob_fraction summary for the block schemes (round10 0.9)", {
+  # review §7: $oob_fraction lives on each bootstrap replicate
+  # (evzinb.R/evinb.R's bootrun_evzinb()), not on the fit; glance() now
+  # rolls it up as oob_fraction_mean/_min/_max.
+  m <- fit_panel_evzinb("moving_block")
+  g <- glance(m)
+  expect_true(all(c("oob_fraction_mean", "oob_fraction_min", "oob_fraction_max") %in% names(g)))
+
+  fr <- vapply(m$bootstraps, function(b)
+    if (inherits(b, "try-error")) NA_real_ else b$oob_fraction, numeric(1))
+  fr <- fr[!is.na(fr)]
+  expect_equal(g$oob_fraction_mean, mean(fr))
+  expect_equal(g$oob_fraction_min, min(fr))
+  expect_equal(g$oob_fraction_max, max(fr))
+
+  # No bootstraps: NA, not an error.
+  m0 <- fit_evzinb_fast(bootstrap = FALSE)
+  g0 <- glance(m0)
+  expect_true(all(is.na(g0[c("oob_fraction_mean", "oob_fraction_min", "oob_fraction_max")])))
+})
+
 test_that("add_bootstraps() carries the panel scheme forward without re-emitting the block_length message per replicate", {
   m <- fit_panel_evzinb("moving_block")
   msgs <- character(0)
@@ -252,6 +273,35 @@ test_that("a bad `time` errors before any EM output is produced (no partial fit 
   # A real fit would be a list with class evzinb / $bootstraps -- confirm we
   # got the condition object back, not a (possibly try-errored) model.
   expect_false(inherits(result, "evzinb"))
+})
+
+test_that("time given without block warns (not errors) outside the block schemes when repeated (round10 0.9)", {
+  # review §7: moving_block/stationary already error on this (round10 0.4);
+  # for "iid"/"cluster", `time` never reaches evinf_resample_ids() at all,
+  # so the same forgotten-`block =` mistake would otherwise pass silently.
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  d$t <- rep(1:20, length.out = nrow(d))
+
+  expect_warning(
+    evzinb(y ~ x1 + x2, data = d, time = t, bootstrap = FALSE, verbose = FALSE),
+    "block.*may be missing"
+  )
+
+  # A genuine single time series (unique `time`, no `block`) is not ambiguous.
+  d2 <- genevzinb2
+  d2$t <- seq_len(nrow(d2))
+  expect_no_warning(suppressMessages(
+    evzinb(y ~ x1 + x2, data = d2, time = t, bootstrap = FALSE, verbose = FALSE)
+  ))
+
+  # `block` given: not ambiguous, even with repeated `time` across units.
+  d3 <- genevzinb2
+  d3$id <- rep(1:10, each = 10)
+  d3$t <- rep(1:10, times = 10)
+  expect_no_warning(suppressMessages(
+    evzinb(y ~ x1 + x2, data = d3, block = id, time = t, bootstrap = FALSE, verbose = FALSE)
+  ))
 })
 
 test_that("add_bootstraps() re-validates `time` (round10 0.4)", {

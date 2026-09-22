@@ -30,7 +30,11 @@ A one-row tibble of goodness-of-fit statistics: number of observations
   partition the number of replicates requested (see \code{\link{evinf_control}}
   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
   whose C_EV landed on a candidate-grid endpoint (informational, not counted
-  as degenerate).
+  as degenerate); \code{oob_fraction_mean}/\code{oob_fraction_min}/
+  \code{oob_fraction_max} (round10 0.9), the mean/min/max of each usable
+  replicate's out-of-bag row fraction (\code{NA} without bootstraps) --
+  most informative for the block schemes, where overlapping blocks change
+  how much of the data a replicate leaves out.
 }
 \description{
 EVZINB and EVINB glance functions

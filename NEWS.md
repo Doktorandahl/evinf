@@ -55,6 +55,22 @@ Round-9 follow-ups (`dev/review_round9.md`):
   small margin) so it never probes a negative `alpha_nb`, instead of relying
   on `stats::optimise()` to silently recover from evaluating the
   log-likelihood there; default-family fits are unaffected (round10 0.7).
+* `glance()` reports `oob_fraction_mean`/`oob_fraction_min`/
+  `oob_fraction_max` (`NA` without bootstraps), a fit-level summary across
+  usable bootstrap replicates of a quantity that previously lived only on
+  each replicate; most informative for the block schemes, where overlapping
+  blocks change how much of the data a replicate leaves out (round10 0.9).
+* `time` given without `block`, with repeated values, now warns (rather
+  than passing silently) for `bootstrap_scheme`s that don't use `time`
+  (`"iid"`/`"cluster"`) -- `"moving_block"`/`"stationary"` already error on
+  this (round10 0.4); `time` is otherwise unused for the other schemes, so
+  this is the same likely-missing-`block =` mistake surfacing outside the
+  case that errors (round10 0.9).
+* Tightened the hurdle zero-truncation second-derivative regression test
+  from a plain central finite difference (~1e-2 relative) to a
+  Richardson-extrapolated one (~1e-6 relative); documented the `pscl` sign
+  convention (`hurdle()`'s zero component models `P(Y > 0)`, evinf's models
+  the zero state directly) in `?evinf_family` (round10 0.9).
 * CI: `R-CMD-check.yaml`'s dependency-install step now retries once on
   failure and pins an explicit cache key, to absorb the RSPM binary
   download that has intermittently failed on its first attempt (seen on

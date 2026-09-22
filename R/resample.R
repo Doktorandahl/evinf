@@ -67,6 +67,23 @@ evinf_check_unit_time_order <- function(idx, time_vec, unit_label) {
 # likely cause.
 evinf_validate_time <- function(n, scheme, block_vec, time_vec) {
   if (!scheme %in% c("moving_block", "stationary")) {
+    # round10 0.9 (review §7): `time` given without `block` under a
+    # non-block scheme never reaches evinf_resample_ids() at all (`time` is
+    # simply unused for "iid"/"cluster") -- so the error above never fires,
+    # even when the data have repeated time values that look exactly like
+    # the same forgotten-`block =` mistake it guards against. Warn instead
+    # of erroring, since a non-block scheme genuinely doesn't need `time` to
+    # be meaningful.
+    if (is.null(block_vec) && !is.null(time_vec) && anyDuplicated(time_vec) > 0L) {
+      warning(
+        "`time` was given without `block`, and it has repeated values; ",
+        "bootstrap_scheme = \"", scheme, "\" does not use `time`, so this ",
+        "has no effect. If this is panel data, `block =` (and ",
+        "bootstrap_scheme = \"moving_block\"/\"stationary\" to actually ",
+        "resample within units) may be missing.",
+        call. = FALSE
+      )
+    }
     return(invisible(NULL))
   }
   units <- evinf_split_by_unit(n, block_vec)

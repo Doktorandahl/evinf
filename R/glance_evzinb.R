@@ -21,7 +21,11 @@
 #'   partition the number of replicates requested (see \code{\link{evinf_control}}
 #'   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
 #'   whose C_EV landed on a candidate-grid endpoint (informational, not counted
-#'   as degenerate).
+#'   as degenerate); \code{oob_fraction_mean}/\code{oob_fraction_min}/
+#'   \code{oob_fraction_max} (round10 0.9), the mean/min/max of each usable
+#'   replicate's out-of-bag row fraction (\code{NA} without bootstraps) --
+#'   most informative for the block schemes, where overlapping blocks change
+#'   how much of the data a replicate leaves out.
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -33,6 +37,7 @@
 #' }
 glance.evzinb <- function(x, ...) {
   boot <- evinf_boot_counts(x)
+  oob <- evinf_oob_fraction_summary(x)
 
   tibble::tibble(
     nobs = nrow(x$data$x.nb),
@@ -52,7 +57,10 @@ glance.evzinb <- function(x, ...) {
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps,
     n_degenerate_bootstraps = boot$n_degenerate_bootstraps,
-    n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary
+    n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary,
+    oob_fraction_mean = oob$oob_fraction_mean,
+    oob_fraction_min = oob$oob_fraction_min,
+    oob_fraction_max = oob$oob_fraction_max
   )
 }
 
@@ -79,7 +87,11 @@ glance.evzinb <- function(x, ...) {
 #'   partition the number of replicates requested (see \code{\link{evinf_control}}
 #'   for "degenerate") --- and \code{n_c_on_boundary}, the number of replicates
 #'   whose C_EV landed on a candidate-grid endpoint (informational, not counted
-#'   as degenerate).
+#'   as degenerate); \code{oob_fraction_mean}/\code{oob_fraction_min}/
+#'   \code{oob_fraction_max} (round10 0.9), the mean/min/max of each usable
+#'   replicate's out-of-bag row fraction (\code{NA} without bootstraps) --
+#'   most informative for the block schemes, where overlapping blocks change
+#'   how much of the data a replicate leaves out.
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -91,6 +103,7 @@ glance.evzinb <- function(x, ...) {
 #' }
 glance.evinb <- function(x, ...) {
   boot <- evinf_boot_counts(x)
+  oob <- evinf_oob_fraction_summary(x)
 
   tibble::tibble(
     nobs = nrow(x$data$x.nb),
@@ -110,8 +123,33 @@ glance.evinb <- function(x, ...) {
     n_bootstraps = boot$n_bootstraps,
     n_failed_bootstraps = boot$n_failed_bootstraps,
     n_degenerate_bootstraps = boot$n_degenerate_bootstraps,
-    n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary
+    n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary,
+    oob_fraction_mean = oob$oob_fraction_mean,
+    oob_fraction_min = oob$oob_fraction_min,
+    oob_fraction_max = oob$oob_fraction_max
   )
+}
+
+# Fit-level oob_fraction summary across usable bootstrap replicates (round10
+# 0.9, review §7): oob_fraction is stored on each replicate
+# (evzinb.R/evinb.R's bootrun_*()), not on the fit -- this rolls it up for
+# glance(). It matters most for the block schemes (moving_block/stationary),
+# since overlapping blocks change the out-of-bag set's size relative to
+# iid/cluster resampling, but is computed for any bootstrapped fit.
+evinf_oob_fraction_summary <- function(x) {
+  none <- list(oob_fraction_mean = NA_real_, oob_fraction_min = NA_real_,
+              oob_fraction_max = NA_real_)
+  if (is.null(x$bootstraps)) {
+    return(none)
+  }
+  ok <- Filter(function(z) !inherits(z, "try-error") && !is.null(z$oob_fraction),
+              x$bootstraps)
+  if (length(ok) == 0) {
+    return(none)
+  }
+  fr <- vapply(ok, function(z) z$oob_fraction, numeric(1))
+  list(oob_fraction_mean = mean(fr), oob_fraction_min = min(fr),
+       oob_fraction_max = max(fr))
 }
 
 # Bootstrap replicate counts, or NA when the model was fitted without
