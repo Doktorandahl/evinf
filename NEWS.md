@@ -4,6 +4,35 @@ Implements audit §5.6 (offsets and weights), §5.5 (model families) and §5.7
 (panel/time-series resampling): work packages D, E and F of
 `dev/plan_0.12_families_offsets_panel.md`.
 
+## Bug fixes
+
+Round-9 follow-ups (`dev/review_round9.md`):
+
+* `lr_test()` refits now carry the full model's `weights`, `family` and
+  every `offset()` term. Previously a weighted fit's restricted
+  log-likelihood came from an unweighted refit (silently wrong, occasionally
+  a negative LR statistic), a Poisson or hurdle fit's restricted refit
+  errored or compared against the wrong nested model, and an offset model's
+  restricted formula silently dropped its offset (round10 0.1).
+* `compare_models()`'s NB/ZINB/Poisson/ZIP competitor baselines -- including
+  winsorised/razorised variants and every bootstrap refit -- are now fitted
+  with the same `weights` as the evzinb/evinb model, so `compare_fit()`'s
+  AIC/BIC comparisons are no longer between a weighted and an unweighted
+  likelihood (round10 0.2).
+* `evzinb()`/`evinb()`/`add_bootstraps()` now validate `time` against
+  `block` once, up front, before any fitting. Previously a duplicated or
+  out-of-order `time` under `bootstrap_scheme = "moving_block"`/
+  `"stationary"` let the full-sample fit complete and only surfaced as every
+  bootstrap replicate failing; the error now fires immediately and, when
+  `time` was given without `block`, names that as the likely cause
+  (round10 0.4).
+* Default (unweighted) fits are bit-identical again to before round9 D.2's
+  weights code (verified directly against `b63b302` for `genevzinb2` and
+  `hks`, both `evzinb()` and `evinb()`); a residual of at most a couple of
+  ULPs can remain on other inputs, down from up to 8.6e-8. See
+  `has_weights` in `src/evinf.cpp` and `test-weights.R`'s round10 0.5 tests
+  (round10 0.5).
+
 ## New features
 
 * `evzinb()` / `evinb()` gain `family = `, an `evinf_family()` object (or a

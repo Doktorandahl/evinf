@@ -222,7 +222,7 @@ em_fit <- function(y, x.obj, ini.val, control,
     final.val$Alpha.NB, final.val$Beta.PL, final.val$C,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
     ext$offset_zc, ext$offset_pl_mult, ext$weights, evinf_family_count_code(family),
-    evinf_family_zero_code(family)
+    evinf_family_zero_code(family), ext$has_weights
   )
   loglik_recomputed <- isTRUE(is.finite(ll.at.par) &&
                                 abs(ll.at.par - func.val) > 1e-6)

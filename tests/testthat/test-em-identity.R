@@ -58,6 +58,13 @@ gf_id <- local({
   d
 })
 
+# round10 0.5 (review §5): this 1e-8 gate is unchanged, but is worth a note
+# now that it also covers round9 D.2's weights code (has_weights in
+# src/evinf.cpp). Default fits are bit-identical to before D.2 wherever
+# checked directly (genevzinb2/hks, evzinb/evinb) and within a couple of
+# ULPs (~1e-13) everywhere else, from up to 8.6e-8 before the fix -- see
+# test-weights.R's own round10 0.5 tests and their header comment for why a
+# residual can remain on some inputs (compiler codegen, not arithmetic).
 test_that("evzinb() estimation is identical after the em_*.R refactor", {
   m <- fit_z_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = FALSE)
   expect_fit_equal(capture_fit_id(m), "em_baseline_evzinb.rds", 1e-8)

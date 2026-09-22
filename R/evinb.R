@@ -113,6 +113,10 @@ run_evinb <- function(
   OBS.X.obj$offset.nb <- offset_nb
   OBS.X.obj$offset.pl_mult <- offset_pl_mult
   OBS.X.obj$weights <- weights_vec
+  # round10 0.5: `weights` here is still the R-level argument (a column name
+  # or NULL), not weights_vec -- has_weights is TRUE only when the user
+  # actually supplied weights, never merely because weights_vec is all 1s.
+  OBS.X.obj$has_weights <- !is.null(weights)
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_nb <- ncol(d_nb$X) + 1L
@@ -191,6 +195,7 @@ run_evinb <- function(
   object$offset_nb <- offset_nb
   object$offset_pl_mult <- offset_pl_mult
   object$weights <- weights_vec
+  object$has_weights <- !is.null(weights)
   object$data <- list()
 
   object$data$data <- model_data
@@ -317,6 +322,7 @@ bootrun_evinb <- function(
     object$offset_pl_mult[boot_id]
   OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
     object$weights[boot_id]
+  OBS.X.obj$has_weights <- isTRUE(object$has_weights)  # round10 0.5
   Control <- object$control
 
   Ini.Val <- list()

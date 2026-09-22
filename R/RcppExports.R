@@ -41,15 +41,15 @@ d2elldbeta2_pl_i_fun_exact <- function(beta_pl, c_pl, x_pl_ext_i, y_i) {
     .Call(`_evinf_d2elldbeta2_pl_i_fun_exact`, beta_pl, c_pl, x_pl_ext_i, y_i)
 }
 
-log_lik_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, family_zero = 0L) {
-    .Call(`_evinf_log_lik_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count, family_zero)
+log_lik_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, family_zero = 0L, has_weights = TRUE) {
+    .Call(`_evinf_log_lik_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count, family_zero, has_weights)
 }
 
-log_lik_profile_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, family_zero = 0L) {
-    .Call(`_evinf_log_lik_profile_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count, family_zero)
+log_lik_profile_fun <- function(gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, family_zero = 0L, has_weights = TRUE) {
+    .Call(`_evinf_log_lik_profile_fun`, gamma_z, gamma_pl, beta_nb, alpha_nb, beta_pl, c_candidates, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, offset_nb, offset_zc, offset_pl_mult, w, family_count, family_zero, has_weights)
 }
 
-update_bfgs_fun <- function(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, exact_pl = FALSE, family_zero = 0L) {
-    .Call(`_evinf_update_bfgs_fun`, gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, family_count, exact_pl, family_zero)
+update_bfgs_fun <- function(gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, family_count = 0L, exact_pl = FALSE, family_zero = 0L, has_weights = TRUE) {
+    .Call(`_evinf_update_bfgs_fun`, gamma_z_in, gamma_pl_in, beta_nb_in, alpha_nb_in, beta_pl_in, c_pl, x_mult_z_ext, x_mult_pl_ext, x_nb_ext, x_pl_ext, y, max_upd_par, no_m_bfgs_steps, offset_nb, offset_zc, offset_pl_mult, w, family_count, exact_pl, family_zero, has_weights)
 }
 

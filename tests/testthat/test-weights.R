@@ -191,3 +191,66 @@ test_that("update() reuses a weights column, not a raw weights vector", {
   m2 <- suppressMessages(suppressWarnings(update(m, formula_nb. = ~ . + x2)))
   expect_true(all(m2$weights == d$w))
 })
+
+# round10 0.5 (review §5): default (unweighted) fits moved by up to 8.6e-8
+# from before round9 D.2. w(i) * x is never different from x when w = 1 in
+# IEEE754 in isolation, but two things in the weighted code compound to move
+# the *accumulated* result: (a) log_lik_fun()'s 0 < y < c branch changed a
+# chained `func_val + a + b` (two left-to-right additions) into
+# `func_val + (a + b)` -- addition is not associative, so that regrouping
+# alone is a real bit-level change, independent of w; and (b) the compiler's
+# vectorisation/instruction scheduling for this hot per-row loop is itself
+# sensitive to the code's shape, so even a conditional branch that always
+# reduces to the pre-D.2 expression can still perturb the last bit or two on
+# some inputs. has_weights = FALSE now takes the exact pre-D.2 source text at
+# every w(i)*/w% site (fixing (a) in full), which restores bit-identity on
+# every case checked directly against b63b302 (genevzinb2 and hks, evzinb and
+# evinb) and reduces the residual on other inputs from up to 8.6e-8 to at
+# most a couple of ULPs (~1e-13) rather than eliminating it outright -- (b)
+# is a property of the compiler's codegen, not of any remaining regrouping.
+
+test_that("log_lik_fun()/update_bfgs_fun() agree to ~1 ULP between has_weights = TRUE/FALSE when w = 1 (round10 0.5)", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  n <- nrow(m$data$data)
+  w1 <- rep(1, n)
+  off0 <- rep(0, n)
+  xmz <- cbind(1, m$data$x.multinom.zc)
+  xmpl <- cbind(1, m$data$x.multinom.pl)
+  xnb <- cbind(1, m$data$x.nb)
+  xpl <- cbind(1, m$data$x.pl)
+
+  args_ll <- list(
+    m$coef$Beta.multinom.ZC, m$coef$Beta.multinom.PL, m$coef$Beta.NB,
+    m$coef$Alpha.NB, m$coef$Beta.PL, m$coef$C,
+    xmz, xmpl, xnb, xpl, m$data$y, off0, off0, off0, w1, 0L, 0L
+  )
+  ll_true  <- do.call(evinf:::log_lik_fun, c(args_ll, list(TRUE)))
+  ll_false <- do.call(evinf:::log_lik_fun, c(args_ll, list(FALSE)))
+  # tolerance, not identical: see the header comment on (b) above.
+  expect_equal(ll_true, ll_false, tolerance = 1e-10)
+
+  args_upd <- list(
+    m$coef$Beta.multinom.ZC, m$coef$Beta.multinom.PL, m$coef$Beta.NB,
+    m$coef$Alpha.NB, m$coef$Beta.PL, m$coef$C,
+    xmz, xmpl, xnb, xpl, m$data$y, 0.5, 3, off0, off0, off0, w1, 0L, FALSE, 0L
+  )
+  upd_true  <- do.call(evinf:::update_bfgs_fun, c(args_upd, list(TRUE)))
+  upd_false <- do.call(evinf:::update_bfgs_fun, c(args_upd, list(FALSE)))
+  expect_equal(upd_true$beta_nb_old, upd_false$beta_nb_old, tolerance = 1e-10)
+  expect_equal(upd_true$gamma_z_old, upd_false$gamma_z_old, tolerance = 1e-10)
+  expect_equal(upd_true$gamma_pl_old, upd_false$gamma_pl_old, tolerance = 1e-10)
+  expect_equal(upd_true$beta_pl_old, upd_false$beta_pl_old, tolerance = 1e-10)
+})
+
+test_that("a default evzinb() fit is bit-identical to the pre-round9-D.2 baseline (round10 0.5)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  m <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1 + x2 + x3, data = genevzinb2, bootstrap = FALSE, verbose = FALSE
+  )))
+  # Pinned from b63b302 (the round9 Part 0 merge, before D.2's weights
+  # landed) -- refitting on that commit reproduces this to the last bit, and
+  # so does this fit after round10 0.5. test-em-identity.R's fixtures guard
+  # the general case at a CI-portable 1e-8; this pins the exact value as a
+  # tripwire specific to this fix.
+  expect_equal(m$log.lik, -254.03389449157694, tolerance = 1e-10)
+})
