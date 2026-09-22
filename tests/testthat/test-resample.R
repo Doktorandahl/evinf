@@ -201,3 +201,64 @@ test_that("evinb() supports bootstrap_scheme = moving_block/stationary the same 
     expect_true(is.numeric(b$oob_fraction))
   }
 })
+
+# --- round10 0.4 (review §3): validate `time` up front, not per replicate --
+
+test_that("evzinb()/evinb() error on a bad `time` before any fitting, not per bootstrap replicate", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  # `time` given without `block`: the whole data set is one unit, and this
+  # time column repeats within it -- the common "forgot block =" mistake.
+  d$t <- rep(1:20, length.out = nrow(d))
+
+  expect_error(
+    evzinb(y ~ x1 + x2, data = d, time = t, bootstrap_scheme = "moving_block",
+           n_bootstraps = 3, verbose = FALSE),
+    "block.*is missing"
+  )
+  expect_error(
+    evinb(y ~ x1 + x2, data = d, time = t, bootstrap_scheme = "moving_block",
+          n_bootstraps = 3, verbose = FALSE),
+    "block.*is missing"
+  )
+
+  # Rows out of (block, time) order: no evidence of a missing `block`, since
+  # one was given -- just an ordinary "sort your data" error.
+  d2 <- genevzinb2
+  d2$id <- rep(1:10, each = 10)
+  d2$tm <- rep(1:10, times = 10)
+  d2 <- d2[sample(nrow(d2)), ]
+  err <- tryCatch(
+    evzinb(y ~ x1 + x2, data = d2, block = id, time = tm,
+           bootstrap_scheme = "moving_block", n_bootstraps = 3, verbose = FALSE),
+    error = function(e) e
+  )
+  expect_s3_class(err, "error")
+  expect_match(conditionMessage(err), "not strictly increasing")
+  expect_false(grepl("block.*is missing", conditionMessage(err)))
+})
+
+test_that("a bad `time` errors before any EM output is produced (no partial fit escapes)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  d$t <- rep(1:20, length.out = nrow(d))
+
+  result <- tryCatch(
+    evzinb(y ~ x1 + x2, data = d, time = t, bootstrap_scheme = "moving_block",
+           n_bootstraps = 3, verbose = FALSE),
+    error = function(e) e
+  )
+  expect_s3_class(result, "error")
+  # A real fit would be a list with class evzinb / $bootstraps -- confirm we
+  # got the condition object back, not a (possibly try-errored) model.
+  expect_false(inherits(result, "evzinb"))
+})
+
+test_that("add_bootstraps() re-validates `time` (round10 0.4)", {
+  m <- fit_panel_evzinb("moving_block")
+  # Corrupt the stored time vector the way a duplicated/out-of-order `time`
+  # under moving_block would have looked, had the upfront check not caught
+  # it at the original fit -- add_bootstraps() must catch it too.
+  m$time_vec[2] <- m$time_vec[1]
+  expect_error(add_bootstraps(m, 2, boot_seed = 999), "not strictly increasing")
+})

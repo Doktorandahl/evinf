@@ -58,6 +58,9 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = NULL,
   runner <- if (inherits(object, "evzinb")) bootrun_evzinb else bootrun_evinb
   block2 <- object$block_vec
   time2 <- object$time_vec
+  # round10 0.4: re-validate here too (defense-in-depth; the original fit
+  # already passed this at evzinb()/evinb() time) -- see evinf_validate_time().
+  evinf_validate_time(nrow(object$data$data), object$bootstrap_scheme, block2, time2)
   start <- length(object$bootstraps)
   boot_spec <- evinf_boot_spec(object)
 

@@ -72,6 +72,15 @@ run_evinb <- function(
     dplyr::select(dplyr::all_of(model_vars)) %>%
     na.omit()
 
+  # round10 0.4 (review §3): validate `time` against `block` once, here,
+  # before any EM fitting -- see evinf_validate_time()'s comment in
+  # R/resample.R.
+  evinf_validate_time(
+    nrow(model_data), bootstrap_scheme,
+    if (!is.null(block)) model_data[[block]] else NULL,
+    if (!is.null(time)) model_data[[time]] else NULL
+  )
+
   d_nb <- evinf_design(formula_nb, model_data)
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
