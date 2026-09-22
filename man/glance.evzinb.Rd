@@ -34,7 +34,13 @@ A one-row tibble of goodness-of-fit statistics: number of observations
   \code{oob_fraction_max} (round10 0.9), the mean/min/max of each usable
   replicate's out-of-bag row fraction (\code{NA} without bootstraps) --
   most informative for the block schemes, where overlapping blocks change
-  how much of the data a replicate leaves out.
+  how much of the data a replicate leaves out; \code{n_starts}/
+  \code{n_starts_at_best} (round10 G.1, \code{NA} for \code{n_starts <= 1}),
+  how many perturbed starts were tried and how many of them reached the
+  winning log-likelihood (within 1e-4); \code{median_boot_em_steps}/
+  \code{n_boot_c_capped} (round10 G.3, \code{NA} without bootstraps), the
+  median EM step count across usable replicates and how many had their
+  C_EV profile hit \code{max.c.iter} without settling in either phase.
 }
 \description{
 EVZINB and EVINB glance functions

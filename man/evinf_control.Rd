@@ -28,7 +28,9 @@ evinf_control(
   alpha_floor = 0.001,
   coef_limit = 50,
   max.c.iter = 50,
-  alpha_pl_floor = 0.01
+  alpha_pl_floor = 0.01,
+  n_starts = 1L,
+  start_jitter = 0.5
 )
 }
 \arguments{
@@ -112,6 +114,24 @@ clamped to it before these calculations, with a \code{warning()} naming
 how many observations were clamped; the unclamped values are still what
 \code{glance()}'s \code{min_alpha_pl} and \code{print()}'s note report, so
 a collapsed EV shape stays visible.}
+
+\item{n_starts}{Number of starting points for the full-sample fit (round10
+G.1, audit §5.10). \code{1} (the default) fits once from the default
+start, exactly as before this argument existed. With \code{n_starts >
+1}, that default start plus \code{n_starts - 1} perturbed starts each
+run through the EM (in parallel via \code{\link{evinf_pmap}}, seeded
+from \code{start_seed}), and the replicate with the highest final
+log-likelihood is kept -- the EM can land in different local optima
+depending on floating-point accumulation order, and multiple starts are
+the principled response. Every replicate's outcome is recorded in
+\code{object$starts}; bootstrap replicates warm-start from the winning
+solution, same as they would from a single-start fit.}
+
+\item{start_jitter}{Standard deviation of the \code{N(0, start_jitter^2)}
+perturbation applied to each component's starting coefficients for the
+\code{n_starts - 1} perturbed starts; their starting \eqn{C_{EV}} is
+drawn uniformly from the candidate grid instead. Unused when
+\code{n_starts <= 1}.}
 }
 \value{
 A list of class \code{"evinf_control"}.

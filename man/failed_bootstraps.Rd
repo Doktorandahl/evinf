@@ -10,9 +10,16 @@ failed_bootstraps(object)
 \item{object}{A fitted \code{evzinb} / \code{evinb} model.}
 }
 \value{
-A tibble with columns \code{id}, \code{type} (\code{"error"} or
-  \code{"degenerate"}) and \code{message} (the error text, or the reason the
-  replicate is degenerate); zero rows when every replicate is usable.
+A tibble with columns \code{id}, \code{type} (\code{"error"},
+  \code{"degenerate"} or \code{"not_converged"} -- round10 G.3: a replicate
+  that ran without erroring and isn't degenerate, but whose \code{converge}
+  is \code{FALSE}, was previously invisible here), \code{message} (the
+  error text, the degeneracy reason, or \code{NA} for
+  \code{"not_converged"} -- see \code{n_em_steps}/\code{c_converged}/
+  \code{c_warmup_capped} there instead) and, for \code{"not_converged"}
+  rows, \code{n_em_steps}, \code{c_converged}, \code{c_warmup_capped}
+  (\code{NA} for \code{"error"}/\code{"degenerate"} rows); zero rows when
+  every replicate is usable and converged.
 }
 \description{
 Bootstrap fits that error are kept as \code{try-error} objects rather than

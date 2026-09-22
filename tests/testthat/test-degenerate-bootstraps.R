@@ -142,7 +142,9 @@ test_that("alpha_floor flags replicates and every summary drops them by default"
 
   # failed_bootstraps(): type column, all "degenerate"
   fb <- failed_bootstraps(m)
-  expect_named(fb, c("id", "type", "message"))
+  # round10 G.3 added n_em_steps/c_converged/c_warmup_capped columns.
+  expect_named(fb, c("id", "type", "message", "n_em_steps", "c_converged",
+                     "c_warmup_capped"))
   expect_equal(nrow(fb), 5L)
   expect_true(all(fb$type == "degenerate"))
 

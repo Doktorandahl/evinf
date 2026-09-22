@@ -37,7 +37,14 @@ evinf_scale_log1p <- function(axis = c("x", "y"),
 #'     observed sample quantiles for probabilities
 #'     \code{c(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)} against the median simulated
 #'     quantile (with a 5-95\% band across simulations) on \code{log1p} axes,
-#'     with a 45-degree reference line.
+#'     with a 45-degree reference line;
+#'   \code{"trace"} (round10 G.2, audit §5.10) - the log-likelihood
+#'     (\code{$loglik_trace}) and \eqn{C_{EV}} (\code{$c_trace}) traces, in two
+#'     stacked panels with the warm-up/convergence boundary marked (dashed
+#'     line). With \code{evinf_control(n_starts > 1)}, every perturbed
+#'     start's trace is overlaid in grey behind the winning start's, in black
+#'     (traces are only stored per-start when \code{n_starts > 1}, to keep a
+#'     single-start object the same size as before this type existed).
 #' @param variable Covariate to vary (required for \code{"states"} and
 #'   \code{"prediction"}).
 #' @param quantiles Quantiles to draw for \code{type = "prediction"}.
@@ -61,7 +68,7 @@ evinf_scale_log1p <- function(axis = c("x", "y"),
 #' plot(hks_mod, type = "prediction", variable = "troopLag")
 #' }
 plot.evzinb <- function(x, type = c("states", "prediction", "coefficients",
-                                    "ppc", "ppc_quantiles"),
+                                    "ppc", "ppc_quantiles", "trace"),
                         variable = NULL, quantiles = c(0.5, 0.95), ...) {
   rlang::check_installed("ggplot2", "for plot.evzinb() / plot.evinb()")
   type <- match.arg(type)
@@ -71,7 +78,8 @@ plot.evzinb <- function(x, type = c("states", "prediction", "coefficients",
     prediction = evinf_plot_prediction(x, variable, quantiles, ...),
     coefficients = evinf_plot_coefficients(x),
     ppc = evinf_plot_ppc(x),
-    ppc_quantiles = evinf_plot_ppc_quantiles(x)
+    ppc_quantiles = evinf_plot_ppc_quantiles(x),
+    trace = evinf_plot_trace(x)
   )
 }
 
@@ -209,5 +217,61 @@ evinf_plot_ppc_quantiles <- function(x) {
                   y = "simulated quantile (log1p scale)",
                   title = paste("Posterior predictive check: tail quantiles",
                                 "(5-95% band across simulations)")) +
+    ggplot2::theme_minimal()
+}
+
+# round10 G.2 (audit §5.10): the log-likelihood ($loglik_trace) and C_EV
+# ($c_trace) traces, stacked via facet_wrap() (one row per panel) rather
+# than a second plotting package -- no new dependency. With n_starts > 1
+# every perturbed start's own trace ($starts$loglik_trace/$c_trace, stored
+# only in that case -- see evinf_run_starts()) is overlaid in grey behind
+# the winning start's, in black.
+evinf_plot_trace <- function(x) {
+  if (is.null(x$loglik_trace) || is.null(x$c_trace)) {
+    stop("type = \"trace\" needs a fit with $loglik_trace / $c_trace.",
+         call. = FALSE)
+  }
+  trace_df <- function(ll, ct, label) {
+    dplyr::bind_rows(
+      tibble::tibble(step = seq_along(ll), value = ll,
+                     panel = "log-likelihood", start = label),
+      tibble::tibble(step = seq_along(ct), value = ct,
+                     panel = "C_EV", start = label)
+    )
+  }
+  dat <- trace_df(x$loglik_trace, x$c_trace, "best")
+
+  if (!is.null(x$starts)) {
+    others <- dplyr::bind_rows(lapply(seq_len(nrow(x$starts)), function(i) {
+      trace_df(x$starts$loglik_trace[[i]], x$starts$c_trace[[i]],
+              paste0("start ", i))
+    }))
+    dat <- dplyr::bind_rows(others, dat)
+  }
+  dat$panel <- factor(dat$panel, levels = c("log-likelihood", "C_EV"))
+
+  vlines <- tibble::tibble(
+    panel = factor(c("log-likelihood", "C_EV"), levels = c("log-likelihood", "C_EV")),
+    xintercept = c(x$n_loglik_warmup %||% NA_integer_, x$n_c_iter_warmup %||% NA_integer_)
+  )
+  vlines <- vlines[is.finite(vlines$xintercept) & vlines$xintercept > 0, ]
+
+  p <- ggplot2::ggplot(dat, ggplot2::aes(.data$step, .data$value, group = .data$start))
+  if (!is.null(x$starts)) {
+    p <- p + ggplot2::geom_line(
+      data = dat[dat$start != "best", ], colour = "grey70", alpha = 0.6
+    )
+  }
+  p <- p + ggplot2::geom_line(data = dat[dat$start == "best", ], colour = "black")
+  if (nrow(vlines)) {
+    p <- p + ggplot2::geom_vline(
+      data = vlines, ggplot2::aes(xintercept = .data$xintercept),
+      linetype = "dashed", colour = "grey40"
+    )
+  }
+  p +
+    ggplot2::facet_wrap(ggplot2::vars(.data$panel), ncol = 1, scales = "free_y") +
+    ggplot2::labs(x = "EM step", y = NULL,
+                  title = "EM trace (dashed: warm-up / convergence boundary)") +
     ggplot2::theme_minimal()
 }

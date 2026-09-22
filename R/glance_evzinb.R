@@ -25,7 +25,13 @@
 #'   \code{oob_fraction_max} (round10 0.9), the mean/min/max of each usable
 #'   replicate's out-of-bag row fraction (\code{NA} without bootstraps) --
 #'   most informative for the block schemes, where overlapping blocks change
-#'   how much of the data a replicate leaves out.
+#'   how much of the data a replicate leaves out; \code{n_starts}/
+#'   \code{n_starts_at_best} (round10 G.1, \code{NA} for \code{n_starts <= 1}),
+#'   how many perturbed starts were tried and how many of them reached the
+#'   winning log-likelihood (within 1e-4); \code{median_boot_em_steps}/
+#'   \code{n_boot_c_capped} (round10 G.3, \code{NA} without bootstraps), the
+#'   median EM step count across usable replicates and how many had their
+#'   C_EV profile hit \code{max.c.iter} without settling in either phase.
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -38,6 +44,8 @@
 glance.evzinb <- function(x, ...) {
   boot <- evinf_boot_counts(x)
   oob <- evinf_oob_fraction_summary(x)
+  starts <- evinf_n_starts_at_best(x)
+  boot_conv <- evinf_boot_convergence_summary(x)
 
   tibble::tibble(
     nobs = nrow(x$data$x.nb),
@@ -60,7 +68,11 @@ glance.evzinb <- function(x, ...) {
     n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary,
     oob_fraction_mean = oob$oob_fraction_mean,
     oob_fraction_min = oob$oob_fraction_min,
-    oob_fraction_max = oob$oob_fraction_max
+    oob_fraction_max = oob$oob_fraction_max,
+    n_starts = starts$n_starts,
+    n_starts_at_best = starts$n_starts_at_best,
+    median_boot_em_steps = boot_conv$median_boot_em_steps,
+    n_boot_c_capped = boot_conv$n_boot_c_capped
   )
 }
 
@@ -91,7 +103,13 @@ glance.evzinb <- function(x, ...) {
 #'   \code{oob_fraction_max} (round10 0.9), the mean/min/max of each usable
 #'   replicate's out-of-bag row fraction (\code{NA} without bootstraps) --
 #'   most informative for the block schemes, where overlapping blocks change
-#'   how much of the data a replicate leaves out.
+#'   how much of the data a replicate leaves out; \code{n_starts}/
+#'   \code{n_starts_at_best} (round10 G.1, \code{NA} for \code{n_starts <= 1}),
+#'   how many perturbed starts were tried and how many of them reached the
+#'   winning log-likelihood (within 1e-4); \code{median_boot_em_steps}/
+#'   \code{n_boot_c_capped} (round10 G.3, \code{NA} without bootstraps), the
+#'   median EM step count across usable replicates and how many had their
+#'   C_EV profile hit \code{max.c.iter} without settling in either phase.
 #' @seealso \code{\link[generics]{glance}}
 #' @export
 #'
@@ -104,6 +122,8 @@ glance.evzinb <- function(x, ...) {
 glance.evinb <- function(x, ...) {
   boot <- evinf_boot_counts(x)
   oob <- evinf_oob_fraction_summary(x)
+  starts <- evinf_n_starts_at_best(x)
+  boot_conv <- evinf_boot_convergence_summary(x)
 
   tibble::tibble(
     nobs = nrow(x$data$x.nb),
@@ -126,8 +146,44 @@ glance.evinb <- function(x, ...) {
     n_c_on_boundary = if (is.null(x$n_c_on_boundary)) NA_integer_ else x$n_c_on_boundary,
     oob_fraction_mean = oob$oob_fraction_mean,
     oob_fraction_min = oob$oob_fraction_min,
-    oob_fraction_max = oob$oob_fraction_max
+    oob_fraction_max = oob$oob_fraction_max,
+    n_starts = starts$n_starts,
+    n_starts_at_best = starts$n_starts_at_best,
+    median_boot_em_steps = boot_conv$median_boot_em_steps,
+    n_boot_c_capped = boot_conv$n_boot_c_capped
   )
+}
+
+# Multi-start summary (round10 G.1): how many of object$starts's replicates
+# reached the winning log-likelihood, within 1e-4 -- NA (not 1-of-1) for a
+# single-start fit, where $starts is NULL.
+evinf_n_starts_at_best <- function(x) {
+  if (is.null(x$starts)) {
+    return(list(n_starts = NA_integer_, n_starts_at_best = NA_integer_))
+  }
+  best <- max(x$starts$loglik)
+  list(n_starts = nrow(x$starts),
+       n_starts_at_best = sum(abs(x$starts$loglik - best) < 1e-4))
+}
+
+# Per-bootstrap convergence summary across usable replicates (round10 G.3,
+# audit §5.10): median_boot_em_steps, and n_boot_c_capped (replicates whose
+# C_EV profile hit max.c.iter without settling, in either phase --
+# c_warmup_capped or a FALSE c_converged).
+evinf_boot_convergence_summary <- function(x) {
+  none <- list(median_boot_em_steps = NA_real_, n_boot_c_capped = NA_integer_)
+  if (is.null(x$bootstraps)) {
+    return(none)
+  }
+  ok <- evinf_usable_bootstraps(x)
+  if (length(ok) == 0) {
+    return(none)
+  }
+  steps <- vapply(ok, function(z) z$n_em_steps %||% NA_integer_, integer(1))
+  capped <- vapply(ok, function(z)
+    isTRUE(z$c_warmup_capped) || !isTRUE(z$c_converged), logical(1))
+  list(median_boot_em_steps = stats::median(steps, na.rm = TRUE),
+       n_boot_c_capped = sum(capped))
 }
 
 # Fit-level oob_fraction summary across usable bootstrap replicates (round10
