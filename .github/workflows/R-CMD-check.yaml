@@ -40,10 +40,27 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
+      # round10 0.8 (review §7): a truncated RSPM binary download (seen on
+      # macOS) failed the dependency step on the first attempt of every PR,
+      # though a later run always passed. An explicit cache-version pins a
+      # cache key for this step (r-lib/actions caches per-OS/r-version
+      # already, but this makes the key -- and any future manual bust of it
+      # -- explicit), and the retry-on-failure step below covers a fresh,
+      # uncached run where the download itself is flaky.
       - uses: r-lib/actions/setup-r-dependencies@v2
+        id: setup-r-deps
+        continue-on-error: true
         with:
           extra-packages: any::rcmdcheck
           needs: check
+          cache-version: 1
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        if: steps.setup-r-deps.outcome == 'failure'
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+          cache-version: 1
 
       - uses: r-lib/actions/check-r-package@v2
         with:

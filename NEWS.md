@@ -55,6 +55,14 @@ Round-9 follow-ups (`dev/review_round9.md`):
   small margin) so it never probes a negative `alpha_nb`, instead of relying
   on `stats::optimise()` to silently recover from evaluating the
   log-likelihood there; default-family fits are unaffected (round10 0.7).
+* CI: `R-CMD-check.yaml`'s dependency-install step now retries once on
+  failure and pins an explicit cache key, to absorb the RSPM binary
+  download that has intermittently failed on its first attempt (seen on
+  macOS). Added `^\.claude$` to `.Rbuildignore` so a local `.claude`
+  directory cannot produce an `R CMD check` NOTE or leak into a submitted
+  tarball. `test-coverage.yaml` already references
+  `secrets.CODECOV_TOKEN`; that repository secret still needs to be created
+  in GitHub settings for Codecov to report a figure (round10 0.8).
 
 ## New features
 
