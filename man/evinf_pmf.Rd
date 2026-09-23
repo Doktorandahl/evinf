@@ -5,9 +5,21 @@
 \alias{evinf_cdf}
 \title{The predictive distribution of a fitted evzinb / evinb model}
 \usage{
-evinf_pmf(object, newdata = NULL, y = NULL, support = NULL)
+evinf_pmf(
+  object,
+  newdata = NULL,
+  y = NULL,
+  support = NULL,
+  is_zinb = inherits(object, "evzinb")
+)
 
-evinf_cdf(object, newdata = NULL, y = NULL, support = NULL)
+evinf_cdf(
+  object,
+  newdata = NULL,
+  y = NULL,
+  support = NULL,
+  is_zinb = inherits(object, "evzinb")
+)
 }
 \arguments{
 \item{object}{A fitted \code{evzinb} / \code{evinb} model.}
@@ -21,6 +33,12 @@ one of \code{y} or \code{support} must be given.}
 \item{support}{Optional numeric vector, the same support for every row:
 returns an \eqn{n \times K} matrix. Exactly one of \code{y} or
 \code{support} must be given.}
+
+\item{is_zinb}{Optional override for whether \code{object} is a
+\code{evzinb}-shaped model (a zero state present). Defaults to
+\code{inherits(object, "evzinb")}, correct for a full-sample fitted
+object; a caller iterating over \code{object$bootstraps} (which does not
+reliably carry that class -- round10 H.4/H.5) must pass this explicitly.}
 }
 \value{
 A numeric vector (with \code{y}) or an \eqn{n \times K} numeric

@@ -91,6 +91,41 @@ Round-9 follow-ups (`dev/review_round9.md`):
   collapsed `alpha_pl` against `alpha_pl_floor` (with the same warning as
   every `predict()` type already gives) -- they did not before. This sets up
   `predict(type = "distribution"/"quantile"/"exceedance"/"draws")` (below).
+  `evinf_dist_params()`/`evinf_pmf()`/`evinf_cdf()` also gain an explicit
+  `is_zinb =` override (default `inherits(object, "evzinb")`, correct for a
+  full-sample fit): a bootstrap replicate does not reliably carry that
+  class, so the default silently misrouted an `evzinb` replicate to the
+  `evinb` parameter extraction. Every caller in this package that runs one
+  of these on `object$bootstraps` now passes `is_zinb` explicitly, the same
+  pattern the existing bootstrap-prediction code already used.
+* `predict(type = "distribution")` (round10 H.2): the full predictive
+  distribution as a long tibble (`.row`, `y`, `prob`; `format = "matrix"`
+  for the raw n x K matrix). `support` defaults to `0:K`, `K` the ceiling of
+  the 0.999 mixture quantile of the heaviest-tailed row, capped at
+  `max_support` (default 1e5). No `confint` support (the distribution is
+  already the quantity a CI would summarize).
+* `predict(type = "quantile", quantile = <vector>)` (round10 H.3): several
+  mixture quantiles at once (e.g. `quantile = c(.5, .9, .99)`), returned as
+  a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too,
+  with `confint = TRUE`), sharing one bisection over all probabilities at
+  once rather than one call per probability. A length-1 `quantile` is
+  unaffected -- still the original scalar return.
+* `predict(type = "exceedance", threshold = <vector>)` (round10 H.4):
+  exceedance probabilities `P(Y >= threshold)`, as `p_ge_<threshold>`
+  columns (via `1 - F(threshold - 1)`; `threshold = 0` is exactly 1 for
+  every count-valued model here, computed directly rather than at the
+  undefined `F(-1)`). `confint = TRUE` supported via the same bootstrap
+  machinery as the existing vector-output types.
+* `predict(type = "draws", n_draws =, parameter_uncertainty =)` (round10
+  H.5): predictive draws as a long tibble (`.row`, `.draw`, `y`), sharing
+  the sampler `simulate()` already uses (`revzinb_fit()`/`revinb_fit()`)
+  rather than a second one. `parameter_uncertainty = TRUE` draws each
+  observation's parameters from a randomly chosen usable bootstrap
+  replicate instead of the full-sample estimate. Seeded like `simulate()`;
+  leaves the caller's `.Random.seed` untouched either way.
+* `keep = c(...)` (round10 H.6): every H.2-H.5 type above accepts a
+  character vector of `newdata` column names to carry into the result, for
+  a join key on panel data instead of relying on row order.
 * `evzinb()` / `evinb()` gain `evinf_control(n_starts =, start_jitter =)`
   (round10 G.1, audit §5.10): with `n_starts > 1`, the default start plus
   `n_starts - 1` perturbed starts (coefficients jittered by
