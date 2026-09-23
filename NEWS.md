@@ -1,3 +1,57 @@
+# evinf 1.0.0
+
+This is the first CRAN release since 0.8.10 (2024). 0.9.x, 0.10.0 and 0.11.0
+were development versions that were never released to CRAN; their NEWS
+sections are kept below, unmerged and unrewritten, as the development record.
+Everything in this section is therefore, as far as CRAN is concerned, a
+change since 0.8.10 -- see `cran-comments.md` for that framing. This round
+(round 11) closes the five release blockers found in a post-round-10 CRAN-
+readiness review and prepares the package for submission.
+
+## Bug fixes
+
+* `predict()` (and `fitted()`, `predict_grid()`, `marginal_effects()`, and
+  the `marginaleffects` `get_predict()` method) now validate `...`: an
+  argument name that is not a known `predict()` argument at all errors,
+  naming the valid arguments for the requested `type`; a known argument
+  that does nothing for the requested `type` (e.g. `threshold` with
+  `type = "harmonic"`) warns instead of being silently ignored. Previously
+  a typo, or an argument passed for the wrong `type`, was accepted silently
+  and produced a default-argument result (round11 A5).
+* `predict(confint = TRUE)` (and `pred = "bootstrap_median"`/
+  `"bootstrap_mean"`) now errors clearly when every bootstrap replicate is
+  unusable, instead of crashing with a confusing dplyr "column `id` not
+  found" error (found while testing A4 on `hks`).
+* Declared `marginaleffects (>= 0.22.0)` in `Suggests` and guarded the one
+  affected test: `avg_predictions()`/`predictions()` with a model-specific
+  `type` (`"quantile"`, `"states"`, `"exceedance"`) errors on
+  `marginaleffects` older than 0.22.0, since older versions validate `type`
+  against an internal dictionary that does not exempt an unregistered model
+  class the way 0.22.0 on does (round11 A3).
+* Removed `VignetteBuilder: quarto`, the `quarto` entry in `Suggests`, and
+  `Config/Needs/website: quarto` until the JSS vignette actually ships --
+  `R CMD build` failed outright without `quarto` installed, and
+  `R CMD check --as-cran` reported a `VignetteBuilder`-without-a-prebuilt-
+  index `NOTE` (round11 A2).
+* Converted six Rd files' example blocks from `\dontrun{}` to `\donttest{}`
+  (`?evzinb`, `?evinb`, `?plot.evzinb`, `?predict_grid`, `?tidy.evzinb`,
+  `?compare_models`), trimming `n_bootstraps` so `--run-donttest` stays
+  fast (round11 B1).
+
+## New features
+
+* `predict()`/`fitted()` gain `clamp_alpha_pl` for `type = "explog"`
+  (also reachable through `type = "all"`, `predict_grid()` and
+  `marginal_effects()`): `FALSE` (the default) uses the fitted `alpha_pl`
+  as-is, exempt from the global `alpha_pl_floor` (which stays in force for
+  `"harmonic"`/`"quantile"`), and warns when any value is below 0.1, since
+  `C * exp(1 / alpha_pl)` is effectively undefined there and may be `Inf`;
+  `TRUE` clamps at 0.1; a positive number clamps there instead. The clamp
+  actually used is recorded as a `"clamp_alpha_pl"` attribute on the
+  result. Previously the explog path silently ran through the (much
+  tighter) `alpha_pl_floor`, producing an astronomically large but finite
+  value instead of `Inf` (round11 A4).
+
 # evinf 0.11.0
 
 Implements audit §5.6 (offsets and weights), §5.5 (model families) and §5.7
