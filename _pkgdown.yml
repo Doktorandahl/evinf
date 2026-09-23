@@ -21,6 +21,7 @@ reference:
   - print.evzinb
   - tidy.evzinb
   - glance.evzinb
+  - augment.evzinb
   - coefficient_extractor
   - gof_map_evinf
   - gm_evzinb
@@ -104,5 +105,6 @@ reference:
   - glance.evinb
   - predict.evinb
   - tidy.evinb
+  - augment.evinb
   - summary.evinb
   - print.evinb
