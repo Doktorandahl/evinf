@@ -4,10 +4,12 @@
 \alias{print.evzinbcomp}
 \title{Print method for compare_models() output}
 \usage{
-\method{print}{evzinbcomp}(x, ...)
+\method{print}{evzinbcomp}(x, metrics = c("aic", "bic", "rmse", "rmsle"), ...)
 }
 \arguments{
 \item{x}{An \code{evzinbcomp} object returned by \code{\link{compare_models}}.}
+
+\item{metrics}{Metrics for the \code{compare_fit()} table; see there.}
 
 \item{...}{Not used}
 }
@@ -15,7 +17,10 @@
 \code{x}, invisibly.
 }
 \description{
-Print method for compare_models() output
+Shows the compared models, a compact \code{\link{glance}()} table (one row
+per slot, key fit statistics only), and the paired bootstrap comparison
+from \code{\link{compare_fit}()} (round10 I.4, audit §5.9) -- previously
+only the compared-model names and bootstrap count.
 }
 \examples{
 \donttest{

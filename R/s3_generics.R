@@ -268,7 +268,10 @@ terms.evinb <- function(x, component = "count", ...) {
 #'   \code{simulate()}. If given, the caller's RNG state is restored on exit
 #'   (the seed only affects this call's draws).
 #' @param nsim Number of simulated response vectors.
-#' @param newdata Optional data to simulate for.
+#' @param newdata Optional data to simulate for, or (round10 I.2, for
+#'   \code{residuals()}) to compute residuals for instead of the estimation
+#'   data; the response column (named by the count formula's left-hand side)
+#'   must be present.
 #' @param ... Unused.
 #' @return \code{fitted()} / \code{residuals()} return a numeric vector;
 #'   \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2},
@@ -290,17 +293,22 @@ fitted.evinb <- fitted.evzinb
 #' @rdname evinf-s3-predict
 #' @export
 residuals.evzinb <- function(object, type = c("response", "quantile"),
-                             seed = NULL, ...) {
+                             seed = NULL, newdata = NULL, ...) {
   type <- match.arg(type)
-  y <- object$data$y
+  if (is.null(newdata)) {
+    y <- object$data$y
+  } else {
+    resp_name <- all.vars(object$formulas$formula_nb)[1]
+    y <- newdata[[resp_name]]
+  }
   if (type == "response") {
-    return(y - stats::predict(object, type = "harmonic"))
+    return(y - stats::predict(object, newdata = newdata, type = "harmonic"))
   }
   # round10 H.1: shared with evinf_pmf()/evinf_cdf() (R/evinf_pmf.R) -- also
   # clamps alpha_pl (context = "distribution"), which this did not do before
   # this refactor (predict() already clamped for every other type).
-  Fy <- evinf_cdf(object, y = y)
-  Fy1 <- ifelse(y <= 0, 0, evinf_cdf(object, y = y - 1))
+  Fy <- evinf_cdf(object, newdata = newdata, y = y)
+  Fy1 <- ifelse(y <= 0, 0, evinf_cdf(object, newdata = newdata, y = y - 1))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
   # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG

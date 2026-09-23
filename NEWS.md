@@ -82,6 +82,32 @@ Round-9 follow-ups (`dev/review_round9.md`):
 
 ## New features
 
+* `marginaleffects` support (round10 I.1, audit §5.9) gains `type =
+  "states"` (a long group/estimate frame, one group per prior state --
+  `evinb` has no zero state), `"quantile"` (a single `quantile =` passed
+  through `...`, defaulting to the median) and `"exceedance"` (a single or
+  several `threshold =` passed through `...`, fanning out into groups like
+  `"states"` when more than one is given). `type = "quantile"` uses the
+  continuous (linearly-interpolated) mixture quantile for delta-method
+  standard errors, the same fix `marginal_effects()`'s own
+  `predict_from_boot()` already applied (audit N1) -- the integer quantile's
+  derivative is zero almost everywhere, which otherwise starves the delta
+  method into `NA`. `marginaleffects` does not know evinf's extra `...`
+  arguments and will warn "not known to be supported" for `quantile =`/
+  `threshold =`; the prediction is still computed correctly.
+* `augment.evzinb()` / `augment.evinb()` (round10 I.2, audit §5.9): a
+  `generics::augment()`/`broom`-style method appending `.fitted`
+  (`predict(type = "harmonic")`), `.prob_zero`/`.prob_count`/`.prob_evi`
+  (prior state probabilities; `evinb` has no zero state), `.state` (the MAP
+  prior state), and, when the response is present, `.resid` (a seeded
+  randomized quantile residual), `.post_zero`/`.post_count`/`.post_evi`
+  (posterior state probabilities) and `.post_state` (the MAP posterior
+  state). `residuals(type = )` gains a `newdata = ` argument to support
+  this (previously always the estimation data; unchanged when omitted).
+* `print.evzinbcomp()` (round10 I.4, audit §5.9) now also shows a compact
+  `glance()` table (one row per compared model: `nobs`, `npar`, `logLik`,
+  `aic`, `bic`) and the `compare_fit()` paired-bootstrap comparison --
+  previously only the compared-model names and bootstrap count.
 * Internal `evinf_pmf()` / `evinf_cdf()` (round10 H.1, audit §5.8) are now
   the package's one definition of the predictive distribution, family-aware
   across all four count x zero combinations. `mixture_p()`'s CDF formula and
@@ -260,6 +286,13 @@ Round-9 follow-ups (`dev/review_round9.md`):
   resample primary sampling units with `block = ` instead. The bootstrap
   resamples rows exactly as without weights and carries each drawn row's
   weight along (audit §5.6, round9 D.2).
+
+## Not implemented, by design
+
+* `texreg` support (round10 I.5, audit §5.9, decision D5): skipped.
+  `modelsummary::modelsummary()` (`?gof_map_evinf`, `?tidy.evzinb`) already
+  covers regression tables for `evzinb`/`evinb` models; revisit only if a
+  user specifically asks for `texreg`.
 
 # evinf 0.10.0
 

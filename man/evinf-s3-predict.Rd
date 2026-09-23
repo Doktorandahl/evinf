@@ -14,9 +14,21 @@
 
 \method{fitted}{evinb}(object, type = c("harmonic", "explog", "counts", "pareto_alpha"), ...)
 
-\method{residuals}{evzinb}(object, type = c("response", "quantile"), seed = NULL, ...)
+\method{residuals}{evzinb}(
+  object,
+  type = c("response", "quantile"),
+  seed = NULL,
+  newdata = NULL,
+  ...
+)
 
-\method{residuals}{evinb}(object, type = c("response", "quantile"), seed = NULL, ...)
+\method{residuals}{evinb}(
+  object,
+  type = c("response", "quantile"),
+  seed = NULL,
+  newdata = NULL,
+  ...
+)
 
 \method{simulate}{evzinb}(object, nsim = 1, seed = NULL, newdata = NULL, ...)
 
@@ -36,9 +48,12 @@
 \code{simulate()}. If given, the caller's RNG state is restored on exit
 (the seed only affects this call's draws).}
 
-\item{nsim}{Number of simulated response vectors.}
+\item{newdata}{Optional data to simulate for, or (round10 I.2, for
+\code{residuals()}) to compute residuals for instead of the estimation
+data; the response column (named by the count formula's left-hand side)
+must be present.}
 
-\item{newdata}{Optional data to simulate for.}
+\item{nsim}{Number of simulated response vectors.}
 }
 \value{
 \code{fitted()} / \code{residuals()} return a numeric vector;
