@@ -66,6 +66,39 @@ test_that("evinf_pmf()/evinf_cdf() require exactly one of y / support", {
   expect_error(evinf:::evinf_cdf(m), "exactly one of")
 })
 
+test_that("evinf_pmf()/evinf_cdf() take an explicit is_zinb=, since bootstrap replicates don't reliably carry the evzinb/evinb class (round10 H.4/H.5)", {
+  m <- fit_evzinb_fast(bootstrap = TRUE, n_bootstraps = 3)
+  boot1 <- m$bootstraps[[1]]
+  expect_false(inherits(boot1, "evzinb"))  # confirms the replicate is unclassed
+
+  data(genevzinb2, package = "evinf", envir = environment())
+  y <- genevzinb2$y
+  nd <- genevzinb2
+
+  # inherits()-based default silently mis-routes this evzinb replicate to
+  # the evinb (no zero-state) parameter extraction (prob_from_evinb() has no
+  # pr_zc column, so evinf_dist_params() substitutes a literal 0 for it).
+  pmf_default <- evinf:::evinf_pmf(boot1, newdata = nd, y = y)
+  pmf_explicit <- evinf:::evinf_pmf(boot1, newdata = nd, y = y, is_zinb = TRUE)
+  expect_false(isTRUE(all.equal(pmf_default, pmf_explicit)))
+
+  prbs <- prob_from_evzinb(boot1, newdata = nd)
+  cnts <- counts_from_evzinb(boot1, newdata = nd)
+  alphs <- fitted_alpha_from_evzinb(boot1, newdata = nd)
+  alphs$pareto_alpha <- evinf_clamp_alpha_pl(
+    alphs$pareto_alpha, floor = boot1$control$alpha_pl_floor %||% 0.01,
+    context = "distribution"
+  )
+  expected <- evinf:::evinf_dmix(
+    y, cnts$count, boot1$coef$Alpha.NB, alphs$pareto_alpha, boot1$coef$C,
+    cbind(prbs$pr_zc, prbs$pr_count, prbs$pr_pareto), family = boot1$family
+  )
+  expect_equal(pmf_explicit, expected, tolerance = 1e-10)
+
+  cdf_explicit <- evinf:::evinf_cdf(boot1, newdata = nd, y = y, is_zinb = TRUE)
+  expect_true(all(cdf_explicit >= 0 & cdf_explicit <= 1 + 1e-8))
+})
+
 test_that("classify_states(newdata = ) posterior matches evinf_responsibilities() directly (round10 H.1 refactor)", {
   data(genevzinb2, package = "evinf", envir = environment())
   m <- fit_evzinb_fast(bootstrap = FALSE)

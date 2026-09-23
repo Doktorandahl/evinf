@@ -61,8 +61,18 @@ evinf_dmix <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior,
 # "quantile")/classify_states() did not clamp before this refactor; they now
 # do too, for the same reason predict() does (a collapsed alpha_pl gives a
 # degenerate discretised-Pareto tail otherwise).
-evinf_dist_params <- function(object, newdata = NULL) {
-  is_zinb <- inherits(object, "evzinb")
+#
+# round10 H.4/H.5: `is_zinb` defaults to inherits(object, "evzinb"), correct
+# for a full-sample fit, but bootstrap replicates do not reliably carry that
+# class (bootrun_evzinb()'s evzinb_boot gets no class at all;
+# bootrun_evinb()'s evinb_boot gets class "evinb_boot", not "evinb" -- see
+# R/evzinb.R / R/evinb.R). Any caller iterating over object$bootstraps
+# already knows the model's family from its own dispatch (predict.evzinb()/
+# predict.evinb() hardcode evzinb = TRUE/FALSE, the same pattern
+# evinf_predict_per_boot() already uses) and must pass that through
+# explicitly rather than relying on inherits() here.
+evinf_dist_params <- function(object, newdata = NULL,
+                              is_zinb = inherits(object, "evzinb")) {
   prbs <- if (is_zinb) {
     prob_from_evzinb(object, newdata = newdata)
   } else {
@@ -107,26 +117,33 @@ evinf_support_matrix <- function(support, n) {
 #' @param support Optional numeric vector, the same support for every row:
 #'   returns an \eqn{n \times K} matrix. Exactly one of \code{y} or
 #'   \code{support} must be given.
+#' @param is_zinb Optional override for whether \code{object} is a
+#'   \code{evzinb}-shaped model (a zero state present). Defaults to
+#'   \code{inherits(object, "evzinb")}, correct for a full-sample fitted
+#'   object; a caller iterating over \code{object$bootstraps} (which does not
+#'   reliably carry that class -- round10 H.4/H.5) must pass this explicitly.
 #'
 #' @return A numeric vector (with \code{y}) or an \eqn{n \times K} numeric
 #'   matrix (with \code{support}).
 #' @keywords internal
-evinf_pmf <- function(object, newdata = NULL, y = NULL, support = NULL) {
+evinf_pmf <- function(object, newdata = NULL, y = NULL, support = NULL,
+                      is_zinb = inherits(object, "evzinb")) {
   if (is.null(y) == is.null(support)) {
     stop("evinf_pmf(): exactly one of `y` or `support` must be given.", call. = FALSE)
   }
-  p <- evinf_dist_params(object, newdata = newdata)
+  p <- evinf_dist_params(object, newdata = newdata, is_zinb = is_zinb)
   yy <- y %||% evinf_support_matrix(support, length(p$nb_mu))
   evinf_dmix(yy, p$nb_mu, p$nb_alpha, p$pl_alpha, p$C, p$probabilities, family = p$family)
 }
 
 #' @rdname evinf_pmf
 #' @keywords internal
-evinf_cdf <- function(object, newdata = NULL, y = NULL, support = NULL) {
+evinf_cdf <- function(object, newdata = NULL, y = NULL, support = NULL,
+                      is_zinb = inherits(object, "evzinb")) {
   if (is.null(y) == is.null(support)) {
     stop("evinf_cdf(): exactly one of `y` or `support` must be given.", call. = FALSE)
   }
-  p <- evinf_dist_params(object, newdata = newdata)
+  p <- evinf_dist_params(object, newdata = newdata, is_zinb = is_zinb)
   yy <- y %||% evinf_support_matrix(support, length(p$nb_mu))
   mixture_p(yy, p$pl_alpha, p$C, p$nb_mu, p$nb_alpha, p$probabilities,
            family_count = p$family$count, family_zero = p$family$zero)
