@@ -199,10 +199,10 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
     # errors ("Repaired names have length 3 instead of length 1"). do.call()
     # always calls rbind(), even on a length-1 list, so this always produces
     # a proper n_usable x 3 matrix.
-    props_boot <- object$bootstraps %>%
-      purrr::map('props') %>%
-      purrr::map(colMeans) %>%
-      {do.call(rbind, .)} %>%
+    props_boot_mat <- do.call(rbind, purrr::map(
+      purrr::map(object$bootstraps, 'props'), colMeans
+    ))
+    props_boot <- props_boot_mat %>%
       dplyr::as_tibble(.name_repair = ~prop_names) %>%
       tidyr::pivot_longer(dplyr::everything(), names_to = 'state') %>%
       dplyr::group_by(.data$state) %>%
