@@ -42,9 +42,10 @@ evinf_hurdle_mean <- function(mu, alpha_nb, family) {
 }
 
 harmonic_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
-                          floor = 0.01) {
+                          floor = 0.01, warn = TRUE) {
   pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
-                                       context = "harmonic prediction")
+                                       context = "harmonic prediction",
+                                       warn = warn)
   # round9 0.1 follow-up: (1 + alpha) / alpha is algebraically identical to
   # 1/alpha + 1, but the former is Inf/Inf = NaN once a fitted Pareto shape
   # overflows exp() (an extreme Beta.PL coefficient on a sparse factor level
@@ -76,26 +77,45 @@ canonical_prbs <- function(prbs) {
   }
 }
 
+# round11 A4 (dev/claude_code_round10_prompt.md §0.6, as amended): the
+# explog path is exempt from the global alpha_pl_floor (unlike harmonic and
+# quantile, which keep using it) -- `clamp_alpha_pl` is its own, separate
+# knob. `FALSE` (default) uses the fitted alpha_pl as-is and warns when any
+# value is below 0.1 (where the prediction is effectively undefined, well
+# before a floor would bite); `TRUE` clamps at 0.1; a positive number clamps
+# there instead. `warn = FALSE` silences the per-call warning/message (used
+# for the per-bootstrap-replicate calls in evinf_predict_per_boot(), so a
+# confint = TRUE call warns once instead of once per replicate).
 explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
-                        floor = 0.01) {
-  # round10 0.6 (review §4, decision D1): the alpha_pl_floor keeps
-  # exp(1/alpha) finite, but not sane -- C * exp(100) at the default 0.01
-  # floor. Warn (once per call), against the *unclamped* alpha, whenever it
-  # drops below 0.1: the geometric-mean prediction is effectively undefined
-  # well before the floor bites (exp(10) ~= 2.2e4 already).
-  n_undefined <- sum(pareto_alpha < 0.1, na.rm = TRUE)
-  if (n_undefined > 0L) {
-    warning(
-      "evinf (explog prediction): ", n_undefined, " fitted Pareto alpha ",
-      "value", if (n_undefined != 1L) "s" else "", " below 0.1; the ",
-      "geometric-mean prediction C * exp(1 / alpha_pl) is effectively ",
-      "undefined there (e.g. exp(10) ~= 2.2e4). Consider ",
-      "predict(type = \"harmonic\") instead.",
-      call. = FALSE
-    )
+                        clamp_alpha_pl = FALSE, warn = TRUE) {
+  if (isFALSE(clamp_alpha_pl)) {
+    bad <- pareto_alpha < 0.1
+    n_bad <- sum(bad, na.rm = TRUE)
+    if (warn && n_bad > 0L) {
+      warning(
+        "evinf (explog prediction): ", n_bad, " fitted Pareto alpha ",
+        "value", if (n_bad != 1L) "s" else "", " below 0.1 (smallest: ",
+        signif(min(pareto_alpha, na.rm = TRUE), 3), "); the geometric-mean ",
+        "prediction C * exp(1 / alpha_pl) is effectively undefined there ",
+        "(e.g. exp(10) ~= 2.2e4) and may be Inf. Consider ",
+        "predict(..., type = \"explog\", clamp_alpha_pl = TRUE).",
+        call. = FALSE
+      )
+    }
+  } else {
+    clamp_floor <- if (isTRUE(clamp_alpha_pl)) 0.1 else clamp_alpha_pl
+    n_clamped <- sum(pareto_alpha < clamp_floor, na.rm = TRUE)
+    if (warn && n_clamped > 0L) {
+      message(
+        "evinf (explog prediction): ", n_clamped, " fitted Pareto alpha ",
+        "value", if (n_clamped != 1L) "s" else "", " clamped to ",
+        clamp_floor, " (clamp_alpha_pl)."
+      )
+    }
+    pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = clamp_floor,
+                                         context = "explog prediction",
+                                         warn = FALSE)
   }
-  pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
-                                       context = "explog prediction")
   pr_count * count + C * pr_pareto * exp(1 / pareto_alpha)
 }
 
@@ -103,12 +123,13 @@ explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
 # in a single parallel pass (round 5). Returns a list of length length(boots),
 # each element list(prbs, cnts, alphs, C, q, harmonic, explog).
 evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
-                                   multicore, ncores, seed) {
+                                   multicore, ncores, seed,
+                                   clamp_alpha_pl = FALSE) {
   nd_id <- 1:nrow(newdata)
   evinf_with_plan(multicore, ncores, {
     evinf_pmap(
       boots,
-      function(b, newdata, quantile, want_q, evzinb, nd_id) {
+      function(b, newdata, quantile, want_q, evzinb, nd_id, clamp_alpha_pl) {
         prob_fn  <- if (evzinb) prob_from_evzinb else prob_from_evinb
         qfn      <- if (evzinb) quantiles_from_evzinb else quantiles_from_evinb
         prbs  <- prob_fn(b, newdata = newdata)
@@ -129,22 +150,30 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
                       multicore = FALSE),
               id = nd_id),
             error = function(e) NULL) else NULL,
+          # warn = FALSE for the same reason as explog below: once per
+          # bootstrap replicate would flood the user with the same warning.
           harmonic = tibble::tibble(harmonic = harmonic_calc(
             prbs$pr_count,
             evinf_hurdle_mean(cnts$count, b$coef$Alpha.NB, b$family %||% evinf_family()),
             pr_pareto = prbs$pr_pareto,
             C = C, pareto_alpha = alphs$pareto_alpha,
-            floor = b$control$alpha_pl_floor %||% 0.01), id = nd_id),
+            floor = b$control$alpha_pl_floor %||% 0.01, warn = FALSE), id = nd_id),
+          # round11 A4: warn = FALSE -- this runs once per bootstrap replicate,
+          # so the user-facing warning/message comes from the single
+          # point-estimate call in evinf_predict_engine() instead. Every
+          # replicate is clamped identically to the same clamp_alpha_pl the
+          # point estimate uses.
           explog = tibble::tibble(explog = explog_calc(
             prbs$pr_count,
             evinf_hurdle_mean(cnts$count, b$coef$Alpha.NB, b$family %||% evinf_family()),
             pr_pareto = prbs$pr_pareto,
             C = C, pareto_alpha = alphs$pareto_alpha,
-            floor = b$control$alpha_pl_floor %||% 0.01), id = nd_id)
+            clamp_alpha_pl = clamp_alpha_pl, warn = FALSE), id = nd_id)
         )
       },
       newdata = newdata, quantile = quantile, want_q = want_q, evzinb = evzinb,
-      nd_id = nd_id, seed = seed, label = "predict bootstrap"
+      nd_id = nd_id, clamp_alpha_pl = clamp_alpha_pl, seed = seed,
+      label = "predict bootstrap"
     )
   })
 }
@@ -207,7 +236,7 @@ evinf_predict_per_boot <- function(boots, newdata, quantile, want_q, evzinb,
 evinf_predict_engine <- function(object, newdata, type, pred, quantile,
                                  confint, conf_level, multicore, ncores,
                                  return_bootstraps, exclude_degenerate,
-                                 evzinb) {
+                                 evzinb, clamp_alpha_pl = FALSE) {
   valid_types <- if (evzinb) {
     c('harmonic', 'explog', 'counts', 'pareto_alpha', 'zi', 'evinf',
       'count_state', 'states', 'all', 'quantile')
@@ -220,6 +249,15 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 
   pred <- match.arg(pred, c('original', 'bootstrap_median', 'bootstrap_mean'))
   type <- normalize_predict_type(type, valid_types)
+  # round11 A4: the clamp actually applied, recorded as an attribute on every
+  # explog-bearing result (FALSE when unclamped, else the numeric floor).
+  resolved_clamp_alpha_pl <- if (isFALSE(clamp_alpha_pl)) {
+    FALSE
+  } else if (isTRUE(clamp_alpha_pl)) {
+    0.1
+  } else {
+    clamp_alpha_pl
+  }
 
   if (type %in% c('states', 'all') & confint) {
     stop('Confidence interval prediction only available for vector outputs')
@@ -228,6 +266,20 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
   if (pred %in% c('bootstrap_median', 'bootstrap_mean') | confint) {
     object$bootstraps <- evinf_usable_bootstraps(object, exclude_degenerate)
     nboots <- length(object$bootstraps)
+    # round11 (found while testing A4 on hks): with zero usable replicates,
+    # every per-boot list below is empty and dplyr::bind_rows() on an empty
+    # list drops the `id` column entirely, so the group_by(id) further down
+    # failed with a confusing "column `id` not found" instead of a clear
+    # message (the same failure evinf_boot_ci_matrix() in
+    # R/predict_distribution.R already guards against for the H.2-H.6 types).
+    if (nboots == 0L) {
+      stop(
+        "No usable bootstrap replicates for pred = ", sQuote(pred),
+        if (confint) " / confint = TRUE" else "", ". Every replicate was ",
+        "excluded (error, or degenerate; see exclude_degenerate and ",
+        "failed_bootstraps()).", call. = FALSE
+      )
+    }
     if (is.null(newdata)) {
       newdata <- object$data$data
     }
@@ -238,7 +290,7 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
       object$bootstraps, newdata, quantile,
       want_q = type %in% c('quantile', 'all') && !is.null(quantile),
       evzinb = evzinb, multicore = multicore, ncores = ncores,
-      seed = object$boot_seeds[[1]] %||% 1L
+      seed = object$boot_seeds[[1]] %||% 1L, clamp_alpha_pl = clamp_alpha_pl
     )
     prbs_boot     <- purrr::map(per_boot, "prbs")
     cnts_boot     <- purrr::map(per_boot, "cnts")
@@ -274,6 +326,11 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
     alphs <- fitted_alpha_from_evzinb(object, newdata = newdata)
     C_est <- object$coef$C
 
+    # round11 A4: only warn for the quantity the caller actually asked for --
+    # harmonic_calc()'s own warning used to fire even for type = "explog" (and
+    # vice versa), since both were always computed here regardless of `type`
+    # (needed for type = "all"), which would have made clamp_alpha_pl = TRUE
+    # still show a (harmonic-side) warning on an unrelated call.
     harmonic <- harmonic_calc(
       pr_count = prbs$pr_count,
       count = evinf_hurdle_mean(cnts$count, object$coef$Alpha.NB,
@@ -281,7 +338,8 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
       pr_pareto = prbs$pr_pareto,
       C = C_est,
       pareto_alpha = alphs$pareto_alpha,
-      floor = object$control$alpha_pl_floor %||% 0.01
+      floor = object$control$alpha_pl_floor %||% 0.01,
+      warn = type %in% c('harmonic', 'all')
     )
 
     explog <- explog_calc(
@@ -291,7 +349,8 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
       pr_pareto = prbs$pr_pareto,
       C = C_est,
       pareto_alpha = alphs$pareto_alpha,
-      floor = object$control$alpha_pl_floor %||% 0.01
+      clamp_alpha_pl = clamp_alpha_pl,
+      warn = type %in% c('explog', 'all')
     )
   } else if (pred == 'bootstrap_median') {
     prbs <- prbs_boot %>%
@@ -398,6 +457,9 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
         ) %>%
         dplyr::select(-"id")
       result <- dplyr::bind_cols(spec$out_tibble(spec$estimate(environment())), ci)
+      if (type == 'explog') {
+        attr(result, "clamp_alpha_pl") <- resolved_clamp_alpha_pl
+      }
       if (return_bootstraps) {
         boots_out <- if (!is.null(spec$boot_select)) {
           purrr::map(boot_list, ~ dplyr::select(.x, spec$boot_select, "id"))
@@ -433,7 +495,11 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
     }
   } else {
     if (type %in% names(.evinf_predict_ci_spec)) {
-      return(.evinf_predict_ci_spec[[type]]$estimate(environment()))
+      out <- .evinf_predict_ci_spec[[type]]$estimate(environment())
+      if (type == 'explog') {
+        attr(out, "clamp_alpha_pl") <- resolved_clamp_alpha_pl
+      }
+      return(out)
     }
     if (type == 'states') {
       return(canonical_prbs(prbs))
@@ -443,7 +509,7 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
     }
     if (type == 'all') {
       q_name <- paste0('q', 100 * quantile)
-      return(dplyr::bind_cols(
+      out_all <- dplyr::bind_cols(
         tibble::tibble(
           harmonic = harmonic,
           explog = explog,
@@ -452,7 +518,9 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
         canonical_prbs(prbs),
         cnts,
         alphs
-      ))
+      )
+      attr(out_all, "clamp_alpha_pl") <- resolved_clamp_alpha_pl
+      return(out_all)
     }
   }
 }
@@ -469,19 +537,23 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 #'   computed from exactly the same distribution as the rest of the model.
 #'
 #'   \code{type = 'explog'} is \eqn{C \cdot \exp(1/\alpha_{PL})}, which grows
-#'   explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0 --
-#'   \code{evinf_control(alpha_pl_floor = )} (default 0.01) keeps it finite,
-#'   but not sane (\eqn{C \cdot e^{100}} at the floor). A warning fires
-#'   whenever any \eqn{\alpha_{PL}} used in an explog prediction is below
-#'   0.1, since the prediction is effectively undefined well before the
-#'   floor is reached (\eqn{e^{10} \approx 2.2 \times 10^4}); check
-#'   \code{glance()$min_alpha_pl}, and prefer \code{type = 'harmonic'} when
-#'   this fires. No separate clamp is applied beyond \code{alpha_pl_floor}.
+#'   explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0.
+#'   Unlike \code{'harmonic'} and \code{'quantile'}, this path is exempt from
+#'   the global \code{evinf_control(alpha_pl_floor = )}; \code{clamp_alpha_pl}
+#'   is its own, separate knob (round11 A4). With \code{clamp_alpha_pl = FALSE}
+#'   (the default), the fitted \eqn{\alpha_{PL}} is used as-is and a warning
+#'   fires whenever any value is below 0.1, since the prediction is
+#'   effectively undefined there (\eqn{e^{10} \approx 2.2 \times 10^4}, and it
+#'   may be \code{Inf}); check \code{glance()$min_alpha_pl}, and either pass
+#'   \code{clamp_alpha_pl = TRUE} (clamps at 0.1) or a positive number (clamps
+#'   there instead), or use \code{type = 'harmonic'}. The clamp actually
+#'   applied (\code{FALSE}, or the numeric floor) is recorded as a
+#'   \code{"clamp_alpha_pl"} attribute on the result.
 #'
 #' @param object An evzinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
 #' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state,'zi' for the predicted probability of the zero state, 'all' for all predicted values, 'quantile' for quantile prediction (scalar or vector, see `quantile`), 'distribution' for the full predictive distribution, 'exceedance' for exceedance probabilities (see `threshold`), and 'draws' for predictive draws (see `n_draws`).
-#' @param ... Other arguments passed to predict function
+#' @param ... Not used; any name here is an unknown argument and errors (round11 A5), naming the valid arguments for the requested `type`. A known argument supplied for a `type` it does nothing for (e.g. `threshold` with `type = "harmonic"`) warns instead, since it has a named formal below and never reaches here.
 #' @param quantile Quantile(s) for which to produce quantile prediction. A single value keeps the existing scalar behavior exactly (a vector, e.g. `c(.5, .9, .99)` (round10 H.3), returns a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`)).
 #' @inheritParams evzinb
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
@@ -497,6 +569,7 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 #' @param parameter_uncertainty (round10 H.5) `type = 'draws'` only: if `TRUE`, each draw uses a randomly chosen usable bootstrap replicate's parameters instead of the full-sample estimate.
 #' @param seed (round10 H.5) `type = 'draws'` only: optional seed; the caller's `.Random.seed` is left untouched either way (same convention as `simulate()`).
 #' @param keep (round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.
+#' @param clamp_alpha_pl (round11 A4) `type = 'explog'` (and `'all'`) only: `FALSE` (default) uses the fitted `alpha_pl` as-is and warns below 0.1; `TRUE` clamps at 0.1; a positive number clamps there instead. Exempt from the global `alpha_pl_floor` (which stays in force for `'harmonic'`/`'quantile'`). The clamp used is recorded as a `"clamp_alpha_pl"` attribute on the result.
 #'
 #' @inheritSection evzinb Parallel processing
 #' @inheritSection evzinb Reproducibility
@@ -552,8 +625,21 @@ predict.evzinb <- function(
   parameter_uncertainty = FALSE,
   seed = NULL,
   keep = NULL,
+  clamp_alpha_pl = FALSE,
   ...
 ) {
+  type_checked <- normalize_predict_type(type, .evinf_predict_types_evzinb)
+  evinf_validate_predict_args(
+    type_checked, list(...),
+    supplied = c(
+      quantile = !missing(quantile), support = !missing(support),
+      max_support = !missing(max_support), format = !missing(format),
+      threshold = !missing(threshold), n_draws = !missing(n_draws),
+      parameter_uncertainty = !missing(parameter_uncertainty),
+      seed = !missing(seed), keep = !missing(keep),
+      clamp_alpha_pl = !missing(clamp_alpha_pl)
+    )
+  )
   evinf_predict_dispatch(
     object, newdata = newdata, type = type, pred = pred, quantile = quantile,
     confint = confint, conf_level = conf_level, multicore = multicore,
@@ -561,7 +647,7 @@ predict.evzinb <- function(
     exclude_degenerate = exclude_degenerate, support = support,
     max_support = max_support, format = format, threshold = threshold,
     n_draws = n_draws, parameter_uncertainty = parameter_uncertainty,
-    seed = seed, keep = keep, evzinb = TRUE
+    seed = seed, keep = keep, clamp_alpha_pl = clamp_alpha_pl, evzinb = TRUE
   )
 }
 
@@ -577,19 +663,23 @@ predict.evzinb <- function(
 #'   computed from exactly the same distribution as the rest of the model.
 #'
 #'   \code{type = 'explog'} is \eqn{C \cdot \exp(1/\alpha_{PL})}, which grows
-#'   explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0 --
-#'   \code{evinf_control(alpha_pl_floor = )} (default 0.01) keeps it finite,
-#'   but not sane (\eqn{C \cdot e^{100}} at the floor). A warning fires
-#'   whenever any \eqn{\alpha_{PL}} used in an explog prediction is below
-#'   0.1, since the prediction is effectively undefined well before the
-#'   floor is reached (\eqn{e^{10} \approx 2.2 \times 10^4}); check
-#'   \code{glance()$min_alpha_pl}, and prefer \code{type = 'harmonic'} when
-#'   this fires. No separate clamp is applied beyond \code{alpha_pl_floor}.
+#'   explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0.
+#'   Unlike \code{'harmonic'} and \code{'quantile'}, this path is exempt from
+#'   the global \code{evinf_control(alpha_pl_floor = )}; \code{clamp_alpha_pl}
+#'   is its own, separate knob (round11 A4). With \code{clamp_alpha_pl = FALSE}
+#'   (the default), the fitted \eqn{\alpha_{PL}} is used as-is and a warning
+#'   fires whenever any value is below 0.1, since the prediction is
+#'   effectively undefined there (\eqn{e^{10} \approx 2.2 \times 10^4}, and it
+#'   may be \code{Inf}); check \code{glance()$min_alpha_pl}, and either pass
+#'   \code{clamp_alpha_pl = TRUE} (clamps at 0.1) or a positive number (clamps
+#'   there instead), or use \code{type = 'harmonic'}. The clamp actually
+#'   applied (\code{FALSE}, or the numeric floor) is recorded as a
+#'   \code{"clamp_alpha_pl"} attribute on the result.
 #'
 #' @param object An evinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
 #' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, 'quantile' for quantile prediction (scalar or vector, see `quantile`), 'distribution' for the full predictive distribution, 'exceedance' for exceedance probabilities (see `threshold`), and 'draws' for predictive draws (see `n_draws`).
-#' @param ... Other arguments passed to predict function
+#' @param ... Not used; any name here is an unknown argument and errors (round11 A5), naming the valid arguments for the requested `type`. A known argument supplied for a `type` it does nothing for (e.g. `threshold` with `type = "harmonic"`) warns instead, since it has a named formal below and never reaches here.
 #' @param quantile Quantile(s) for which to produce quantile prediction. A single value keeps the existing scalar behavior exactly (a vector, e.g. `c(.5, .9, .99)` (round10 H.3), returns a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`)).
 #' @inheritParams evzinb
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
@@ -605,6 +695,7 @@ predict.evzinb <- function(
 #' @param parameter_uncertainty (round10 H.5) `type = 'draws'` only: if `TRUE`, each draw uses a randomly chosen usable bootstrap replicate's parameters instead of the full-sample estimate.
 #' @param seed (round10 H.5) `type = 'draws'` only: optional seed; the caller's `.Random.seed` is left untouched either way (same convention as `simulate()`).
 #' @param keep (round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.
+#' @param clamp_alpha_pl (round11 A4) `type = 'explog'` (and `'all'`) only: `FALSE` (default) uses the fitted `alpha_pl` as-is and warns below 0.1; `TRUE` clamps at 0.1; a positive number clamps there instead. Exempt from the global `alpha_pl_floor` (which stays in force for `'harmonic'`/`'quantile'`). The clamp used is recorded as a `"clamp_alpha_pl"` attribute on the result.
 #'
 #' @inheritSection evzinb Parallel processing
 #' @inheritSection evzinb Reproducibility
@@ -658,8 +749,21 @@ predict.evinb <- function(
   parameter_uncertainty = FALSE,
   seed = NULL,
   keep = NULL,
+  clamp_alpha_pl = FALSE,
   ...
 ) {
+  type_checked <- normalize_predict_type(type, .evinf_predict_types_evinb)
+  evinf_validate_predict_args(
+    type_checked, list(...),
+    supplied = c(
+      quantile = !missing(quantile), support = !missing(support),
+      max_support = !missing(max_support), format = !missing(format),
+      threshold = !missing(threshold), n_draws = !missing(n_draws),
+      parameter_uncertainty = !missing(parameter_uncertainty),
+      seed = !missing(seed), keep = !missing(keep),
+      clamp_alpha_pl = !missing(clamp_alpha_pl)
+    )
+  )
   evinf_predict_dispatch(
     object, newdata = newdata, type = type, pred = pred, quantile = quantile,
     confint = confint, conf_level = conf_level, multicore = multicore,
@@ -667,7 +771,7 @@ predict.evinb <- function(
     exclude_degenerate = exclude_degenerate, support = support,
     max_support = max_support, format = format, threshold = threshold,
     n_draws = n_draws, parameter_uncertainty = parameter_uncertainty,
-    seed = seed, keep = keep, evzinb = FALSE
+    seed = seed, keep = keep, clamp_alpha_pl = clamp_alpha_pl, evzinb = FALSE
   )
 }
 

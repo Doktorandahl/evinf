@@ -25,6 +25,69 @@
   'distribution', 'exceedance', 'draws'
 )
 
+# round11 A5: which of predict()'s type-specific formals are meaningful for
+# each `type`. Every one of these is already a named formal on
+# predict.evzinb()/predict.evinb(), so a *correctly spelled* one never falls
+# into `...` regardless of `type` -- this table is what lets a call that
+# supplies one for the wrong type be caught anyway (e.g. `threshold` with
+# `type = "harmonic"`), which is the milder form of the same failure that let
+# A4's clamp_alpha_pl look implemented when it silently wasn't.
+.evinf_predict_type_args <- list(
+  harmonic     = character(0),
+  explog       = "clamp_alpha_pl",
+  counts       = character(0),
+  pareto_alpha = character(0),
+  zi           = character(0),
+  evinf        = character(0),
+  count_state  = character(0),
+  states       = character(0),
+  all          = c("quantile", "clamp_alpha_pl"),
+  quantile     = c("quantile", "keep"),
+  distribution = c("support", "max_support", "format", "keep"),
+  exceedance   = c("threshold", "keep"),
+  draws        = c("n_draws", "parameter_uncertainty", "seed", "keep")
+)
+
+.evinf_predict_universal_args <- c(
+  "pred", "confint", "conf_level", "multicore", "ncores",
+  "return_bootstraps", "exclude_degenerate"
+)
+
+# Validate predict.evzinb()/predict.evinb()'s `...` and type-specific
+# arguments for `type` (round11 A5). `dots` is `list(...)`: any name in it is
+# not a known predict() argument at all (a typo), and errors, naming the
+# valid arguments for this `type`. `supplied` is a named logical vector, one
+# entry per type-specific formal, TRUE where the *caller* actually passed
+# that argument -- collected by predict.evzinb()/predict.evinb() themselves
+# via missing(), since missing() only works in the frame that declares the
+# formal. A supplied argument that is valid but irrelevant for `type` warns
+# instead of erroring (silently ignoring it is the failure being guarded
+# against, but it is not itself a mistyped call).
+evinf_validate_predict_args <- function(type, dots, supplied) {
+  if (length(dots)) {
+    valid <- c(.evinf_predict_universal_args, .evinf_predict_type_args[[type]])
+    stop(
+      "predict(): unknown argument", if (length(dots) > 1L) "s " else " ",
+      paste(sQuote(names(dots)), collapse = ", "), " for type = ",
+      sQuote(type), ". Valid arguments (beyond object/newdata/type) are: ",
+      paste(sQuote(valid), collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+  relevant <- .evinf_predict_type_args[[type]] %||% character(0)
+  irrelevant <- setdiff(names(supplied)[supplied], relevant)
+  if (length(irrelevant)) {
+    warning(
+      "predict(): argument", if (length(irrelevant) > 1L) "s " else " ",
+      paste(sQuote(irrelevant), collapse = ", "),
+      if (length(irrelevant) > 1L) " are ignored" else " is ignored",
+      " for type = ", sQuote(type), ".",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
 # Shared entry point for predict.evzinb()/predict.evinb(): the three new
 # H.2/H.4/H.5 types, and type = "quantile" with length(quantile) > 1 (H.3),
 # are handled by the dedicated functions in this file; every other type
@@ -36,7 +99,7 @@ evinf_predict_dispatch <- function(object, newdata, type, pred, quantile,
                                    return_bootstraps, exclude_degenerate,
                                    support, max_support, format, threshold,
                                    n_draws, parameter_uncertainty, seed, keep,
-                                   evzinb) {
+                                   evzinb, clamp_alpha_pl = FALSE) {
   choices <- if (evzinb) .evinf_predict_types_evzinb else .evinf_predict_types_evinb
   type <- normalize_predict_type(type, choices)
 
@@ -82,7 +145,8 @@ evinf_predict_dispatch <- function(object, newdata, type, pred, quantile,
     object, newdata = newdata, type = type, pred = pred, quantile = quantile,
     confint = confint, conf_level = conf_level, multicore = multicore,
     ncores = ncores, return_bootstraps = return_bootstraps,
-    exclude_degenerate = exclude_degenerate, evzinb = evzinb
+    exclude_degenerate = exclude_degenerate, evzinb = evzinb,
+    clamp_alpha_pl = clamp_alpha_pl
   )
 }
 

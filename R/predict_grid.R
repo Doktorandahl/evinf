@@ -27,10 +27,12 @@ evinf_hold_fixed <- function(x, fixed) {
 #' @param fixed How to hold the remaining numeric covariates: \code{"mean"} or
 #'   \code{"median"}.
 #' @param type Prediction type: \code{"states"}, \code{"harmonic"},
-#'   \code{"quantile"}, \code{"counts"} or \code{"pareto_alpha"}.
+#'   \code{"explog"}, \code{"quantile"}, \code{"counts"} or \code{"pareto_alpha"}.
 #' @param quantile Quantile for \code{type = "quantile"}.
 #' @param confint Add bootstrap confidence intervals (not for \code{"states"}).
 #' @param conf_level Confidence level.
+#' @param clamp_alpha_pl (round11 A4) \code{type = "explog"} only; forwarded to
+#'   \code{predict()}. See \code{?predict.evzinb}.
 #'
 #' @return A tibble with columns \code{variable}, \code{value}, \code{type},
 #'   \code{estimate}, \code{conf.low}, \code{conf.high} (the last two \code{NA}
@@ -52,9 +54,10 @@ evinf_hold_fixed <- function(x, fixed) {
 #' }
 predict_grid <- function(object, variable, values = NULL, n = 50, at = list(),
                          fixed = c("mean", "median"),
-                         type = c("states", "harmonic", "quantile", "counts",
-                                  "pareto_alpha"),
-                         quantile = NULL, confint = FALSE, conf_level = 0.9) {
+                         type = c("states", "harmonic", "explog", "quantile",
+                                  "counts", "pareto_alpha"),
+                         quantile = NULL, confint = FALSE, conf_level = 0.9,
+                         clamp_alpha_pl = FALSE) {
   fixed <- match.arg(fixed)
   type <- match.arg(type)
   if (!inherits(object, c("evzinb", "evinb"))) {
@@ -111,6 +114,9 @@ predict_grid <- function(object, variable, values = NULL, n = 50, at = list(),
       stop("`quantile` is required for type = \"quantile\".", call. = FALSE)
     }
     args$quantile <- quantile
+  }
+  if (type == "explog") {
+    args$clamp_alpha_pl <- clamp_alpha_pl
   }
   if (confint) {
     args$confint <- TRUE

@@ -42,7 +42,8 @@
 \code{"response"} (\eqn{y - } harmonic prediction) or \code{"quantile"}
 (randomized quantile residuals from the mixture CDF).}
 
-\item{...}{Unused.}
+\item{...}{For \code{fitted()}, forwarded to \code{predict()} (round11 A4:
+e.g. \code{clamp_alpha_pl} for \code{type = "explog"}); unused otherwise.}
 
 \item{seed}{Optional RNG seed for the randomized quantile residuals /
 \code{simulate()}. If given, the caller's RNG state is restored on exit

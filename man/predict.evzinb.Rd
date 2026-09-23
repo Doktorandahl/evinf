@@ -25,6 +25,7 @@
   parameter_uncertainty = FALSE,
   seed = NULL,
   keep = NULL,
+  clamp_alpha_pl = FALSE,
   ...
 )
 }
@@ -74,7 +75,9 @@ restored on exit.}
 
 \item{keep}{(round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.}
 
-\item{...}{Other arguments passed to predict function}
+\item{clamp_alpha_pl}{(round11 A4) `type = 'explog'` (and `'all'`) only: `FALSE` (default) uses the fitted `alpha_pl` as-is and warns below 0.1; `TRUE` clamps at 0.1; a positive number clamps there instead. Exempt from the global `alpha_pl_floor` (which stays in force for `'harmonic'`/`'quantile'`). The clamp used is recorded as a `"clamp_alpha_pl"` attribute on the result.}
+
+\item{...}{Not used; any name here is an unknown argument and errors (round11 A5), naming the valid arguments for the requested `type`. A known argument supplied for a `type` it does nothing for (e.g. `threshold` with `type = "harmonic"`) warns instead, since it has a named formal below and never reaches here.}
 }
 \value{
 A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' (scalar), or a tibble for type 'states', 'all', 'quantile' (vector), 'distribution' (`format = 'long'`), 'exceedance', 'draws', or if confint=T; a matrix for 'distribution' with `format = 'matrix'`.
@@ -93,14 +96,18 @@ The likelihood, CDF, quantile prediction, residuals and
   computed from exactly the same distribution as the rest of the model.
 
   \code{type = 'explog'} is \eqn{C \cdot \exp(1/\alpha_{PL})}, which grows
-  explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0 --
-  \code{evinf_control(alpha_pl_floor = )} (default 0.01) keeps it finite,
-  but not sane (\eqn{C \cdot e^{100}} at the floor). A warning fires
-  whenever any \eqn{\alpha_{PL}} used in an explog prediction is below
-  0.1, since the prediction is effectively undefined well before the
-  floor is reached (\eqn{e^{10} \approx 2.2 \times 10^4}); check
-  \code{glance()$min_alpha_pl}, and prefer \code{type = 'harmonic'} when
-  this fires. No separate clamp is applied beyond \code{alpha_pl_floor}.
+  explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0.
+  Unlike \code{'harmonic'} and \code{'quantile'}, this path is exempt from
+  the global \code{evinf_control(alpha_pl_floor = )}; \code{clamp_alpha_pl}
+  is its own, separate knob (round11 A4). With \code{clamp_alpha_pl = FALSE}
+  (the default), the fitted \eqn{\alpha_{PL}} is used as-is and a warning
+  fires whenever any value is below 0.1, since the prediction is
+  effectively undefined there (\eqn{e^{10} \approx 2.2 \times 10^4}, and it
+  may be \code{Inf}); check \code{glance()$min_alpha_pl}, and either pass
+  \code{clamp_alpha_pl = TRUE} (clamps at 0.1) or a positive number (clamps
+  there instead), or use \code{type = 'harmonic'}. The clamp actually
+  applied (\code{FALSE}, or the numeric floor) is recorded as a
+  \code{"clamp_alpha_pl"} attribute on the result.
 }
 \section{Parallel processing}{
 

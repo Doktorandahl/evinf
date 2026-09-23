@@ -272,7 +272,8 @@ terms.evinb <- function(x, component = "count", ...) {
 #'   \code{residuals()}) to compute residuals for instead of the estimation
 #'   data; the response column (named by the count formula's left-hand side)
 #'   must be present.
-#' @param ... Unused.
+#' @param ... For \code{fitted()}, forwarded to \code{predict()} (round11 A4:
+#'   e.g. \code{clamp_alpha_pl} for \code{type = "explog"}); unused otherwise.
 #' @return \code{fitted()} / \code{residuals()} return a numeric vector;
 #'   \code{simulate()} a data frame with columns \code{sim_1}, \code{sim_2},
 #'   ..., with a \code{"seed"} attribute following the
@@ -284,7 +285,7 @@ fitted.evzinb <- function(object,
                           type = c("harmonic", "explog", "counts", "pareto_alpha"),
                           ...) {
   type <- match.arg(type)
-  stats::predict(object, type = type)
+  stats::predict(object, type = type, ...)
 }
 #' @rdname evinf-s3-predict
 #' @export

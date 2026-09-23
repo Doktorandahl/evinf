@@ -2,7 +2,8 @@
 
 # Prediction from a single (full or bootstrap) fit. `mod` may be a bootstrap
 # object, which carries $coef / $terms / $xlevels / $formulas.
-predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE) {
+predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE,
+                              clamp_alpha_pl = FALSE) {
   pf <- if (evzinb) predict.evzinb else predict.evinb
   if (type == "states") {
     st <- pf(mod, newdata = newdata, type = "states")
@@ -15,6 +16,10 @@ predict_from_boot <- function(mod, newdata, type, quantile = NULL, evzinb = TRUE
     qf <- if (evzinb) quantiles_from_evzinb else quantiles_from_evinb
     return(as.numeric(qf(mod, quantile, newdata = newdata,
                          return_data = FALSE, multicore = FALSE, round = FALSE)))
+  }
+  if (type == "explog") {
+    return(as.numeric(pf(mod, newdata = newdata, type = type,
+                         clamp_alpha_pl = clamp_alpha_pl)))
   }
   as.numeric(pf(mod, newdata = newdata, type = type))
 }
@@ -58,7 +63,8 @@ evinf_seeded_sample <- function(n, size, seed = NULL, prob = NULL) {
 # §1.10, for a variable that only enters the model's formulas through
 # poly()/ns()/bs()).
 evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
-                          delta, evzinb, range_clamp = NULL) {
+                          delta, evzinb, range_clamp = NULL,
+                          clamp_alpha_pl = FALSE) {
   col <- newdata[[variable]]
   if (is.numeric(col)) {
     clamp <- if (is.null(range_clamp)) identity
@@ -66,14 +72,14 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
     if (method == "difference") {
       # average change from a `delta`-unit increase in the covariate
       nd1 <- newdata; nd1[[variable]] <- clamp(col + delta)
-      d <- predict_from_boot(mod, nd1, type, quantile, evzinb) -
-        predict_from_boot(mod, newdata, type, quantile, evzinb)
+      d <- predict_from_boot(mod, nd1, type, quantile, evzinb, clamp_alpha_pl) -
+        predict_from_boot(mod, newdata, type, quantile, evzinb, clamp_alpha_pl)
     } else {
       # central finite difference (derivative)
       ndp <- newdata; ndp[[variable]] <- clamp(col + eps)
       ndm <- newdata; ndm[[variable]] <- clamp(col - eps)
-      d <- (predict_from_boot(mod, ndp, type, quantile, evzinb) -
-              predict_from_boot(mod, ndm, type, quantile, evzinb)) / (2 * eps)
+      d <- (predict_from_boot(mod, ndp, type, quantile, evzinb, clamp_alpha_pl) -
+              predict_from_boot(mod, ndm, type, quantile, evzinb, clamp_alpha_pl)) / (2 * eps)
     }
     out <- .me_colmeans(d)
     return(stats::setNames(out, if (length(out) == 1L) "dydx" else names(out)))
@@ -85,8 +91,8 @@ evinf_ame_one <- function(mod, newdata, variable, type, quantile, method, eps,
     ndr <- newdata; ndl <- newdata
     ndr[[variable]] <- if (is.factor(col)) factor(ref, lv) else ref
     ndl[[variable]] <- if (is.factor(col)) factor(l, lv) else l
-    d <- predict_from_boot(mod, ndl, type, quantile, evzinb) -
-      predict_from_boot(mod, ndr, type, quantile, evzinb)
+    d <- predict_from_boot(mod, ndl, type, quantile, evzinb, clamp_alpha_pl) -
+      predict_from_boot(mod, ndr, type, quantile, evzinb, clamp_alpha_pl)
     .me_colmeans(d)
   })
   names(res) <- paste0(lv[-1], " - ", ref)
@@ -166,8 +172,11 @@ evinf_classify_variable <- function(variable, formulas) {
 #'   outside the range it was built from. A variable used both ways (e.g.
 #'   bare in one formula component and \code{factor()}-wrapped in another)
 #'   errors, since a single perturbed value cannot represent both.
-#' @param type \code{"harmonic"}, \code{"states"} or \code{"quantile"}.
+#' @param type \code{"harmonic"}, \code{"explog"}, \code{"states"} or \code{"quantile"}.
 #' @param quantile Quantile for \code{type = "quantile"}.
+#' @param clamp_alpha_pl (round11 A4) \code{type = "explog"} only; forwarded to
+#'   \code{predict()} for both the point estimate and every bootstrap
+#'   replicate. See \code{?predict.evzinb}.
 #' @param at Named list of values at which to hold covariates before
 #'   differencing.
 #' @param method For numeric covariates, \code{"derivative"} (central finite
@@ -235,13 +244,14 @@ evinf_classify_variable <- function(variable, formulas) {
 #' marginal_effects(model, variables = "x1")
 #' }
 marginal_effects <- function(object, variables = NULL,
-                             type = c("harmonic", "states", "quantile"),
+                             type = c("harmonic", "explog", "states", "quantile"),
                              quantile = NULL, at = list(),
                              method = c("derivative", "difference"),
                              eps = 1e-4, delta = 1, conf_level = 0.95,
                              newdata = NULL, n_max = 500,
                              exclude_degenerate = TRUE,
-                             multicore = NULL, ncores = NULL) {
+                             multicore = NULL, ncores = NULL,
+                             clamp_alpha_pl = FALSE) {
   type <- match.arg(type)
   # type = "quantile" defaults to a one-unit difference (the derivative of a
   # quantile is numerically unstable on bootstrap fits with tiny Pareto alpha).
@@ -331,7 +341,7 @@ marginal_effects <- function(object, variables = NULL,
   est_by_var <- stats::setNames(
     lapply(variables, function(v)
       evinf_ame_one(object, nd, v, type, quantile, method, eps, delta, evzinb,
-                    range_clamp = range_clamp[[v]])),
+                    range_clamp = range_clamp[[v]], clamp_alpha_pl = clamp_alpha_pl)),
     variables
   )
 
@@ -343,16 +353,18 @@ marginal_effects <- function(object, variables = NULL,
       evinf_pmap(
         seq_len(nrow(grid)),
         function(k, grid, variables, boots, nd, type, quantile, method, eps,
-                 delta, evzinb, range_clamp) {
+                 delta, evzinb, range_clamp, clamp_alpha_pl) {
           v <- variables[grid$vi[k]]
           tryCatch(
             evinf_ame_one(boots[[grid$bi[k]]], nd, v, type, quantile, method,
-                          eps, delta, evzinb, range_clamp = range_clamp[[v]]),
+                          eps, delta, evzinb, range_clamp = range_clamp[[v]],
+                          clamp_alpha_pl = clamp_alpha_pl),
             error = function(e) NULL)
         },
         grid = grid, variables = variables, boots = boots, nd = nd,
         type = type, quantile = quantile, method = method, eps = eps,
         delta = delta, evzinb = evzinb, range_clamp = range_clamp,
+        clamp_alpha_pl = clamp_alpha_pl,
         seed = boot_seed, label = "marginal_effects bootstrap"
       )
     })

@@ -7,7 +7,7 @@
 marginal_effects(
   object,
   variables = NULL,
-  type = c("harmonic", "states", "quantile"),
+  type = c("harmonic", "explog", "states", "quantile"),
   quantile = NULL,
   at = list(),
   method = c("derivative", "difference"),
@@ -18,7 +18,8 @@ marginal_effects(
   n_max = 500,
   exclude_degenerate = TRUE,
   multicore = NULL,
-  ncores = NULL
+  ncores = NULL,
+  clamp_alpha_pl = FALSE
 )
 }
 \arguments{
@@ -37,7 +38,7 @@ outside the range it was built from. A variable used both ways (e.g.
 bare in one formula component and \code{factor()}-wrapped in another)
 errors, since a single perturbed value cannot represent both.}
 
-\item{type}{\code{"harmonic"}, \code{"states"} or \code{"quantile"}.}
+\item{type}{\code{"harmonic"}, \code{"explog"}, \code{"states"} or \code{"quantile"}.}
 
 \item{quantile}{Quantile for \code{type = "quantile"}.}
 
@@ -81,6 +82,10 @@ restored on exit.}
 \item{ncores}{Number of workers when \code{multicore = TRUE}. Default
 (\code{NULL}) is one less than the number of available cores. Ignored when
 \code{multicore} is \code{NULL} or \code{FALSE}.}
+
+\item{clamp_alpha_pl}{(round11 A4) \code{type = "explog"} only; forwarded to
+\code{predict()} for both the point estimate and every bootstrap
+replicate. See \code{?predict.evzinb}.}
 }
 \value{
 A tibble with columns \code{variable}, \code{contrast}, \code{type},
