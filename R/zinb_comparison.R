@@ -578,7 +578,7 @@ quantiles_from_zip <- function(quantile,zip,
 #'   \code{"counts"}, \code{"zi"}, \code{"count_state"}, \code{"states"},
 #'   \code{"all"} or \code{"quantile"}. (A zero-inflated negative binomial has no
 #'   extreme-value state, so \code{"evinf"} is not accepted.)
-#' @param pred Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'
+#' @param pred Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'
 #' @param quantile Quantile for quantile prediction
 #' @param confint Should confidence intervals be created?
 #' @param conf_level Confidence level when predicting with CIs
@@ -768,7 +768,7 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
 #'   \code{"counts"}, \code{"zi"}, \code{"count_state"}, \code{"states"},
 #'   \code{"all"} or \code{"quantile"}. (A zero-inflated Poisson has no
 #'   extreme-value state, so \code{"evinf"} is not accepted.)
-#' @param pred Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'
+#' @param pred Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'
 #' @param quantile Quantile for quantile prediction
 #' @param confint Should confidence intervals be created?
 #' @param conf_level Confidence level when predicting with CIs
