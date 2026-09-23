@@ -82,6 +82,15 @@ Round-9 follow-ups (`dev/review_round9.md`):
 
 ## New features
 
+* Internal `evinf_pmf()` / `evinf_cdf()` (round10 H.1, audit §5.8) are now
+  the package's one definition of the predictive distribution, family-aware
+  across all four count x zero combinations. `mixture_p()`'s CDF formula and
+  a new shared per-state-density building block (`evinf_state_densities()`)
+  back both; `classify_states(newdata = )` and `residuals(type =
+  "quantile")` are refactored onto them, and as a result now also clamp a
+  collapsed `alpha_pl` against `alpha_pl_floor` (with the same warning as
+  every `predict()` type already gives) -- they did not before. This sets up
+  `predict(type = "distribution"/"quantile"/"exceedance"/"draws")` (below).
 * `evzinb()` / `evinb()` gain `evinf_control(n_starts =, start_jitter =)`
   (round10 G.1, audit §5.10): with `n_starts > 1`, the default start plus
   `n_starts - 1` perturbed starts (coefficients jittered by
