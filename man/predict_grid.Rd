@@ -62,10 +62,10 @@ model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 predict_grid(model, "x1", type = "harmonic")
 }
 
-\dontrun{
+\donttest{
 data(hks)
 hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log,
-                  data = hks, n_bootstraps = 5, multicore = FALSE)
+                  data = hks, n_bootstraps = 2, multicore = FALSE)
 predict_grid(hks_mod, "troopLag", type = "states")
 }
 }

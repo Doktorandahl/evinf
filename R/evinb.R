@@ -465,13 +465,13 @@ bootrun_evinb <- function(
 #' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' }
 #'
-#' \dontrun{
+#' \donttest{
 #' data(hks)
 #' hks_mod <- evinb(
 #'   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
 #'     lntpop + brv_AllLag_log + osvAllLagDum + incomp,
 #'   formula_pareto = ~ log1p(troopLag),
-#'   data = hks, n_bootstraps = 5, multicore = FALSE
+#'   data = hks, n_bootstraps = 2, multicore = FALSE
 #' )
 #' }
 evinb <- function(
