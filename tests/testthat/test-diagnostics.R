@@ -198,3 +198,42 @@ test_that("check_evinf() adds an OOB-fraction row only for the block schemes (ro
 test_that("check_evinf() rejects a non-evinf object", {
   expect_error(check_evinf(list()), "fitted evzinb / evinb")
 })
+
+# round11 C2: the tests above only ever see a healthy fit (every status "ok"
+# or "note"); trip each "warning"-capable check directly by mutating the
+# fields check_evinf() reads, so the branch that actually reports "warning"
+# is exercised at least once per check.
+test_that("check_evinf() reports 'warning' for EM non-convergence", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  m$converge <- FALSE
+  cc <- check_evinf(m)
+  expect_equal(cc$status[cc$check == "EM converged"], "warning")
+})
+
+test_that("check_evinf() reports 'warning' when the C_EV profile did not converge", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  m$c_converged <- FALSE
+  cc <- check_evinf(m)
+  expect_equal(cc$status[cc$check == "C_EV profile converged (convergence phase)"], "warning")
+})
+
+test_that("check_evinf() reports 'warning' when C_EV sits on a candidate-grid boundary", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  m$coef$C <- min(m$c_profile$c)
+  cc <- check_evinf(m)
+  expect_equal(cc$status[cc$check == "C_EV on candidate-grid boundary"], "warning")
+})
+
+test_that("check_evinf() reports 'warning' when the fitted Pareto shape has collapsed", {
+  m <- fit_evzinb_fast(bootstrap = FALSE)
+  m$fitted$alpha.pl[1] <- 1e-20
+  cc <- check_evinf(m)
+  expect_equal(cc$status[cc$check == "Fitted Pareto shape (alpha_pl) not collapsed"], "warning")
+})
+
+test_that("check_evinf() reports 'note' (not 'ok') when a bootstrap replicate is unusable", {
+  m <- fit_evzinb_fast(n_bootstraps = 5)
+  m$bootstraps[[1]] <- try(stop("boom"), silent = TRUE)
+  cc <- check_evinf(m)
+  expect_equal(cc$status[cc$check == "Bootstrap replicates usable"], "note")
+})

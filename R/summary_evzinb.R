@@ -189,10 +189,20 @@ evinf_summary_components <- function(object, components, coef, standard_error, p
       boot_tabs$zero <- boot_long('Beta.multinom.ZC')
     }
 
+    # round11 (found via R CMD check --run-donttest on ?evzinb's hks example):
+    # purrr::reduce(rbind) short-circuits on a length-1 list and returns the
+    # single colMeans() vector unchanged, instead of a 1-row matrix -- which
+    # happens whenever exactly one bootstrap replicate survives
+    # evinf_usable_bootstraps() (e.g. a small n_bootstraps with one erroring
+    # or degenerate replicate). as_tibble() then reads that bare 3-element
+    # vector as 3 rows of 1 column, and .name_repair = ~prop_names (length 3)
+    # errors ("Repaired names have length 3 instead of length 1"). do.call()
+    # always calls rbind(), even on a length-1 list, so this always produces
+    # a proper n_usable x 3 matrix.
     props_boot <- object$bootstraps %>%
       purrr::map('props') %>%
       purrr::map(colMeans) %>%
-      purrr::reduce(rbind) %>%
+      {do.call(rbind, .)} %>%
       dplyr::as_tibble(.name_repair = ~prop_names) %>%
       tidyr::pivot_longer(dplyr::everything(), names_to = 'state') %>%
       dplyr::group_by(.data$state) %>%
