@@ -22,13 +22,26 @@
 #' @param verbose If \code{TRUE}, always show a progress bar. Otherwise one is
 #'   shown only when the user has enabled a global \pkg{progressr} handler.
 #' @param chunk_size Number of elements handed to a worker at a time.
+#'   \code{NULL} (the default, round10 J.2, audit §5.11) picks
+#'   \code{max(1, ceiling(length(.x) / (4 * future::nbrOfWorkers())))} -- four
+#'   chunks per worker, balancing per-task scheduling overhead (a
+#'   \code{chunk_size} of 1 when \code{length(.x)} is far larger than the
+#'   worker count) against a straggler chunk leaving workers idle near the
+#'   end (a \code{chunk_size} close to \code{length(.x) / nbrOfWorkers()}).
+#'   This only changes how elements are grouped for dispatch, never each
+#'   element's L'Ecuyer stream (verified empirically: derived from the
+#'   element's position in \code{.x}, not the chunk it lands in), so results
+#'   are identical across chunk sizes for the same \code{seed}.
 #'
 #' @return A list, the element-wise results of \code{.f}.
 #' @keywords internal
 evinf_pmap <- function(.x, .f, ..., seed, label = "bootstrap", verbose = FALSE,
-                       chunk_size = 1L) {
+                       chunk_size = NULL) {
   if (!is.numeric(seed) || length(seed) != 1L) {
     stop("`seed` must be a single integer.", call. = FALSE)
+  }
+  if (is.null(chunk_size)) {
+    chunk_size <- max(1L, ceiling(length(.x) / (4 * max(1L, future::nbrOfWorkers()))))
   }
   opts <- furrr::furrr_options(
     seed = as.integer(seed), chunk_size = chunk_size, packages = "evinf"
@@ -110,6 +123,75 @@ evinf_with_plan <- function(multicore = NULL, ncores = NULL, expr) {
     future::plan("sequential")
   }
   expr
+}
+
+# round10 J.1 (audit §5.11): project total bootstrap runtime from the first
+# min(4, n_bootstraps) replicates actually completing -- superseding the old
+# "runtime of the full-sample fit x n_bootstraps" proxy, which the old
+# message itself flagged as "a very rough estimate" and which ignored
+# parallelism entirely ("sequential" in its own text): the full-sample fit
+# and a bootstrap replicate's fit time can differ substantially (e.g. a very
+# different observed-response range under resampling shifts the C_EV
+# candidate grid), and a multicore/ncores plan makes "runtime x
+# n_bootstraps" a large overestimate.
+#
+# The probe replicates are positions 1..k of the *same* seed the real
+# dispatch below will also use, so they duplicate (not corrupt) part of the
+# real work rather than drawing from a different part of the RNG stream:
+# furrr derives each element's L'Ecuyer stream from its *position* within a
+# future_map() call, not a global counter (verified empirically -- two
+# separate evinf_pmap() calls with the same seed give element 1 of each the
+# same stream, regardless of what values are in .x), so there is no way to
+# hand the real dispatch below a "continue from element k + 1" seed.
+# Recomputing at most 4 replicates is the deliberate, small cost of keeping
+# the real dispatch's bootstrap output bit-identical to what it always was
+# for a given boot_seed, rather than silently changing it.
+#
+# Emits (via message(), not cat(), so it can be suppressed with
+# suppressMessages() like every other informational note in this package)
+# only when verbose = TRUE or the projection exceeds 60 seconds -- a short
+# bootstrap run gets no extra noise. Must be called from inside the same
+# evinf_with_plan(multicore, ncores, ...) block as the real dispatch, so
+# future::nbrOfWorkers() reflects the plan the real dispatch will actually
+# run under.
+evinf_estimate_boot_runtime <- function(bootrun_fn, boot_spec, block2, time2,
+                                        n_bootstraps, boot_seed, verbose) {
+  k <- min(4L, n_bootstraps)
+  if (k >= n_bootstraps) {
+    return(invisible(NULL))
+  }
+  t0 <- Sys.time()
+  evinf_pmap(
+    seq_len(k),
+    function(i, spec, blk, tv) try(bootrun_fn(spec, blk, tv), silent = TRUE),
+    spec = boot_spec, blk = block2, tv = time2,
+    seed = boot_seed, label = "timing probe", verbose = FALSE
+  )
+  workers <- max(1L, future::nbrOfWorkers())
+  elapsed <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  per_rep <- elapsed / k
+  projected <- per_rep * n_bootstraps / workers
+
+  if (isTRUE(verbose) || projected > 60) {
+    message(
+      "evinf: projected bootstrap runtime ~", evinf_format_secs(projected),
+      " (", n_bootstraps, " replicates, ", workers, " worker",
+      if (workers != 1L) "s" else "", "; from the first ", k,
+      " replicates' observed time). This is a rough estimate -- actual ",
+      "runtime depends on how each resample affects EM convergence."
+    )
+  }
+  invisible(projected)
+}
+
+evinf_format_secs <- function(s) {
+  if (!is.finite(s) || s < 60) {
+    return(sprintf("%.0fs", max(s, 0)))
+  }
+  if (s < 3600) {
+    return(sprintf("%.1f min", s / 60))
+  }
+  sprintf("%.1f hours", s / 3600)
 }
 
 # Flag a bootstrap replicate as degenerate -- a numerically valid fit that would

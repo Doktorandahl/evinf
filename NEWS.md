@@ -82,6 +82,29 @@ Round-9 follow-ups (`dev/review_round9.md`):
 
 ## New features
 
+* `evzinb()` / `evinb()` project total bootstrap runtime from the first
+  `min(4, n_bootstraps)` replicates actually completing (round10 J.1, audit
+  §5.11), replacing the old "full-sample fit time x `n_bootstraps`" proxy,
+  which ignored parallelism entirely and could differ substantially from a
+  bootstrap replicate's own fit time. Shown (via `message()`) when
+  `verbose = TRUE` or the projection exceeds 60 seconds. The probe
+  replicates duplicate (rather than change) part of the real dispatch's own
+  work, so bootstrap output for a given `boot_seed` is unaffected.
+* `evinf_control(chunk_size = )` (round10 J.2, audit §5.11): the number of
+  replicates/starts `evinf_pmap()` hands a worker at a time. `NULL` (the new
+  default, replacing a hardcoded `1L`) picks
+  `max(1, ceiling(B / (4 * future::nbrOfWorkers())))` at dispatch time --
+  four chunks per worker. Chunk size only changes how work is grouped for
+  dispatch, never each replicate's RNG stream (verified empirically), so
+  bootstrap/start output is identical across chunk sizes for the same seed.
+* `evinf_bench_data(n, seed)` (round10 J.3, audit §5.11, decision D8): a
+  synthetic-data generator with known true EVZINB parameters, for
+  benchmarking and scale testing at whatever `n` is needed without bundling
+  an additional `.rda` per size. `inst/bench/bench_evinf.R` now uses it
+  (replacing the bundled `genevzinb2`/`hks` data it previously benchmarked
+  against) and compares each timing to a stored reference
+  (`inst/bench/reference_timings.rds`), flagging (in the CI log only --
+  never failing the build) a case more than 2x slower than its reference.
 * `marginaleffects` support (round10 I.1, audit §5.9) gains `type =
   "states"` (a long group/estimate frame, one group per prior state --
   `evinb` has no zero state), `"quantile"` (a single `quantile =` passed

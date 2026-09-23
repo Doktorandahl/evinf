@@ -92,7 +92,8 @@ evinf_run_starts <- function(y, x.obj, ini.val, control, model, family,
     ini.val = ini.val, y = y, x.obj = x.obj, control = control, model = model,
     family = family, start_jitter = control$start_jitter %||% 0.5,
     c_candidates = c_candidates,
-    seed = start_seed, label = "start", verbose = verbose
+    seed = start_seed, label = "start", verbose = verbose,
+    chunk_size = control$chunk_size
   )
 
   logliks <- vapply(fits, function(f) f$log.lik, numeric(1))

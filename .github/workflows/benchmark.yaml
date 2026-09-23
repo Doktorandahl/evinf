@@ -1,6 +1,8 @@
 # round9 0.5 (review §3): run inst/bench/bench_evinf.R on the CI Linux
 # runner so its timings are reproducible outside any one contributor's
-# machine. Diagnostic only -- prints timings to the job log, asserts
+# machine. Diagnostic only -- prints timings (round10 J.3: and, when
+# inst/bench/reference_timings.rds has a matching case, a comparison against
+# it, flagged in the log at more than 2x slower) to the job log, asserts
 # nothing, and never fails the build on its own.
 on:
   push:
