@@ -41,7 +41,6 @@ Suggests:
     insight,
     broom,
     covr,
-    quarto,
     withr,
     emmeans,
     estimability
@@ -49,8 +48,6 @@ RoxygenNote: 7.3.3
 RdMacros: Rdpack
 Depends:
     R (>= 4.1.0)
-VignetteBuilder: quarto
-Config/Needs/website: quarto
 Authors@R: c(
     person("David", "Randahl", , "david.randahl@fhs.se", role = c("cre", "aut")),
     person("Johan", "Vegelius", role = "aut")
