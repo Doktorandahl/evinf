@@ -36,6 +36,15 @@ test_that("get_predict(type = 'quantile') uses the continuous surrogate and avg_
   cont90 <- quantiles_from_evzinb(m, 0.9, newdata = genevzinb2, round = FALSE)
   expect_equal(gp90$estimate, as.numeric(cont90), tolerance = 1e-10)
 
+  # round11 A3: avg_predictions()/predictions() route `type` through
+  # marginaleffects' own sanitize_type(), which rejects any type not in its
+  # internal dictionary for a model's class unless that class is completely
+  # absent from the dictionary -- true from 0.22.0 on (bisected against the
+  # CRAN archive: 0.21.0 errors with "Must be element of set {'response',
+  # 'class','link'}, but is 'quantile'", 0.22.0 does not; NEWS.md does not
+  # call the fix out explicitly). get_predict() itself (tested above) never
+  # goes through sanitize_type() and always worked, at any version.
+  skip_if_not_installed("marginaleffects", "0.22.0")
   ap <- suppressWarnings(marginaleffects::avg_predictions(m, type = "quantile"))
   expect_true(is.finite(ap$estimate))
 })

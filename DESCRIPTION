@@ -37,7 +37,7 @@ Suggests:
     testthat (>= 3.0.0),
     modelsummary,
     ggplot2,
-    marginaleffects,
+    marginaleffects (>= 0.22.0),
     insight,
     broom,
     covr,
