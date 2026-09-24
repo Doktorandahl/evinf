@@ -13,6 +13,10 @@ fit_family <- function(count, zero, ...) {
   )))
 }
 
+# round11 B2: exercises every family x new-prediction-type combination; kept
+# fast on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("predict(type = 'quantile', quantile = <vector>) is monotone and matches the scalar path column-by-column, for every family", {
   for (count in c("nbinom", "poisson")) {
     for (zero in c("mixture", "hurdle")) {

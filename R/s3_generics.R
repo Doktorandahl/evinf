@@ -78,7 +78,7 @@ evinf_nobs <- function(object) {
 #' @param component One of \code{"all"} (the default), \code{"count"},
 #'   \code{"zero"}, \code{"evi"}, \code{"pareto"}. Deprecated aliases \code{"nb"},
 #'   \code{"zi"}, \code{"evinf"} are accepted, with a warning; they will be
-#'   removed in 0.11.0.
+#'   removed in a future release.
 #' @param ... Unused.
 #' @return For \code{"all"}, a named numeric vector \code{<component>_<term>},
 #'   \code{alpha_nb}, \code{c_ev}; for a single component the plain named vector.

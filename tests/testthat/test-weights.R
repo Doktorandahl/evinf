@@ -8,6 +8,11 @@ tight_ctrl_w <- function(max.diff.par = 1e-6, max.no.em.steps = 3000, ...) {
                 max.diff.par = max.diff.par, max.no.em.steps = max.no.em.steps, ...)
 }
 
+# round11 B2: repeatedly refits on row-duplicated data to verify weight
+# semantics; kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own
+# check-time budget.
+testthat::skip_on_cran()
+
 test_that("a fit with integer weights equals a fit on the row-duplicated data", {
   data(genevzinb2, package = "evinf", envir = environment())
   set.seed(5)

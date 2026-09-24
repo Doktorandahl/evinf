@@ -25,7 +25,7 @@
 \code{"all"} or \code{"quantile"}. (A zero-inflated negative binomial has no
 extreme-value state, so \code{"evinf"} is not accepted.)}
 
-\item{pred}{Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'}
+\item{pred}{Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'}
 
 \item{quantile}{Quantile for quantile prediction}
 

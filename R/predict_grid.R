@@ -46,10 +46,10 @@ evinf_hold_fixed <- function(x, fixed) {
 #' predict_grid(model, "x1", type = "harmonic")
 #' }
 #'
-#' \dontrun{
+#' \donttest{
 #' data(hks)
 #' hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log,
-#'                   data = hks, n_bootstraps = 5, multicore = FALSE)
+#'                   data = hks, n_bootstraps = 2, multicore = FALSE)
 #' predict_grid(hks_mod, "troopLag", type = "states")
 #' }
 predict_grid <- function(object, variable, values = NULL, n = 50, at = list(),

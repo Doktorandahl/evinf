@@ -40,6 +40,10 @@ fit_i <- function(...) suppressWarnings(suppressMessages(evinf::evinb(
 
 data(genevzinb2, package = "evinf", envir = environment())
 
+# round11 B2: sequential-vs-multisession comparisons refit everything twice;
+# kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("evzinb()/evinb() bootstraps: sequential and multisession resample identically", {
   seq_z <- seq_run(fit_z(bootstrap = TRUE, n_bootstraps = 4, boot_seed = 202, multicore = NULL))
   seq_i <- seq_run(fit_i(bootstrap = TRUE, n_bootstraps = 4, boot_seed = 202, multicore = NULL))

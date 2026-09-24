@@ -1,6 +1,10 @@
 # issue 4.3 - targeted coverage for the thin internal files (parallel.R) and the
 # bootstrap_mean / bootstrap_median prediction paths.
 
+# round11 B2: bootstrap/parallel-heavy coverage fill; kept fast on CI
+# (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("evinf_pmap() runs its progressr path and is seed-stable", {
   # audit0.10 §2.1 (E.1): capture the prior handler via the plain getter
   # (always a real list) rather than the setter's return value, which on

@@ -172,7 +172,8 @@ values, ...).}
 \item{max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range, max.upd.par.zc.multinomial, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.ZC, init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C}{\strong{Deprecated.} These EM tuning arguments still work but should be
 passed through \code{control = evinf_control(...)}; supplying one directly
 overrides the corresponding \code{control} element and emits a warning. See
-\code{\link{evinf_control}} for their meaning. Will be removed in 0.11.0.}
+\code{\link{evinf_control}} for their meaning. Will be removed in a
+future release.}
 
 \item{verbose}{Logical: should progress of the full run of the model be tracked?}
 }
@@ -228,13 +229,13 @@ model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 
 # Peacekeeping and one-sided violence, with an in-formula log1p() transform
 # for the Pareto (extreme-value) component (see `?hks`).
-\dontrun{
+\donttest{
 data(hks)
 hks_mod <- evzinb(
   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
     lntpop + brv_AllLag_log + osvAllLagDum + incomp,
   formula_pareto = ~ log1p(troopLag),
-  data = hks, n_bootstraps = 5, multicore = FALSE
+  data = hks, n_bootstraps = 2, multicore = FALSE
 )
 summary(hks_mod)
 glance(hks_mod)

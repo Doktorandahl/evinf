@@ -1,3 +1,8 @@
+# round11 B2: broad summary()/tidy() coverage across bootstrap option
+# combinations; kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own
+# check-time budget.
+testthat::skip_on_cran()
+
 test_that("summary(p_value = 'both') returns both p-value columns (audit 1.3)", {
   m <- fit_evzinb_fast(n_bootstraps = 6)
   s <- suppressWarnings(summary(m, p_value = "both"))
@@ -106,4 +111,16 @@ test_that("print(summary()) shows '< 1/B' instead of '<2e-16' for a floored boot
   x1_line <- out[grepl("^x1\\s", out)][1]
   expect_match(x1_line, "<")
   expect_false(any(grepl("2e-16", out)))
+})
+
+test_that("summary() works when exactly one bootstrap replicate is usable (round11)", {
+  # Found via R CMD check --run-donttest on ?evzinb's hks example:
+  # purrr::reduce(rbind) over a length-1 list returns the bare colMeans()
+  # vector unchanged (never calling rbind()), so as_tibble(.name_repair =
+  # ~prop_names) read it as 3 rows of 1 column instead of 1 row of 3 columns
+  # and errored ("Repaired names have length 3 instead of length 1").
+  m <- fit_evzinb_fast(n_bootstraps = 2)
+  m$bootstraps[[1]] <- try(stop("boom"), silent = TRUE)
+  expect_no_error(s <- suppressWarnings(summary(m)))
+  expect_true(all(c("zero", "count", "evi") %in% s$component_proportions$state))
 })

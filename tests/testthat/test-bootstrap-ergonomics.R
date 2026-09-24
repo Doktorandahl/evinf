@@ -1,5 +1,9 @@
 # audit 4.9 - bootstrap ergonomics
 
+# round11 B2: repeated add_bootstraps() refits; kept fast on CI
+# (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("add_bootstraps() appends replicates and records the seed", {
   m <- fit_evzinb_fast(n_bootstraps = 5)
   m2 <- suppressWarnings(suppressMessages(add_bootstraps(m, 4, boot_seed = 7)))

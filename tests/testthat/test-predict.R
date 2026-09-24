@@ -12,6 +12,10 @@ test_that("predict()/marginal_effects() default conf_level is 0.95, matching con
   expect_equal(formals(marginal_effects)$conf_level, 0.95)
 })
 
+# round11 B2: broad coverage across every prediction type x bootstrap path;
+# kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("predict.evzinb() returns a value for every prediction type", {
   m <- fit_evzinb_fast(n_bootstraps = 5)
   n <- nrow(m$data$data)

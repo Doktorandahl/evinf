@@ -418,7 +418,8 @@ run_evzinb <- function(
 #'   \strong{Deprecated.} These EM tuning arguments still work but should be
 #'   passed through \code{control = evinf_control(...)}; supplying one directly
 #'   overrides the corresponding \code{control} element and emits a warning. See
-#'   \code{\link{evinf_control}} for their meaning. Will be removed in 0.11.0.
+#'   \code{\link{evinf_control}} for their meaning. Will be removed in a
+#'   future release.
 #' @param verbose Logical: should progress of the full run of the model be tracked?
 #'
 #' @section Parallel processing:
@@ -466,13 +467,13 @@ run_evzinb <- function(
 #'
 #' # Peacekeeping and one-sided violence, with an in-formula log1p() transform
 #' # for the Pareto (extreme-value) component (see `?hks`).
-#' \dontrun{
+#' \donttest{
 #' data(hks)
 #' hks_mod <- evzinb(
 #'   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
 #'     lntpop + brv_AllLag_log + osvAllLagDum + incomp,
 #'   formula_pareto = ~ log1p(troopLag),
-#'   data = hks, n_bootstraps = 5, multicore = FALSE
+#'   data = hks, n_bootstraps = 2, multicore = FALSE
 #' )
 #' summary(hks_mod)
 #' glance(hks_mod)

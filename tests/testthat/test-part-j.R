@@ -3,6 +3,10 @@
 
 # --- J.3: evinf_bench_data() -------------------------------------------------
 
+# round11 B2: benchmark-data generation and chunking/runtime-estimate tests;
+# kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("evinf_bench_data() is reproducible, correctly shaped, and leaves the caller's RNG state untouched", {
   set.seed(123)
   pre <- .Random.seed

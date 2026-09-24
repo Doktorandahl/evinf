@@ -86,10 +86,10 @@ if (requireNamespace("modelsummary", quietly = TRUE) &&
 }
 }
 
-\dontrun{
+\donttest{
 data(hks)
 hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log,
-                  data = hks, n_bootstraps = 5, multicore = FALSE)
+                  data = hks, n_bootstraps = 2, multicore = FALSE)
 tidy(hks_mod)
 }
 }
