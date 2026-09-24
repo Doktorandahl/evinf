@@ -21,6 +21,7 @@ evzinb(
   block_length = NULL,
   family = evinf_family(),
   boot_seed = NULL,
+  start_seed = NULL,
   control = evinf_control(),
   max.diff.par,
   max.no.em.steps,
@@ -157,6 +158,12 @@ precision when the extreme-value state is unreachable.}
 it is used as-is; when \code{NULL} a seed is drawn and recorded, so
 \code{object$boot_seeds} is always populated for a bootstrapped model
 (see \code{\link{add_bootstraps}}).}
+
+\item{start_seed}{Optional seed for the perturbed starts when
+\code{control$n_starts > 1} (round10 G.1); recorded as
+\code{object$start_seed} (\code{NULL} for the default \code{n_starts =
+1}, same as \code{boot_seed} for an unbootstrapped fit). Unused
+otherwise.}
 
 \item{control}{An \code{\link{evinf_control}()} object holding the EM tuning
 settings (tolerances, candidate range for \eqn{C_{EV}}, BFGS steps, starting

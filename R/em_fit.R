@@ -117,6 +117,13 @@ em_fit <- function(y, x.obj, ini.val, control,
   # Capture the warm-up exit condition before c.abs.diff is reset for the
   # convergence phase.
   c_warmup_capped <- c.abs.diff > 0 && n.c.iter.warmup >= max_c_iter
+  # round10 G.2 (audit §5.10): the warm-up/convergence boundary in c_trace
+  # (one entry per outer C_EV iteration) and in log.lik.vec.all (inner EM
+  # steps interleaved with per-iteration summaries) -- captured here, before
+  # the convergence phase below extends both vectors, so plot(type =
+  # "trace") can mark where warm-up ends.
+  n_c_iter_warmup <- n.c.iter.warmup
+  n_loglik_warmup <- length(log.lik.vec.all)
   if (c_warmup_capped && full_sample) {
     warning(
       "em_fit(): the warm-up C_EV profile did not settle within ",
@@ -242,6 +249,8 @@ em_fit <- function(y, x.obj, ini.val, control,
     converge         = est.obj$converge && c_converged,
     c_converged      = c_converged,
     c_warmup_capped  = c_warmup_capped,
+    n_c_iter_warmup  = n_c_iter_warmup,
+    n_loglik_warmup  = n_loglik_warmup,
     ini.val          = ini.val,
     x.nb             = x.obj$X.NB,
     x.pl             = x.obj$X.PL,

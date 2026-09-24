@@ -12,6 +12,7 @@ reference:
   - evinf_family
   - add_bootstraps
   - failed_bootstraps
+  - check_evinf
 
 - title: Summaries and tables
   desc: Inspect a fitted model and build regression tables.

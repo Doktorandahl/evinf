@@ -8,9 +8,16 @@
 #' whose Pareto shape collapsed).
 #'
 #' @param object A fitted \code{evzinb} / \code{evinb} model.
-#' @return A tibble with columns \code{id}, \code{type} (\code{"error"} or
-#'   \code{"degenerate"}) and \code{message} (the error text, or the reason the
-#'   replicate is degenerate); zero rows when every replicate is usable.
+#' @return A tibble with columns \code{id}, \code{type} (\code{"error"},
+#'   \code{"degenerate"} or \code{"not_converged"} -- round10 G.3: a replicate
+#'   that ran without erroring and isn't degenerate, but whose \code{converge}
+#'   is \code{FALSE}, was previously invisible here), \code{message} (the
+#'   error text, the degeneracy reason, or \code{NA} for
+#'   \code{"not_converged"} -- see \code{n_em_steps}/\code{c_converged}/
+#'   \code{c_warmup_capped} there instead) and, for \code{"not_converged"}
+#'   rows, \code{n_em_steps}, \code{c_converged}, \code{c_warmup_capped}
+#'   (\code{NA} for \code{"error"}/\code{"degenerate"} rows); zero rows when
+#'   every replicate is usable and converged.
 #' @export
 #'
 #' @examples
@@ -21,7 +28,8 @@
 #' }
 failed_bootstraps <- function(object) {
   empty <- tibble::tibble(id = character(), type = character(),
-                          message = character())
+                          message = character(), n_em_steps = integer(),
+                          c_converged = logical(), c_warmup_capped = logical())
   b <- object$bootstraps
   if (is.null(b)) {
     return(empty)
@@ -30,17 +38,28 @@ failed_bootstraps <- function(object) {
   is_err <- vapply(b, inherits, logical(1), "try-error")
   is_deg <- vapply(b, function(x)
     !inherits(x, "try-error") && isTRUE(x$degenerate), logical(1))
+  # round10 G.3: ran, isn't degenerate, but the EM itself didn't converge --
+  # previously invisible to this function (neither an error nor degenerate).
+  is_nc <- !is_err & !is_deg & vapply(b, function(x) !isTRUE(x$converge), logical(1))
 
   err <- tibble::tibble(
     id = ids[is_err], type = "error",
-    message = vapply(b[is_err], function(e) trimws(as.character(e)), character(1))
+    message = vapply(b[is_err], function(e) trimws(as.character(e)), character(1)),
+    n_em_steps = NA_integer_, c_converged = NA, c_warmup_capped = NA
   )
   deg <- tibble::tibble(
     id = ids[is_deg], type = "degenerate",
     message = vapply(b[is_deg], function(x)
-      x$degenerate_reason %||% NA_character_, character(1))
+      x$degenerate_reason %||% NA_character_, character(1)),
+    n_em_steps = NA_integer_, c_converged = NA, c_warmup_capped = NA
   )
-  dplyr::bind_rows(err, deg)
+  nc <- tibble::tibble(
+    id = ids[is_nc], type = "not_converged", message = NA_character_,
+    n_em_steps = vapply(b[is_nc], function(x) x$n_em_steps %||% NA_integer_, integer(1)),
+    c_converged = vapply(b[is_nc], function(x) isTRUE(x$c_converged), logical(1)),
+    c_warmup_capped = vapply(b[is_nc], function(x) isTRUE(x$c_warmup_capped), logical(1))
+  )
+  dplyr::bind_rows(err, deg, nc)
 }
 
 #' The bootstrap replicates usable for a summary

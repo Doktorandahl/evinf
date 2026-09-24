@@ -61,6 +61,22 @@
 #'   how many observations were clamped; the unclamped values are still what
 #'   \code{glance()}'s \code{min_alpha_pl} and \code{print()}'s note report, so
 #'   a collapsed EV shape stays visible.
+#' @param n_starts Number of starting points for the full-sample fit (round10
+#'   G.1, audit §5.10). \code{1} (the default) fits once from the default
+#'   start, exactly as before this argument existed. With \code{n_starts >
+#'   1}, that default start plus \code{n_starts - 1} perturbed starts each
+#'   run through the EM (in parallel via \code{\link{evinf_pmap}}, seeded
+#'   from \code{start_seed}), and the replicate with the highest final
+#'   log-likelihood is kept -- the EM can land in different local optima
+#'   depending on floating-point accumulation order, and multiple starts are
+#'   the principled response. Every replicate's outcome is recorded in
+#'   \code{object$starts}; bootstrap replicates warm-start from the winning
+#'   solution, same as they would from a single-start fit.
+#' @param start_jitter Standard deviation of the \code{N(0, start_jitter^2)}
+#'   perturbation applied to each component's starting coefficients for the
+#'   \code{n_starts - 1} perturbed starts; their starting \eqn{C_{EV}} is
+#'   drawn uniformly from the candidate grid instead. Unused when
+#'   \code{n_starts <= 1}.
 #' @param alpha_floor,coef_limit Thresholds for flagging a bootstrap replicate
 #'   as \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}), so it
 #'   is excluded from bootstrap summaries by default (see
@@ -111,7 +127,9 @@ evinf_control <- function(
   alpha_floor = 0.001,
   coef_limit = 50,
   max.c.iter = 50,
-  alpha_pl_floor = 0.01
+  alpha_pl_floor = 0.01,
+  n_starts = 1L,
+  start_jitter = 0.5
 ) {
   pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
   control <- list(
@@ -138,7 +156,9 @@ evinf_control <- function(
     alpha_floor = alpha_floor,
     coef_limit = coef_limit,
     max.c.iter = max.c.iter,
-    alpha_pl_floor = alpha_pl_floor
+    alpha_pl_floor = alpha_pl_floor,
+    n_starts = n_starts,
+    start_jitter = start_jitter
   )
   validate_evinf_control(control)
 }
@@ -164,12 +184,20 @@ validate_evinf_control <- function(control) {
   if (is.null(control$alpha_pl_floor)) {
     control$alpha_pl_floor <- 0.01
   }
+  # round10 G.1: default a control object saved before n_starts/start_jitter
+  # existed to the single-start behaviour, unchanged.
+  if (is.null(control$n_starts)) {
+    control$n_starts <- 1L
+  }
+  if (is.null(control$start_jitter)) {
+    control$start_jitter <- 0.5
+  }
   pos_scalar <- c(
     "max.diff.par", "max.no.em.steps", "max.no.em.steps.warmup",
     "max.upd.par.zc.multinomial", "max.upd.par.pl.multinomial",
     "max.upd.par.nb", "max.upd.par.pl", "no.m.bfgs.steps.multinomial",
     "no.m.bfgs.steps.nb", "no.m.bfgs.steps.pl", "init.Alpha.NB", "alpha_floor",
-    "coef_limit", "max.c.iter", "alpha_pl_floor"
+    "coef_limit", "max.c.iter", "alpha_pl_floor", "n_starts", "start_jitter"
   )
   for (nm in pos_scalar) {
     v <- control[[nm]]
@@ -180,6 +208,9 @@ validate_evinf_control <- function(control) {
   }
   if (control$max.c.iter != round(control$max.c.iter)) {
     stop("evinf_control(): `max.c.iter` must be a positive integer.", call. = FALSE)
+  }
+  if (control$n_starts != round(control$n_starts)) {
+    stop("evinf_control(): `n_starts` must be a positive integer.", call. = FALSE)
   }
 
   if (!is.null(control$c.lim)) {

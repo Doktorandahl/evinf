@@ -33,6 +33,9 @@ run_evinb <- function(
   bootstrap_scheme = NULL,
   block_length = NULL,
   family = evinf_family(),
+  start_seed = NULL,
+  multicore = NULL,
+  ncores = NULL,
   verbose = FALSE
 ) {
   control <- validate_evinf_control(control)
@@ -148,15 +151,14 @@ run_evinb <- function(
   Ini.Val$Alpha.NB <- control$init.Alpha.NB
   Ini.Val$C <- control$init.C
 
-  if (verbose) {
-    object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
-                     family = family)
-  } else {
-    capture.output(
-      object <- em_fit(OBS.Y, OBS.X.obj, Ini.Val, Control, model = "evinb",
-                       family = family)
-    )
-  }
+  # round10 G.1 (audit §5.10): n_starts <= 1 (the default) is this same
+  # single em_fit() call, bit-identical to before evinf_run_starts() existed.
+  starts_result <- evinf_with_plan(multicore, ncores, {
+    evinf_run_starts(OBS.Y, OBS.X.obj, Ini.Val, Control,
+                     model = "evinb", family = family,
+                     verbose = verbose, start_seed = start_seed)
+  })
+  object <- starts_result$best
   if (verbose && isTRUE(object$loglik_recomputed)) {
     message(
       "The trace-maximum log-likelihood differed from the value at the ",
@@ -249,6 +251,14 @@ run_evinb <- function(
   object$loglik_trace <- object$log.lik.vec.all
   object$n_above_c <- sum(object$data$y >= object$coef$C)
   object$n_em_steps <- length(object$log.lik.vec.all)
+  # round10 G.2: object$n_c_iter_warmup / object$n_loglik_warmup (from
+  # em_fit()'s return, already merged into object above) mark where warm-up
+  # ends in c_trace / loglik_trace, for plot(type = "trace").
+
+  # round10 G.1: $starts / $start_seed are NULL for the (default) single
+  # start, to keep those objects the same size as before this feature existed.
+  object$starts <- starts_result$starts
+  object$start_seed <- starts_result$start_seed
 
   object$fitted <- list()
   # round10 0.6 (review §4/§7, breaking change): see the matching comment in
@@ -383,6 +393,10 @@ bootrun_evinb <- function(
   evinb_boot$median.pl.vec <- NULL
   evinb_boot$mean.pl.vec <- NULL
   evinb_boot$c_profile <- NULL  # keep bootstraps small; c_trace is enough (4.5)
+  # round10 G.3 (audit §5.10): converge/c_converged/c_warmup_capped already
+  # survive here as-is (em_fit()'s own return, never nulled below); n_em_steps
+  # is the one derived field run_evinb() computes that bootstraps didn't get.
+  evinb_boot$n_em_steps <- length(evinb_boot$log.lik.vec.all)
 
   evinb_boot$data <- NULL
   evinb_boot <- evinf_flag_degenerate(evinb_boot, OBS.X.obj$X.PL, Control)
@@ -427,6 +441,10 @@ bootrun_evinb <- function(
 #'   it is used as-is; when \code{NULL} a seed is drawn and recorded, so
 #'   \code{object$boot_seeds} is always populated for a bootstrapped model
 #'   (see \code{\link{add_bootstraps}}).
+#' @param start_seed Optional seed for the perturbed starts when
+#'   \code{control$n_starts > 1} (round10 G.1); recorded as
+#'   \code{object$start_seed} (\code{NULL} for the default \code{n_starts =
+#'   1}). Unused otherwise.
 #' @param control An \code{\link{evinf_control}()} object holding the EM tuning
 #'   settings.
 #' @param max.diff.par,max.no.em.steps,max.no.em.steps.warmup,c.lim,prune.c.range,max.upd.par.pl.multinomial,max.upd.par.nb,max.upd.par.pl,no.m.bfgs.steps.multinomial,no.m.bfgs.steps.nb,no.m.bfgs.steps.pl,pdf.pl.type,eta.int,init.Beta.multinom.PL,init.Beta.NB,init.Beta.PL,init.Alpha.NB,init.C
@@ -472,6 +490,7 @@ evinb <- function(
   block_length = NULL,
   family = evinf_family(),
   boot_seed = NULL,
+  start_seed = NULL,
   control = evinf_control(),
   max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range,
   max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl,
@@ -491,7 +510,8 @@ evinb <- function(
 
   stored_call <- as.call(c(quote(evinf::evinb), list(
     bootstrap = bootstrap, n_bootstraps = n_bootstraps, multicore = multicore,
-    ncores = ncores, boot_seed = boot_seed, family = family, verbose = verbose
+    ncores = ncores, boot_seed = boot_seed, start_seed = start_seed,
+    family = family, verbose = verbose
   )))
   stored_call$data <- mc$data  # the expression, not the data frame (audit N6)
 
@@ -509,6 +529,9 @@ evinb <- function(
     bootstrap_scheme = bootstrap_scheme,
     block_length = block_length,
     family = family,
+    start_seed = start_seed,
+    multicore = multicore,
+    ncores = ncores,
     verbose = verbose
   )
   full_run$weights_col <- weights_col

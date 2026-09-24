@@ -82,6 +82,40 @@ Round-9 follow-ups (`dev/review_round9.md`):
 
 ## New features
 
+* `evzinb()` / `evinb()` gain `evinf_control(n_starts =, start_jitter =)`
+  (round10 G.1, audit §5.10): with `n_starts > 1`, the default start plus
+  `n_starts - 1` perturbed starts (coefficients jittered by
+  `N(0, start_jitter^2)`, `C_EV` drawn uniformly from the candidate grid)
+  each run the EM in parallel (via the same `multicore =`/`ncores =` the
+  bootstrap dispatch uses), and the highest-log-likelihood replicate is
+  kept -- the EM can land in different local optima depending on
+  floating-point accumulation order, and multiple starts are the principled
+  response. Every replicate's outcome is recorded in `object$starts`
+  (`NULL` for the default `n_starts = 1`, to keep single-start objects the
+  same size as before); `print()`/`glance()` report how many starts reached
+  the winning log-likelihood. Bootstrap replicates warm-start from the
+  winning solution, same as a single-start fit. A new `start_seed =`
+  argument on `evzinb()`/`evinb()` seeds the perturbed starts and is
+  recorded as `object$start_seed`.
+* `plot(type = "trace")` (round10 G.2): the log-likelihood and `C_EV`
+  traces, in two stacked panels with the warm-up/convergence boundary
+  marked. With `n_starts > 1`, every perturbed start's trace is overlaid in
+  grey behind the winning start's, in black.
+* Per-bootstrap convergence detail (round10 G.3, audit §5.10): every
+  bootstrap replicate now also carries `n_em_steps` (`converge`/
+  `c_converged`/`c_warmup_capped` were already there). `failed_bootstraps()`
+  gains a `"not_converged"` category for a replicate that ran without
+  erroring and isn't degenerate, but didn't converge -- previously
+  invisible there. `glance()` gains `median_boot_em_steps` and
+  `n_boot_c_capped` (replicates whose `C_EV` profile hit `max.c.iter`
+  without settling, in either phase).
+* `check_evinf()` (round10 G.4, audit §5.10): a single diagnostic report
+  (a classed tibble with a `print()` method) gathering convergence,
+  `C_EV`-on-a-boundary, the smallest fitted Pareto shape against
+  `alpha_pl_floor`, failed/degenerate bootstraps, start agreement
+  (`n_starts > 1`) and, for the block bootstrap schemes, the out-of-bag
+  fraction -- each row gets a status (`"ok"`/`"note"`/`"warning"`) and a
+  one-line suggestion.
 * `evzinb()` / `evinb()` gain `family = `, an `evinf_family()` object (or a
   bare string, shorthand for `evinf_family(count = string)`) naming the
   count-state distribution (`count = `) and the zero process (`zero = `).

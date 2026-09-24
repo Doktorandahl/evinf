@@ -7,7 +7,7 @@
 \usage{
 \method{plot}{evzinb}(
   x,
-  type = c("states", "prediction", "coefficients", "ppc", "ppc_quantiles"),
+  type = c("states", "prediction", "coefficients", "ppc", "ppc_quantiles", "trace"),
   variable = NULL,
   quantiles = c(0.5, 0.95),
   ...
@@ -15,7 +15,7 @@
 
 \method{plot}{evinb}(
   x,
-  type = c("states", "prediction", "coefficients", "ppc", "ppc_quantiles"),
+  type = c("states", "prediction", "coefficients", "ppc", "ppc_quantiles", "trace"),
   variable = NULL,
   quantiles = c(0.5, 0.95),
   ...
@@ -36,7 +36,14 @@
   observed sample quantiles for probabilities
   \code{c(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)} against the median simulated
   quantile (with a 5-95\% band across simulations) on \code{log1p} axes,
-  with a 45-degree reference line.}
+  with a 45-degree reference line;
+\code{"trace"} (round10 G.2, audit §5.10) - the log-likelihood
+  (\code{$loglik_trace}) and \eqn{C_{EV}} (\code{$c_trace}) traces, in two
+  stacked panels with the warm-up/convergence boundary marked (dashed
+  line). With \code{evinf_control(n_starts > 1)}, every perturbed
+  start's trace is overlaid in grey behind the winning start's, in black
+  (traces are only stored per-start when \code{n_starts > 1}, to keep a
+  single-start object the same size as before this type existed).}
 
 \item{variable}{Covariate to vary (required for \code{"states"} and
 \code{"prediction"}).}

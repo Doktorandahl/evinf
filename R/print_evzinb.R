@@ -72,6 +72,12 @@ evinf_print_fit <- function(x, kind, zi) {
         '); predictions involving it are floored at alpha_pl_floor = ',
         alpha_pl_floor, '. See glance()$min_alpha_pl.', sep = '')
   }
+  if (!is.null(x$starts)) {
+    # round10 G.1 (audit §5.10)
+    st <- evinf_n_starts_at_best(x)
+    cat('\n Note: ', st$n_starts_at_best, ' of ', st$n_starts,
+        ' starts reached the best log-likelihood (within 1e-4).', sep = '')
+  }
   cat('\n')
   invisible(x)
 }
