@@ -40,58 +40,56 @@ model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 zinb_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
 glance(zinb_comp$zinb)
 #> # A tibble: 1 × 9
@@ -104,7 +102,6 @@ glance(zinb_comp$zinb)
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 zinb_comp <- compare_models(model)
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
@@ -166,24 +163,6 @@ zinb_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
@@ -237,6 +216,58 @@ zinb_comp <- compare_models(model)
 #> Warning: NaNs produced
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
 glance(zinb_comp$nb)
 #> # A tibble: 1 × 9

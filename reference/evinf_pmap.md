@@ -16,7 +16,7 @@ evinf_pmap(
   seed,
   label = "bootstrap",
   verbose = FALSE,
-  chunk_size = 1L
+  chunk_size = NULL
 )
 ```
 
@@ -51,7 +51,17 @@ evinf_pmap(
 
 - chunk_size:
 
-  Number of elements handed to a worker at a time.
+  Number of elements handed to a worker at a time. `NULL` (the default,
+  round10 J.2, audit §5.11) picks
+  `max(1, ceiling(length(.x) / (4 * future::nbrOfWorkers())))` – four
+  chunks per worker, balancing per-task scheduling overhead (a
+  `chunk_size` of 1 when `length(.x)` is far larger than the worker
+  count) against a straggler chunk leaving workers idle near the end (a
+  `chunk_size` close to `length(.x) / nbrOfWorkers()`). This only
+  changes how elements are grouped for dispatch, never each element's
+  L'Ecuyer stream (verified empirically: derived from the element's
+  position in `.x`, not the chunk it lands in), so results are identical
+  across chunk sizes for the same `seed`.
 
 ## Value
 

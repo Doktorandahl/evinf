@@ -10,7 +10,7 @@ predict(
   object,
   newdata = NULL,
   type = c("harmonic", "explog", "counts", "pareto_alpha", "evinf", "count_state",
-    "states", "all", "quantile"),
+    "states", "all", "quantile", "distribution", "exceedance", "draws"),
   pred = c("original", "bootstrap_median", "bootstrap_mean"),
   quantile = NULL,
   confint = FALSE,
@@ -19,6 +19,15 @@ predict(
   ncores = NULL,
   return_bootstraps = FALSE,
   exclude_degenerate = TRUE,
+  support = NULL,
+  max_support = 1e+05,
+  format = c("long", "matrix"),
+  threshold = NULL,
+  n_draws = 1000,
+  parameter_uncertainty = FALSE,
+  seed = NULL,
+  keep = NULL,
+  clamp_alpha_pl = FALSE,
   ...
 )
 ```
@@ -41,7 +50,10 @@ predict(
   alpha value, 'states' for the predicted component states (prior),
   'count_state' for predicted probability of the count state, 'evinf'
   for predicted probability of the pareto state, 'all' for all predicted
-  values, and 'quantile' for quantile prediction.
+  values, 'quantile' for quantile prediction (scalar or vector, see
+  \`quantile\`), 'distribution' for the full predictive distribution,
+  'exceedance' for exceedance probabilities (see \`threshold\`), and
+  'draws' for predictive draws (see \`n_draws\`).
 
 - pred:
 
@@ -52,12 +64,16 @@ predict(
 
 - quantile:
 
-  Quantile for which to produce quantile prediction
+  Quantile(s) for which to produce quantile prediction. A single value
+  keeps the existing scalar behavior exactly (a vector, e.g. \`c(.5, .9,
+  .99)\` (round10 H.3), returns a tibble with one \`qXX\` column per
+  probability (\`qXX_lo\`/\`qXX_hi\` too, with \`confint = TRUE\`)).
 
 - confint:
 
   Should confidence intervals be made for the predictions? Note: only
-  available for vector type predictions and not 'states' and 'all'.
+  available for vector type predictions and not 'states', 'all' or
+  'distribution'.
 
 - conf_level:
 
@@ -88,15 +104,77 @@ predict(
   Drop bootstrap replicates flagged degenerate (default TRUE); see the
   alpha_floor argument of evinf_control().
 
+- support:
+
+  (round10 H.2) \`type = 'distribution'\` only: shared support (vector
+  of \`y\` values) for every row. \`NULL\` (default) uses \`0:K\`, \`K\`
+  the ceiling of the 0.999 mixture quantile of the heaviest-tailed row,
+  capped at \`max_support\`.
+
+- max_support:
+
+  (round10 H.2) Upper bound on the default \`support\`'s \`K\` (default
+  1e5); ignored when \`support\` is given explicitly.
+
+- format:
+
+  (round10 H.2) \`type = 'distribution'\` only: \`'long'\` (default; a
+  tibble with \`.row\`, \`y\`, \`prob\`) or \`'matrix'\` (the raw n x K
+  matrix; \`keep\` is ignored).
+
+- threshold:
+
+  (round10 H.4) \`type = 'exceedance'\` only: a vector of thresholds;
+  result columns are \`p_ge\_\<threshold\>\`, \`P(Y \>= threshold)\`.
+
+- n_draws:
+
+  (round10 H.5) \`type = 'draws'\` only: number of predictive draws per
+  row.
+
+- parameter_uncertainty:
+
+  (round10 H.5) \`type = 'draws'\` only: if \`TRUE\`, each draw uses a
+  randomly chosen usable bootstrap replicate's parameters instead of the
+  full-sample estimate.
+
+- seed:
+
+  (round10 H.5) \`type = 'draws'\` only: optional seed; the caller's
+  \`.Random.seed\` is left untouched either way (same convention as
+  \`simulate()\`).
+
+- keep:
+
+  (round10 H.6) Optional character vector of \`newdata\` column names to
+  carry into the result (a join key for panel data); supported for
+  \`type\` in \`'quantile'\` (vector), \`'distribution'\` (\`format =
+  'long'\`), \`'exceedance'\` and \`'draws'\`.
+
+- clamp_alpha_pl:
+
+  (round11 A4) \`type = 'explog'\` (and \`'all'\`) only: \`FALSE\`
+  (default) uses the fitted \`alpha_pl\` as-is and warns below 0.1;
+  \`TRUE\` clamps at 0.1; a positive number clamps there instead. Exempt
+  from the global \`alpha_pl_floor\` (which stays in force for
+  \`'harmonic'\`/\`'quantile'\`). The clamp used is recorded as a
+  \`"clamp_alpha_pl"\` attribute on the result.
+
 - ...:
 
-  Other arguments passed to predict function
+  Not used; any name here is an unknown argument and errors (round11
+  A5), naming the valid arguments for the requested \`type\`. A known
+  argument supplied for a \`type\` it does nothing for (e.g.
+  \`threshold\` with \`type = "harmonic"\`) warns instead, since it has
+  a named formal below and never reaches here.
 
 ## Value
 
 A vector of predicted values for type 'harmonic', 'explog', 'counts',
-'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of
-predicted values for type 'states' and 'all' or if confint=T
+'pareto_alpha','evinf', 'count_state', and 'quantile' (scalar), or a
+tibble for type 'states', 'all', 'quantile' (vector), 'distribution'
+(\`format = 'long'\`), 'exceedance', 'draws', or if confint=T; a matrix
+for 'distribution' with \`format = 'matrix'\`.
 
 ## Details
 
@@ -111,14 +189,17 @@ predictions unchanged but means they are not computed from exactly the
 same distribution as the rest of the model.
 
 `type = 'explog'` is \\C \cdot \exp(1/\alpha\_{PL})\\, which grows
-explosively as the fitted Pareto shape \\\alpha\_{PL}\\ approaches 0 –
-`evinf_control(alpha_pl_floor = )` (default 0.01) keeps it finite, but
-not sane (\\C \cdot e^{100}\\ at the floor). A warning fires whenever
-any \\\alpha\_{PL}\\ used in an explog prediction is below 0.1, since
-the prediction is effectively undefined well before the floor is reached
-(\\e^{10} \approx 2.2 \times 10^4\\); check `glance()$min_alpha_pl`, and
-prefer `type = 'harmonic'` when this fires. No separate clamp is applied
-beyond `alpha_pl_floor`.
+explosively as the fitted Pareto shape \\\alpha\_{PL}\\ approaches 0.
+Unlike `'harmonic'` and `'quantile'`, this path is exempt from the
+global `evinf_control(alpha_pl_floor = )`; `clamp_alpha_pl` is its own,
+separate knob (round11 A4). With `clamp_alpha_pl = FALSE` (the default),
+the fitted \\\alpha\_{PL}\\ is used as-is and a warning fires whenever
+any value is below 0.1, since the prediction is effectively undefined
+there (\\e^{10} \approx 2.2 \times 10^4\\, and it may be `Inf`); check
+`glance()$min_alpha_pl`, and either pass `clamp_alpha_pl = TRUE` (clamps
+at 0.1) or a positive number (clamps there instead), or use
+`type = 'harmonic'`. The clamp actually applied (`FALSE`, or the numeric
+floor) is recorded as a `"clamp_alpha_pl"` attribute on the result.
 
 ## Parallel processing
 
@@ -167,9 +248,7 @@ a single fixed plan.
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 predict(model)
-#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #>   [1]   53.549686   60.127971  410.351359   12.431620   39.194583   34.139420
 #>   [7]  148.622606   99.329017   36.948813   40.651211    5.503769    1.450365
 #>  [13]  261.660557   12.502587   30.214181   13.977638  481.714310   25.192966
@@ -188,7 +267,7 @@ predict(model)
 #>  [91]   13.833416   64.543036 1031.629755   77.681179   40.425301   21.961707
 #>  [97]  139.887921   11.336808   16.955050   34.099904
 predict(model, type='all', quantile = 0.9) # all available predicted values
-#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1 (smallest: 0.0108); the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4) and may be Inf. Consider predict(..., type = "explog", clamp_alpha_pl = TRUE).
 #> # A tibble: 100 × 8
 #>    harmonic explog   q90 pr_count pr_evi pr_pareto  count pareto_alpha
 #>       <dbl>  <dbl> <dbl>    <dbl>  <dbl>     <dbl>  <dbl>        <dbl>
@@ -203,5 +282,66 @@ predict(model, type='all', quantile = 0.9) # all available predicted values
 #>  9     36.9   37.5   192    0.896 0.104     0.104   15.1         4.38 
 #> 10     40.7   40.8   185    0.939 0.0612    0.0612  29.3         5.98 
 #> # ℹ 90 more rows
+predict(model, type='quantile', quantile = c(.5, .9, .99)) # several quantiles (H.3)
+#> # A tibble: 100 × 3
+#>      q50   q90   q99
+#>    <dbl> <dbl> <dbl>
+#>  1     0   229   886
+#>  2     0   184   848
+#>  3     9   971  6625
+#>  4     0     8   347
+#>  5     0   184   456
+#>  6     0   186   216
+#>  7     2   668 26323
+#>  8     2   314  1114
+#>  9     0   192   346
+#> 10     0   185   460
+#> # ℹ 90 more rows
+predict(model, type='distribution') # the full predictive distribution (H.2)
+#> evinf (predict distribution): the default support's upper bound (86294293458, the 0.999 mixture quantile of the heaviest-tailed row) exceeds max_support (1e+05); truncating there. Pass `support = ` explicitly for a wider (or narrower) support.
+#> # A tibble: 10,000,100 × 3
+#>     .row     y    prob
+#>    <int> <int>   <dbl>
+#>  1     1     0 0.518  
+#>  2     1     1 0.0513 
+#>  3     1     2 0.0281 
+#>  4     1     3 0.0196 
+#>  5     1     4 0.0151 
+#>  6     1     5 0.0123 
+#>  7     1     6 0.0104 
+#>  8     1     7 0.00905
+#>  9     1     8 0.00799
+#> 10     1     9 0.00716
+#> # ℹ 10,000,090 more rows
+predict(model, type='exceedance', threshold = c(10, 100)) # exceedance probs (H.4)
+#> # A tibble: 100 × 2
+#>    p_ge_10 p_ge_100
+#>      <dbl>    <dbl>
+#>  1  0.321    0.170 
+#>  2  0.330    0.166 
+#>  3  0.497    0.365 
+#>  4  0.0888   0.0408
+#>  5  0.302    0.141 
+#>  6  0.290    0.151 
+#>  7  0.421    0.276 
+#>  8  0.427    0.285 
+#>  9  0.289    0.142 
+#> 10  0.301    0.139 
+#> # ℹ 90 more rows
+predict(model, type='draws', n_draws = 100) # predictive draws (H.5)
+#> # A tibble: 10,000 × 3
+#>     .row .draw     y
+#>    <int> <int> <dbl>
+#>  1     1     1     1
+#>  2     2     1   150
+#>  3     3     1     0
+#>  4     4     1     0
+#>  5     5     1     2
+#>  6     6     1     0
+#>  7     7     1     0
+#>  8     8     1     4
+#>  9     9     1     0
+#> 10    10     1     1
+#> # ℹ 9,990 more rows
 # }
 ```

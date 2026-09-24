@@ -1,5 +1,75 @@
 # Changelog
 
+## evinf 1.0.0
+
+This is the first CRAN release since 0.8.10 (2024). 0.9.x, 0.10.0 and
+0.11.0 were development versions that were never released to CRAN; their
+NEWS sections are kept below, unmerged and unrewritten, as the
+development record. Everything in this section is therefore, as far as
+CRAN is concerned, a change since 0.8.10 – see `cran-comments.md` for
+that framing. This round (round 11) closes the five release blockers
+found in a post-round-10 CRAN- readiness review and prepares the package
+for submission.
+
+### Bug fixes
+
+- [`predict()`](https://rdrr.io/r/stats/predict.html) (and
+  [`fitted()`](https://rdrr.io/r/stats/fitted.values.html),
+  [`predict_grid()`](../reference/predict_grid.md),
+  [`marginal_effects()`](../reference/marginal_effects.md), and the
+  `marginaleffects` `get_predict()` method) now validate `...`: an
+  argument name that is not a known
+  [`predict()`](https://rdrr.io/r/stats/predict.html) argument at all
+  errors, naming the valid arguments for the requested `type`; a known
+  argument that does nothing for the requested `type` (e.g. `threshold`
+  with `type = "harmonic"`) warns instead of being silently ignored.
+  Previously a typo, or an argument passed for the wrong `type`, was
+  accepted silently and produced a default-argument result (round11 A5).
+- `predict(confint = TRUE)` (and `pred = "bootstrap_median"`/
+  `"bootstrap_mean"`) now errors clearly when every bootstrap replicate
+  is unusable, instead of crashing with a confusing dplyr “column `id`
+  not found” error (found while testing A4 on `hks`).
+- Declared `marginaleffects (>= 0.22.0)` in `Suggests` and guarded the
+  one affected test: `avg_predictions()`/`predictions()` with a
+  model-specific `type` (`"quantile"`, `"states"`, `"exceedance"`)
+  errors on `marginaleffects` older than 0.22.0, since older versions
+  validate `type` against an internal dictionary that does not exempt an
+  unregistered model class the way 0.22.0 on does (round11 A3).
+- Removed `VignetteBuilder: quarto`, the `quarto` entry in `Suggests`,
+  and `Config/Needs/website: quarto` until the JSS vignette actually
+  ships – `R CMD build` failed outright without `quarto` installed, and
+  `R CMD check --as-cran` reported a
+  `VignetteBuilder`-without-a-prebuilt- index `NOTE` (round11 A2).
+- Converted six Rd files’ example blocks from `\dontrun{}` to
+  `\donttest{}` ([`?evzinb`](../reference/evzinb.md),
+  [`?evinb`](../reference/evinb.md),
+  [`?plot.evzinb`](../reference/plot.evzinb.md),
+  [`?predict_grid`](../reference/predict_grid.md),
+  [`?tidy.evzinb`](../reference/tidy.evzinb.md),
+  [`?compare_models`](../reference/compare_models.md)), trimming
+  `n_bootstraps` so `--run-donttest` stays fast (round11 B1).
+- [`summary()`](https://rdrr.io/r/base/summary.html) no longer errors
+  (“Repaired names have length 3 instead of length 1”) when exactly one
+  bootstrap replicate is usable – found via `--run-donttest` on
+  [`?evzinb`](../reference/evzinb.md)’s own example after the previous
+  fix unhid it (round11 B1 follow-up).
+
+### New features
+
+- [`predict()`](https://rdrr.io/r/stats/predict.html)/[`fitted()`](https://rdrr.io/r/stats/fitted.values.html)
+  gain `clamp_alpha_pl` for `type = "explog"` (also reachable through
+  `type = "all"`, [`predict_grid()`](../reference/predict_grid.md) and
+  [`marginal_effects()`](../reference/marginal_effects.md)): `FALSE`
+  (the default) uses the fitted `alpha_pl` as-is, exempt from the global
+  `alpha_pl_floor` (which stays in force for `"harmonic"`/`"quantile"`),
+  and warns when any value is below 0.1, since `C * exp(1 / alpha_pl)`
+  is effectively undefined there and may be `Inf`; `TRUE` clamps at 0.1;
+  a positive number clamps there instead. The clamp actually used is
+  recorded as a `"clamp_alpha_pl"` attribute on the result. Previously
+  the explog path silently ran through the (much tighter)
+  `alpha_pl_floor`, producing an astronomically large but finite value
+  instead of `Inf` (round11 A4).
+
 ## evinf 0.11.0
 
 Implements audit §5.6 (offsets and weights), §5.5 (model families) and
@@ -97,6 +167,178 @@ Round-9 follow-ups (`dev/review_round9.md`):
   0.8).
 
 ### New features
+
+- [`evzinb()`](../reference/evzinb.md) /
+  [`evinb()`](../reference/evinb.md) project total bootstrap runtime
+  from the first `min(4, n_bootstraps)` replicates actually completing
+  (round10 J.1, audit §5.11), replacing the old “full-sample fit time x
+  `n_bootstraps`” proxy, which ignored parallelism entirely and could
+  differ substantially from a bootstrap replicate’s own fit time. Shown
+  (via [`message()`](https://rdrr.io/r/base/message.html)) when
+  `verbose = TRUE` or the projection exceeds 60 seconds. The probe
+  replicates duplicate (rather than change) part of the real dispatch’s
+  own work, so bootstrap output for a given `boot_seed` is unaffected.
+
+- `evinf_control(chunk_size = )` (round10 J.2, audit §5.11): the number
+  of replicates/starts [`evinf_pmap()`](../reference/evinf_pmap.md)
+  hands a worker at a time. `NULL` (the new default, replacing a
+  hardcoded `1L`) picks
+  `max(1, ceiling(B / (4 * future::nbrOfWorkers())))` at dispatch time –
+  four chunks per worker. Chunk size only changes how work is grouped
+  for dispatch, never each replicate’s RNG stream (verified
+  empirically), so bootstrap/start output is identical across chunk
+  sizes for the same seed.
+
+- `evinf_bench_data(n, seed)` (round10 J.3, audit §5.11, decision D8): a
+  synthetic-data generator with known true EVZINB parameters, for
+  benchmarking and scale testing at whatever `n` is needed without
+  bundling an additional `.rda` per size. `inst/bench/bench_evinf.R` now
+  uses it (replacing the bundled `genevzinb2`/`hks` data it previously
+  benchmarked against) and compares each timing to a stored reference
+  (`inst/bench/reference_timings.rds`), flagging (in the CI log only –
+  never failing the build) a case more than 2x slower than its
+  reference.
+
+- `marginaleffects` support (round10 I.1, audit §5.9) gains
+  `type = "states"` (a long group/estimate frame, one group per prior
+  state – `evinb` has no zero state), `"quantile"` (a single
+  `quantile =` passed through `...`, defaulting to the median) and
+  `"exceedance"` (a single or several `threshold =` passed through
+  `...`, fanning out into groups like `"states"` when more than one is
+  given). `type = "quantile"` uses the continuous
+  (linearly-interpolated) mixture quantile for delta-method standard
+  errors, the same fix
+  [`marginal_effects()`](../reference/marginal_effects.md)’s own
+  `predict_from_boot()` already applied (audit N1) – the integer
+  quantile’s derivative is zero almost everywhere, which otherwise
+  starves the delta method into `NA`. `marginaleffects` does not know
+  evinf’s extra `...` arguments and will warn “not known to be
+  supported” for `quantile =`/ `threshold =`; the prediction is still
+  computed correctly.
+
+- [`augment.evzinb()`](../reference/augment.evzinb.md) /
+  [`augment.evinb()`](../reference/augment.evinb.md) (round10 I.2, audit
+  §5.9): a
+  [`generics::augment()`](https://generics.r-lib.org/reference/augment.html)/`broom`-style
+  method appending `.fitted` (`predict(type = "harmonic")`),
+  `.prob_zero`/`.prob_count`/`.prob_evi` (prior state probabilities;
+  `evinb` has no zero state), `.state` (the MAP prior state), and, when
+  the response is present, `.resid` (a seeded randomized quantile
+  residual), `.post_zero`/`.post_count`/`.post_evi` (posterior state
+  probabilities) and `.post_state` (the MAP posterior state).
+  `residuals(type = )` gains a `newdata =` argument to support this
+  (previously always the estimation data; unchanged when omitted).
+
+- [`print.evzinbcomp()`](../reference/print.evzinbcomp.md) (round10 I.4,
+  audit §5.9) now also shows a compact
+  [`glance()`](https://generics.r-lib.org/reference/glance.html) table
+  (one row per compared model: `nobs`, `npar`, `logLik`, `aic`, `bic`)
+  and the [`compare_fit()`](../reference/compare_fit.md)
+  paired-bootstrap comparison – previously only the compared-model names
+  and bootstrap count.
+
+- Internal [`evinf_pmf()`](../reference/evinf_pmf.md) /
+  [`evinf_cdf()`](../reference/evinf_pmf.md) (round10 H.1, audit §5.8)
+  are now the package’s one definition of the predictive distribution,
+  family-aware across all four count x zero combinations.
+  `mixture_p()`’s CDF formula and a new shared per-state-density
+  building block (`evinf_state_densities()`) back both;
+  `classify_states(newdata = )` and `residuals(type = "quantile")` are
+  refactored onto them, and as a result now also clamp a collapsed
+  `alpha_pl` against `alpha_pl_floor` (with the same warning as every
+  [`predict()`](https://rdrr.io/r/stats/predict.html) type already
+  gives) – they did not before. This sets up
+  `predict(type = "distribution"/"quantile"/"exceedance"/"draws")`
+  (below).
+  `evinf_dist_params()`/[`evinf_pmf()`](../reference/evinf_pmf.md)/[`evinf_cdf()`](../reference/evinf_pmf.md)
+  also gain an explicit `is_zinb =` override (default
+  `inherits(object, "evzinb")`, correct for a full-sample fit): a
+  bootstrap replicate does not reliably carry that class, so the default
+  silently misrouted an `evzinb` replicate to the `evinb` parameter
+  extraction. Every caller in this package that runs one of these on
+  `object$bootstraps` now passes `is_zinb` explicitly, the same pattern
+  the existing bootstrap-prediction code already used.
+
+- `predict(type = "distribution")` (round10 H.2): the full predictive
+  distribution as a long tibble (`.row`, `y`, `prob`;
+  `format = "matrix"` for the raw n x K matrix). `support` defaults to
+  `0:K`, `K` the ceiling of the 0.999 mixture quantile of the
+  heaviest-tailed row, capped at `max_support` (default 1e5). No
+  `confint` support (the distribution is already the quantity a CI would
+  summarize).
+
+- `predict(type = "quantile", quantile = <vector>)` (round10 H.3):
+  several mixture quantiles at once (e.g. `quantile = c(.5, .9, .99)`),
+  returned as a tibble with one `qXX` column per probability
+  (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`), sharing one bisection
+  over all probabilities at once rather than one call per probability. A
+  length-1 `quantile` is unaffected – still the original scalar return.
+
+- `predict(type = "exceedance", threshold = <vector>)` (round10 H.4):
+  exceedance probabilities `P(Y >= threshold)`, as `p_ge_<threshold>`
+  columns (via `1 - F(threshold - 1)`; `threshold = 0` is exactly 1 for
+  every count-valued model here, computed directly rather than at the
+  undefined `F(-1)`). `confint = TRUE` supported via the same bootstrap
+  machinery as the existing vector-output types.
+
+- `predict(type = "draws", n_draws =, parameter_uncertainty =)` (round10
+  H.5): predictive draws as a long tibble (`.row`, `.draw`, `y`),
+  sharing the sampler
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html) already uses
+  ([`revzinb_fit()`](../reference/revzinb_fit.md)/[`revinb_fit()`](../reference/revinb_fit.md))
+  rather than a second one. `parameter_uncertainty = TRUE` draws each
+  observation’s parameters from a randomly chosen usable bootstrap
+  replicate instead of the full-sample estimate. Seeded like
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html); leaves the
+  caller’s `.Random.seed` untouched either way.
+
+- `keep = c(...)` (round10 H.6): every H.2-H.5 type above accepts a
+  character vector of `newdata` column names to carry into the result,
+  for a join key on panel data instead of relying on row order.
+
+- [`evzinb()`](../reference/evzinb.md) /
+  [`evinb()`](../reference/evinb.md) gain
+  `evinf_control(n_starts =, start_jitter =)` (round10 G.1, audit
+  §5.10): with `n_starts > 1`, the default start plus `n_starts - 1`
+  perturbed starts (coefficients jittered by `N(0, start_jitter^2)`,
+  `C_EV` drawn uniformly from the candidate grid) each run the EM in
+  parallel (via the same `multicore =`/`ncores =` the bootstrap dispatch
+  uses), and the highest-log-likelihood replicate is kept – the EM can
+  land in different local optima depending on floating-point
+  accumulation order, and multiple starts are the principled response.
+  Every replicate’s outcome is recorded in `object$starts` (`NULL` for
+  the default `n_starts = 1`, to keep single-start objects the same size
+  as before);
+  [`print()`](https://rdrr.io/r/base/print.html)/[`glance()`](https://generics.r-lib.org/reference/glance.html)
+  report how many starts reached the winning log-likelihood. Bootstrap
+  replicates warm-start from the winning solution, same as a
+  single-start fit. A new `start_seed =` argument on
+  [`evzinb()`](../reference/evzinb.md)/[`evinb()`](../reference/evinb.md)
+  seeds the perturbed starts and is recorded as `object$start_seed`.
+
+- `plot(type = "trace")` (round10 G.2): the log-likelihood and `C_EV`
+  traces, in two stacked panels with the warm-up/convergence boundary
+  marked. With `n_starts > 1`, every perturbed start’s trace is overlaid
+  in grey behind the winning start’s, in black.
+
+- Per-bootstrap convergence detail (round10 G.3, audit §5.10): every
+  bootstrap replicate now also carries `n_em_steps` (`converge`/
+  `c_converged`/`c_warmup_capped` were already there).
+  [`failed_bootstraps()`](../reference/failed_bootstraps.md) gains a
+  `"not_converged"` category for a replicate that ran without erroring
+  and isn’t degenerate, but didn’t converge – previously invisible
+  there. [`glance()`](https://generics.r-lib.org/reference/glance.html)
+  gains `median_boot_em_steps` and `n_boot_c_capped` (replicates whose
+  `C_EV` profile hit `max.c.iter` without settling, in either phase).
+
+- [`check_evinf()`](../reference/check_evinf.md) (round10 G.4, audit
+  §5.10): a single diagnostic report (a classed tibble with a
+  [`print()`](https://rdrr.io/r/base/print.html) method) gathering
+  convergence, `C_EV`-on-a-boundary, the smallest fitted Pareto shape
+  against `alpha_pl_floor`, failed/degenerate bootstraps, start
+  agreement (`n_starts > 1`) and, for the block bootstrap schemes, the
+  out-of-bag fraction – each row gets a status
+  (`"ok"`/`"note"`/`"warning"`) and a one-line suggestion.
 
 - [`evzinb()`](../reference/evzinb.md) /
   [`evinb()`](../reference/evinb.md) gain `family =`, an
@@ -236,6 +478,15 @@ Round-9 follow-ups (`dev/review_round9.md`):
   primary sampling units with `block =` instead. The bootstrap resamples
   rows exactly as without weights and carries each drawn row’s weight
   along (audit §5.6, round9 D.2).
+
+### Not implemented, by design
+
+- `texreg` support (round10 I.5, audit §5.9, decision D5): skipped.
+  [`modelsummary::modelsummary()`](https://modelsummary.com/man/modelsummary.html)
+  ([`?gof_map_evinf`](../reference/gof_map_evinf.md),
+  [`?tidy.evzinb`](../reference/tidy.evzinb.md)) already covers
+  regression tables for `evzinb`/`evinb` models; revisit only if a user
+  specifically asks for `texreg`.
 
 ## evinf 0.10.0
 

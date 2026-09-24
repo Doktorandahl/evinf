@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -119,9 +119,46 @@
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in repaired_names(names2(x), repair_hint, .name_repair = .name_repair,     quiet = quiet, call = call):</span> Repaired names have length 3 instead of length 1.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> EVZINB model summary</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ====================</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Count component (negative binomial)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   3.1305     0.2035   15.380     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1            0.8432     0.3468    2.431     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2            0.5987     0.4038    1.483     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3            0.2411     0.2230    1.081     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Zero-inflation component</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   0.5109     0.4353    1.174    0.667</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1           -0.6738     0.8681   -0.776    0.667</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2            0.6071     0.5922    1.025     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3           -0.4197     0.4738   -0.886    0.667</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Extreme-value inflation component</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  -1.7286     0.3362   -5.142     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1            0.7356     0.4049    1.817     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2           -0.4289     0.4790   -0.895    0.667</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3            0.1662     0.2132    0.779    1.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Pareto (extreme value) component</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error approx t Pr(boot)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   2.7136     0.4997    5.431     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x1           -2.2778     0.6682   -3.409     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x2            1.4488     0.6152    2.355     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x3            1.5035     0.1895    7.933     &lt;0.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ----------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> alpha_NB: 1.431   C_EV: 184</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations at or above C_EV: 10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Mean state proportions:  zero = 0.575   count = 0.341   evi = 0.084</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 100   Parameters: 18   df: 82</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> logLik: -254   AIC: 544.1   BIC: 591   Converged: TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Bootstraps: failed = 0, degenerate = 2</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

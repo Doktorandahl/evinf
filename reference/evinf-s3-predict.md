@@ -12,10 +12,22 @@ fitted(object, type = c("harmonic", "explog", "counts", "pareto_alpha"), ...)
 fitted(object, type = c("harmonic", "explog", "counts", "pareto_alpha"), ...)
 
 # S3 method for class 'evzinb'
-residuals(object, type = c("response", "quantile"), seed = NULL, ...)
+residuals(
+  object,
+  type = c("response", "quantile"),
+  seed = NULL,
+  newdata = NULL,
+  ...
+)
 
 # S3 method for class 'evinb'
-residuals(object, type = c("response", "quantile"), seed = NULL, ...)
+residuals(
+  object,
+  type = c("response", "quantile"),
+  seed = NULL,
+  newdata = NULL,
+  ...
+)
 
 # S3 method for class 'evzinb'
 simulate(object, nsim = 1, seed = NULL, newdata = NULL, ...)
@@ -40,7 +52,10 @@ simulate(object, nsim = 1, seed = NULL, newdata = NULL, ...)
 
 - ...:
 
-  Unused.
+  For [`fitted()`](https://rdrr.io/r/stats/fitted.values.html),
+  forwarded to [`predict()`](https://rdrr.io/r/stats/predict.html)
+  (round11 A4: e.g. `clamp_alpha_pl` for `type = "explog"`); unused
+  otherwise.
 
 - seed:
 
@@ -49,13 +64,16 @@ simulate(object, nsim = 1, seed = NULL, newdata = NULL, ...)
   caller's RNG state is restored on exit (the seed only affects this
   call's draws).
 
+- newdata:
+
+  Optional data to simulate for, or (round10 I.2, for
+  [`residuals()`](https://rdrr.io/r/stats/residuals.html)) to compute
+  residuals for instead of the estimation data; the response column
+  (named by the count formula's left-hand side) must be present.
+
 - nsim:
 
   Number of simulated response vectors.
-
-- newdata:
-
-  Optional data to simulate for.
 
 ## Value
 

@@ -41,13 +41,13 @@ A vector of randomly drawn values from the fitted evzinb if n_draws ==
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3, data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 revzinb_fit(model)
-#>   [1]    0    0    0    1    0    0   24  201    5    0    0    0  567    5   29
-#>  [16]    0    5   33   61   25    0    0    0    0    0    8    7    6   46    0
-#>  [31]   53    7    0   39    0    0    0    0    0    6    0    0    0    7    0
-#>  [46]  187    0   35  211    0   39    0   61    0    3    0    0 1108   88   12
-#>  [61]    0    0    5   24    8    0    0    0    0    5    0    0   50   68    0
-#>  [76]    0   92    0    0    0    0    7    0    0    0    0    0    0    0    2
-#>  [91]    0    0    0  106   95   43  419    0    3    0
+#>   [1]   5   0   0   0   0   0   0   0   0  52   0   0 155   0   0   6   0   0
+#>  [19]   8   0   0   0   0   0   3   8   0   0   0   0   0   0   0   0   9   0
+#>  [37]   0  32   0 365   0   0   0   9   0   0 190  18 206 184   0 149   0   0
+#>  [55]   8   0   0   0  86 427   0   0   0 276 699   0   0   2 192  85   0   0
+#>  [73]   1 219   0  43  27   0   0   4 190 186   0   0   0   0   0 374   0   0
+#>  [91]   0 235  44   6   0  60  37   8   0   0
 # }
 ```

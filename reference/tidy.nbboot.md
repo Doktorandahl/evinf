@@ -81,23 +81,119 @@ model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 zinb_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: alternation limit reached
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
 #> Warning: alternation limit reached
 tidy(zinb_comp$nb)
 #> # A tibble: 4 × 5
 #>   term        estimate std.error statistic p.value
 #>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
-#> 1 (Intercept)    3.11      0.215    14.5       0.2
-#> 2 x1             1.40      0.188     7.41      0.2
-#> 3 x2            -0.488     0.593    -0.823     0.8
-#> 4 x3             0.477     0.463     1.03      0.4
+#> 1 (Intercept)    3.11      0.566      5.49     0.2
+#> 2 x1             1.40      0.365      3.83     0.2
+#> 3 x2            -0.488     0.312     -1.57     0.2
+#> 4 x3             0.477     0.315      1.51     0.2
 # }
 ```

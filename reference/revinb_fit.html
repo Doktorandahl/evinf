@@ -13,7 +13,7 @@ instead of a bare vector/list.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,19 +82,28 @@ instead of a bare vector/list.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evinb.html">evinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>, data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu">revinb_fit</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   [1]       1      14     184       0      46       0      39     755       0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [10]       0       0       0      90       0       0       0      28       0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [19] 1008840       6       0       3       0       7       0       1     184</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [28]       0       0       0     109       1       0       0       0       6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [37]       0       0     200       0      14       0       0       0      10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [46]     196       0       0     277       0       0     184      10       0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [55]       0       0       0       0     298       0       0     184       0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [64]      22       0       0       1       0       0       3       0       1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [73]      11      29       0       0       0       0       0       0      17</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [82]       0       0       1       0       3       0       1       9       0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [91]       0     187      37      10      52       0     526       0       0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [100]       0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   [1] 1.000000e+00 0.000000e+00 1.860000e+02 0.000000e+00 1.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   [6] 0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00 1.880000e+02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [11] 0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [16] 4.000000e+00 1.702000e+03 2.000000e+00 2.380000e+02 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [21] 0.000000e+00 0.000000e+00 2.000000e+00 0.000000e+00 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [26] 0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [31] 0.000000e+00 0.000000e+00 8.400000e+01 1.840000e+02 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [36] 1.000000e+00 0.000000e+00 0.000000e+00 3.000000e+00 1.100000e+01</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [41] 0.000000e+00 3.000000e+00 0.000000e+00 5.000000e+01 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [46] 1.860000e+02 0.000000e+00 0.000000e+00 6.000000e+01 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [51] 0.000000e+00 0.000000e+00 0.000000e+00 2.800000e+02 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [56] 0.000000e+00 0.000000e+00 2.110000e+02 3.580000e+02 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [61] 2.000000e+01 0.000000e+00 0.000000e+00 1.900000e+01 1.810000e+02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [66] 0.000000e+00 0.000000e+00 1.880000e+02 0.000000e+00 3.370000e+02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [71] 0.000000e+00 0.000000e+00 0.000000e+00 2.025000e+03 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [76] 0.000000e+00 0.000000e+00 2.000000e+00 1.850000e+02 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [81] 3.900000e+01 1.840000e+02 0.000000e+00 0.000000e+00 1.900000e+01</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [86] 0.000000e+00 0.000000e+00 2.190000e+02 0.000000e+00 1.500000e+01</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [91] 0.000000e+00 1.840000e+02 3.129716e+25 0.000000e+00 0.000000e+00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [96] 0.000000e+00 3.916000e+03 0.000000e+00 0.000000e+00 3.000000e+00</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

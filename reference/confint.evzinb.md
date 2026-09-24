@@ -65,12 +65,12 @@ A two-column matrix.
 data(genevzinb2)
 m <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 25)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 5 of 25 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the upper candidate endpoint (263) in 1 and the lower endpoint (173) in 4 of 25 bootstrap replicates; consider widening c.lim.
 # the Pareto shape (alpha_nb) and the threshold (c_ev) are in coef()/confint()
 confint(m, parm = c("count_x1", "alpha_nb", "c_ev"))
-#>                 2.5 %     97.5 %
-#> count_x1   0.07672827   1.597683
-#> alpha_nb   0.65337763   5.812112
-#> c_ev     184.00000000 190.000000
+#>                2.5 %     97.5 %
+#> count_x1   0.3056582   1.832540
+#> alpha_nb   1.0615163   4.466584
+#> c_ev     184.0000000 190.775000
 # }
 ```

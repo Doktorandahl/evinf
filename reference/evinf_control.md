@@ -34,7 +34,10 @@ evinf_control(
   alpha_floor = 0.001,
   coef_limit = 50,
   max.c.iter = 50,
-  alpha_pl_floor = 0.01
+  alpha_pl_floor = 0.01,
+  n_starts = 1L,
+  start_jitter = 0.5,
+  chunk_size = NULL
 )
 ```
 
@@ -157,6 +160,44 @@ evinf_control(
   [`glance()`](https://generics.r-lib.org/reference/glance.html)'s
   `min_alpha_pl` and [`print()`](https://rdrr.io/r/base/print.html)'s
   note report, so a collapsed EV shape stays visible.
+
+- n_starts:
+
+  Number of starting points for the full-sample fit (round10 G.1, audit
+  §5.10). `1` (the default) fits once from the default start, exactly as
+  before this argument existed. With `n_starts > 1`, that default start
+  plus `n_starts - 1` perturbed starts each run through the EM (in
+  parallel via [`evinf_pmap`](evinf_pmap.md), seeded from `start_seed`),
+  and the replicate with the highest final log-likelihood is kept – the
+  EM can land in different local optima depending on floating-point
+  accumulation order, and multiple starts are the principled response.
+  Every replicate's outcome is recorded in `object$starts`; bootstrap
+  replicates warm-start from the winning solution, same as they would
+  from a single-start fit.
+
+- start_jitter:
+
+  Standard deviation of the `N(0, start_jitter^2)` perturbation applied
+  to each component's starting coefficients for the `n_starts - 1`
+  perturbed starts; their starting \\C\_{EV}\\ is drawn uniformly from
+  the candidate grid instead. Unused when `n_starts <= 1`.
+
+- chunk_size:
+
+  Number of bootstrap replicates (or starts) handed to a worker at a
+  time in [`evinf_pmap`](evinf_pmap.md) (round10 J.2, audit §5.11).
+  `NULL` (the default) picks
+  `max(1, ceiling(B / (4 * future::nbrOfWorkers())))` at dispatch time
+  (`B` the number of replicates being dispatched) – four chunks per
+  worker, balancing per-task scheduling overhead (worse for `B` far
+  larger than the worker count and `chunk_size = 1`) against a straggler
+  chunk leaving workers idle near the end (worse for a `chunk_size`
+  close to `B / nbrOfWorkers()`). Chunk size only changes how replicates
+  are grouped for dispatch, never which `boot_id`s they draw (each
+  replicate's L'Ecuyer stream comes from its position in the full
+  sequence, not from the chunk it lands in), so bootstrap output is
+  identical across chunk sizes for the same seed. Set explicitly to
+  override, e.g. `1L` to restore the pre-J.2 default.
 
 ## Value
 

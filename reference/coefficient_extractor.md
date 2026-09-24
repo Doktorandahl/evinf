@@ -64,33 +64,27 @@ A tibble with coefficient values, one row per bootstrap and component
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 coefficient_extractor(model, component = 'all')
-#> # A tibble: 16 × 5
-#>    `(Intercept)`     x1     x2      x3 .component
-#>            <dbl>  <dbl>  <dbl>   <dbl> <chr>     
-#>  1        3.11    0.604 0.548   0.882  count     
-#>  2        3.29    0.184 1.06    0.0132 count     
-#>  3        2.92    0.947 0.499   0.433  count     
-#>  4        3.07    0.722 0.355   0.448  count     
-#>  5        1.09   -1.46  1.17   -1.01   zero      
-#>  6        0.0606 -0.868 0.934  -0.0557 zero      
-#>  7        0.233  -1.12  0.659  -0.525  zero      
-#>  8        0.695  -0.752 0.552  -0.640  zero      
-#>  9       -1.31   -0.158 0.943  -0.660  evi       
-#> 10       -1.48    0.217 0.316   0.443  evi       
-#> 11       -1.44    0.451 0.0772  0.272  evi       
-#> 12       -1.28    1.11  0.261  -0.274  evi       
-#> 13        3.30   -3.09  1.12    2.54   pareto    
-#> 14        2.72   -2.40  1.51    1.62   pareto    
-#> 15        3.00   -3.43  2.22    2.46   pareto    
-#> 16        3.18   -2.94  1.22    2.34   pareto    
+#> # A tibble: 12 × 5
+#>    `(Intercept)`      x1     x2      x3 .component
+#>            <dbl>   <dbl>  <dbl>   <dbl> <chr>     
+#>  1         2.74   0.571   0.518  1.16   count     
+#>  2         3.62   0.0664  0.899  0.104  count     
+#>  3         3.02   0.650   0.564 -0.245  count     
+#>  4         0.390 -0.410   1.19  -0.769  zero      
+#>  5         1.10  -1.07    0.725 -1.03   zero      
+#>  6         0.902 -0.272   0.490 -0.148  zero      
+#>  7        -1.40   0.501   0.137 -0.187  evi       
+#>  8        -0.732  0.146   0.238  0.0272 evi       
+#>  9        -1.32   1.47   -1.06   0.676  evi       
+#> 10         2.71  -2.26    1.44   1.50   pareto    
+#> 11         2.81  -2.66    1.69   1.74   pareto    
+#> 12         1.98  -1.44    0.698  1.37   pareto    
 # }
 # \donttest{
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
 zinb_comp <- compare_models(model)
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
@@ -144,63 +138,90 @@ zinb_comp <- compare_models(model)
 #> Warning: NaNs produced
 #> Warning: iteration limit reached
 #> Warning: NaNs produced
+#> Warning: alternation limit reached
 #> Warning: alternation limit reached
 coefficient_extractor(zinb_comp$zinb)
 #> # A tibble: 10 × 5
-#>    `(Intercept)`      x1      x2     x3 .component
-#>            <dbl>   <dbl>   <dbl>  <dbl> <chr>     
-#>  1         3.91   0.979   0.559  -0.341 count     
-#>  2         4.03   0.486   0.0320  0.680 count     
-#>  3         3.04   1.53   -1.08   -0.292 count     
-#>  4         3.94   0.943  -0.433   0.125 count     
-#>  5         3.54  -0.0195  0.310   0.380 count     
-#>  6         0.176 -0.988   1.28   -0.815 zero      
-#>  7         0.675 -0.615   0.434  -0.273 zero      
-#>  8        -0.324 -1.13    1.44   -0.682 zero      
-#>  9         0.284 -1.91    1.67   -1.70  zero      
-#> 10        -1.03  -1.22    1.38    0.310 zero      
+#>    `(Intercept)`     x1      x2      x3 .component
+#>            <dbl>  <dbl>   <dbl>   <dbl> <chr>     
+#>  1        3.23    1.08   0.318   0.183  count     
+#>  2        4.07    1.35   0.212  -0.903  count     
+#>  3        4.15    0.626 -0.0286  0.0312 count     
+#>  4        3.82    1.02  -0.537   0.351  count     
+#>  5        2.81    1.58   0.594   0.601  count     
+#>  6        0.539  -0.779  0.772  -0.240  zero      
+#>  7        0.499  -0.636  0.160  -0.255  zero      
+#>  8       -0.0832 -1.35   0.215   0.401  zero      
+#>  9        0.613  -1.65   1.08   -1.35   zero      
+#> 10       -0.131  -0.894  1.51   -1.14   zero      
 # }
 # \donttest{
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 zinb_comp <- compare_models(model)
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
 #> Warning: alternation limit reached
-#> Warning: glm.fit: algorithm did not converge
-#> Warning: glm.fit: algorithm did not converge
 coefficient_extractor(zinb_comp$nb)
 #> # A tibble: 5 × 4
-#>   `(Intercept)`    x1     x2     x3
-#>           <dbl> <dbl>  <dbl>  <dbl>
-#> 1          2.97  1.37 -0.304 1.19  
-#> 2          2.95  1.26 -0.113 0.199 
-#> 3          3.27  1.01 -0.178 0.288 
-#> 4          3.13  1.82 -0.923 0.174 
-#> 5          2.85  1.58 -1.05  0.0615
+#>   `(Intercept)`    x1      x2     x3
+#>           <dbl> <dbl>   <dbl>  <dbl>
+#> 1          2.75 1.76  -1.18   0.775 
+#> 2          3.36 1.32  -0.636  0.944 
+#> 3          3.14 1.75  -0.915  0.0786
+#> 4          2.67 1.41   0.0792 0.332 
+#> 5          3.35 0.892 -0.139  0.450 
 # }
 ```

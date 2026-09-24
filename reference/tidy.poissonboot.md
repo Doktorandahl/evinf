@@ -79,7 +79,7 @@ A tidy function for a bootstrapped Poisson model
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, family = "poisson", n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 3 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 4 of 5 bootstrap replicates; consider widening c.lim.
 zip_comp <- compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
@@ -111,9 +111,9 @@ tidy(zip_comp$poisson)
 #> # A tibble: 4 × 5
 #>   term        estimate std.error statistic p.value
 #>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
-#> 1 (Intercept)    3.20      0.116     27.6      0.2
-#> 2 x1             1.10      0.350      3.14     0.2
-#> 3 x2            -0.449     0.305     -1.47     0.2
-#> 4 x3             0.327     0.233      1.40     0.4
+#> 1 (Intercept)    3.20      0.308     10.4      0.2
+#> 2 x1             1.10      0.387      2.84     0.2
+#> 3 x2            -0.449     0.358     -1.25     0.2
+#> 4 x3             0.327     0.298      1.10     0.2
 # }
 ```

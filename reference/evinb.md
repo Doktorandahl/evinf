@@ -22,6 +22,7 @@ evinb(
   block_length = NULL,
   family = evinf_family(),
   boot_seed = NULL,
+  start_seed = NULL,
   control = evinf_control(),
   max.diff.par,
   max.no.em.steps,
@@ -195,6 +196,12 @@ evinb(
   `object$boot_seeds` is always populated for a bootstrapped model (see
   [`add_bootstraps`](add_bootstraps.md)).
 
+- start_seed:
+
+  Optional seed for the perturbed starts when `control$n_starts > 1`
+  (round10 G.1); recorded as `object$start_seed` (`NULL` for the default
+  `n_starts = 1`). Unused otherwise.
+
 - control:
 
   An [`evinf_control()`](evinf_control.md) object holding the EM tuning
@@ -209,7 +216,7 @@ evinb(
   **Deprecated.** Pass these through `control = evinf_control(...)`;
   supplying one directly overrides the corresponding `control` element
   and emits a warning. See [`evinf_control`](evinf_control.md). Will be
-  removed in 0.11.0.
+  removed in a future release.
 
 - verbose:
 
@@ -266,15 +273,17 @@ a single fixed plan.
 data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 # }
 
-if (FALSE) { # \dontrun{
+# \donttest{
 data(hks)
 hks_mod <- evinb(
   osvAll ~ troopLag + policeLag + militaryobserversLag + epduration +
     lntpop + brv_AllLag_log + osvAllLagDum + incomp,
   formula_pareto = ~ log1p(troopLag),
-  data = hks, n_bootstraps = 5, multicore = FALSE
+  data = hks, n_bootstraps = 2, multicore = FALSE
 )
-} # }
+#> evinf: using a data-driven candidate range for C_EV: [209, 8586]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+# }
 ```

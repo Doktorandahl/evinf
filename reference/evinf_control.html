@@ -13,7 +13,7 @@ argument of evzinb() / evinb()."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,7 +72,10 @@ argument of <code><a href="evzinb.html">evzinb()</a></code> / <code><a href="evi
 <span>  alpha_floor <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  coef_limit <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>  max.c.iter <span class="op">=</span> <span class="fl">50</span>,</span>
-<span>  alpha_pl_floor <span class="op">=</span> <span class="fl">0.01</span></span>
+<span>  alpha_pl_floor <span class="op">=</span> <span class="fl">0.01</span>,</span>
+<span>  n_starts <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  start_jitter <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>  chunk_size <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -189,6 +192,45 @@ clamped to it before these calculations, with a <code><a href="https://rdrr.io/r
 how many observations were clamped; the unclamped values are still what
 <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code>'s <code>min_alpha_pl</code> and <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>'s note report, so
 a collapsed EV shape stays visible.</p></dd>
+
+
+<dt id="arg-n-starts">n_starts<a class="anchor" aria-label="anchor" href="#arg-n-starts"></a></dt>
+<dd><p>Number of starting points for the full-sample fit (round10
+G.1, audit §5.10). <code>1</code> (the default) fits once from the default
+start, exactly as before this argument existed. With <code>n_starts &gt;
+1</code>, that default start plus <code>n_starts - 1</code> perturbed starts each
+run through the EM (in parallel via <code><a href="evinf_pmap.html">evinf_pmap</a></code>, seeded
+from <code>start_seed</code>), and the replicate with the highest final
+log-likelihood is kept – the EM can land in different local optima
+depending on floating-point accumulation order, and multiple starts are
+the principled response. Every replicate's outcome is recorded in
+<code>object$starts</code>; bootstrap replicates warm-start from the winning
+solution, same as they would from a single-start fit.</p></dd>
+
+
+<dt id="arg-start-jitter">start_jitter<a class="anchor" aria-label="anchor" href="#arg-start-jitter"></a></dt>
+<dd><p>Standard deviation of the <code>N(0, start_jitter^2)</code>
+perturbation applied to each component's starting coefficients for the
+<code>n_starts - 1</code> perturbed starts; their starting \(C_{EV}\) is
+drawn uniformly from the candidate grid instead. Unused when
+<code>n_starts &lt;= 1</code>.</p></dd>
+
+
+<dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
+<dd><p>Number of bootstrap replicates (or starts) handed to a
+worker at a time in <code><a href="evinf_pmap.html">evinf_pmap</a></code> (round10 J.2, audit §5.11).
+<code>NULL</code> (the default) picks
+<code>max(1, ceiling(B / (4 * future::nbrOfWorkers())))</code> at dispatch time
+(<code>B</code> the number of replicates being dispatched) – four chunks per
+worker, balancing per-task scheduling overhead (worse for <code>B</code> far
+larger than the worker count and <code>chunk_size = 1</code>) against a
+straggler chunk leaving workers idle near the end (worse for a
+<code>chunk_size</code> close to <code>B / nbrOfWorkers()</code>). Chunk size only
+changes how replicates are grouped for dispatch, never which
+<code>boot_id</code>s they draw (each replicate's L'Ecuyer stream comes from
+its position in the full sequence, not from the chunk it lands in), so
+bootstrap output is identical across chunk sizes for the same seed. Set
+explicitly to override, e.g. <code>1L</code> to restore the pre-J.2 default.</p></dd>
 
 </dl></div>
     <div class="section level2">

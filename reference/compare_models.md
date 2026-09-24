@@ -136,14 +136,12 @@ a single fixed plan.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
+#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
@@ -154,8 +152,8 @@ compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
-#> Warning: iteration limit reached
-#> Warning: NaNs produced
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
@@ -166,19 +164,130 @@ compare_models(model)
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: glm.fit: algorithm did not converge
 #> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: iteration limit reached
+#> Warning: NaNs produced
+#> Warning: alternation limit reached
 #> 
-#>  Model comparison of  evzinb 
-#>   Compared models:  nb, zinb 
-#>   Number of compared models:  2 
-#>  Number of bootstraps: 5 
+#> Model comparison of evzinb
+#>  Compared models: nb, zinb
+#>  Number of compared models: 2
+#>  Number of bootstraps:5
+#> 
+#> Fit summary
+#>  model nobs npar logLik   aic   bic
+#>  model  100   18 -254.0 544.1 591.0
+#>     nb  100    4 -273.2 556.4 569.4
+#>   zinb  100    9 -266.1 550.3 573.7
+#> 
+#> Paired bootstrap fit comparison (evinf - compared)
+#>   negative median favours the extreme-value model
+#> 
+#>  model metric median_difference prop_evinf_better n_pairs
+#>     nb    aic          -52.0400              1.00       4
+#>     nb    bic          -18.1800              0.75       4
+#>     nb   rmse          809.8000              0.25       4
+#>     nb  rmsle            0.6330              0.25       4
+#>   zinb    aic          -30.2100              1.00       4
+#>   zinb    bic           -6.7590              0.75       4
+#>   zinb   rmse          813.2000              0.25       4
+#>   zinb  rmsle            0.4891              0.25       4
 # }
 
-if (FALSE) { # \dontrun{
+# \donttest{
 data(hks)
 hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log + osvAllLagDum,
                   formula_pareto = ~ log1p(troopLag),
-                  data = hks, n_bootstraps = 5, multicore = FALSE)
+                  data = hks, n_bootstraps = 2, multicore = FALSE)
+#> evinf: using a data-driven candidate range for C_EV: [209, 8586]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
+#> Warning: C_EV equalled the lower endpoint (209) in 1 of 2 bootstrap replicates; consider widening c.lim.
 cmp <- compare_models(hks_mod)
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: alternation limit reached
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: glm.fit: algorithm did not converge
+#> Warning: alternation limit reached
 compare_fit(cmp)
-} # }
+#> Paired bootstrap fit comparison (evinf - compared)
+#>   negative median favours the extreme-value model
+#> 
+#>  model metric median_difference prop_evinf_better n_pairs
+#>     nb    aic        -1.720e+03                 1       2
+#>     nb    bic        -1.639e+03                 1       2
+#>     nb   rmse        -1.846e+13                 1       2
+#>     nb  rmsle        -2.342e+00                 1       2
+#>   zinb    aic        -4.835e+02                 1       2
+#>   zinb    bic        -4.337e+02                 1       2
+#>   zinb   rmse        -1.466e+03                 1       2
+#>   zinb  rmsle        -1.925e+00                 1       2
+# }
 ```

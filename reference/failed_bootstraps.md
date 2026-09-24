@@ -21,9 +21,15 @@ failed_bootstraps(object)
 
 ## Value
 
-A tibble with columns `id`, `type` (`"error"` or `"degenerate"`) and
-`message` (the error text, or the reason the replicate is degenerate);
-zero rows when every replicate is usable.
+A tibble with columns `id`, `type` (`"error"`, `"degenerate"` or
+`"not_converged"` – round10 G.3: a replicate that ran without erroring
+and isn't degenerate, but whose `converge` is `FALSE`, was previously
+invisible here), `message` (the error text, the degeneracy reason, or
+`NA` for `"not_converged"` – see `n_em_steps`/`c_converged`/
+`c_warmup_capped` there instead) and, for `"not_converged"` rows,
+`n_em_steps`, `c_converged`, `c_warmup_capped` (`NA` for
+`"error"`/`"degenerate"` rows); zero rows when every replicate is usable
+and converged.
 
 ## Examples
 
@@ -32,14 +38,12 @@ zero rows when every replicate is usable.
 data(genevzinb2)
 model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 3 of 5 bootstrap replicates; consider widening c.lim.
 failed_bootstraps(model)
-#> # A tibble: 4 × 3
-#>   id          type       message                                                
-#>   <chr>       <chr>      <chr>                                                  
-#> 1 bootstrap_1 degenerate smallest fitted Pareto shape 4.49e-11 < alpha_floor (0…
-#> 2 bootstrap_2 degenerate coefficient (Intercept) = -95.2 in Beta.PL exceeds coe…
-#> 3 bootstrap_4 degenerate smallest fitted Pareto shape 7.92e-12 < alpha_floor (0…
-#> 4 bootstrap_5 degenerate smallest fitted Pareto shape 6.04e-13 < alpha_floor (0…
+#> # A tibble: 3 × 6
+#>   id          type       message          n_em_steps c_converged c_warmup_capped
+#>   <chr>       <chr>      <chr>                 <int> <lgl>       <lgl>          
+#> 1 bootstrap_3 degenerate smallest fitted…         NA NA          NA             
+#> 2 bootstrap_4 degenerate smallest fitted…         NA NA          NA             
+#> 3 bootstrap_5 degenerate coefficient (In…         NA NA          NA             
 # }
 ```

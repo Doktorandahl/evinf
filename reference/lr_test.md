@@ -130,7 +130,6 @@ a single fixed plan.
 data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
-#> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 lr_test(model,'x1')
 #> # A tibble: 1 × 6
 #>   vars  loglik_full loglik_restricted    df statistic      prob

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,7 +44,7 @@
 <span>  <span class="va">object</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"harmonic"</span>, <span class="st">"explog"</span>, <span class="st">"counts"</span>, <span class="st">"pareto_alpha"</span>, <span class="st">"evinf"</span>, <span class="st">"count_state"</span>,</span>
-<span>    <span class="st">"states"</span>, <span class="st">"all"</span>, <span class="st">"quantile"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"states"</span>, <span class="st">"all"</span>, <span class="st">"quantile"</span>, <span class="st">"distribution"</span>, <span class="st">"exceedance"</span>, <span class="st">"draws"</span><span class="op">)</span>,</span>
 <span>  pred <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"original"</span>, <span class="st">"bootstrap_median"</span>, <span class="st">"bootstrap_mean"</span><span class="op">)</span>,</span>
 <span>  quantile <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  confint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -53,6 +53,15 @@
 <span>  ncores <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  return_bootstraps <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  exclude_degenerate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  support <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  max_support <span class="op">=</span> <span class="fl">1e+05</span>,</span>
+<span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"long"</span>, <span class="st">"matrix"</span><span class="op">)</span>,</span>
+<span>  threshold <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  n_draws <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  parameter_uncertainty <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  keep <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  clamp_alpha_pl <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -70,7 +79,7 @@
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
-<dd><p>Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, and 'quantile' for quantile prediction.</p></dd>
+<dd><p>Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, 'quantile' for quantile prediction (scalar or vector, see `quantile`), 'distribution' for the full predictive distribution, 'exceedance' for exceedance probabilities (see `threshold`), and 'draws' for predictive draws (see `n_draws`).</p></dd>
 
 
 <dt id="arg-pred">pred<a class="anchor" aria-label="anchor" href="#arg-pred"></a></dt>
@@ -78,11 +87,11 @@
 
 
 <dt id="arg-quantile">quantile<a class="anchor" aria-label="anchor" href="#arg-quantile"></a></dt>
-<dd><p>Quantile for which to produce quantile prediction</p></dd>
+<dd><p>Quantile(s) for which to produce quantile prediction. A single value keeps the existing scalar behavior exactly (a vector, e.g. `c(.5, .9, .99)` (round10 H.3), returns a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`)).</p></dd>
 
 
 <dt id="arg-confint">confint<a class="anchor" aria-label="anchor" href="#arg-confint"></a></dt>
-<dd><p>Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.</p></dd>
+<dd><p>Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states', 'all' or 'distribution'.</p></dd>
 
 
 <dt id="arg-conf-level">conf_level<a class="anchor" aria-label="anchor" href="#arg-conf-level"></a></dt>
@@ -112,13 +121,49 @@ restored on exit.</p></dd>
 <dd><p>Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().</p></dd>
 
 
+<dt id="arg-support">support<a class="anchor" aria-label="anchor" href="#arg-support"></a></dt>
+<dd><p>(round10 H.2) `type = 'distribution'` only: shared support (vector of `y` values) for every row. `NULL` (default) uses `0:K`, `K` the ceiling of the 0.999 mixture quantile of the heaviest-tailed row, capped at `max_support`.</p></dd>
+
+
+<dt id="arg-max-support">max_support<a class="anchor" aria-label="anchor" href="#arg-max-support"></a></dt>
+<dd><p>(round10 H.2) Upper bound on the default `support`'s `K` (default 1e5); ignored when `support` is given explicitly.</p></dd>
+
+
+<dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>
+<dd><p>(round10 H.2) `type = 'distribution'` only: `'long'` (default; a tibble with `.row`, `y`, `prob`) or `'matrix'` (the raw n x K matrix; `keep` is ignored).</p></dd>
+
+
+<dt id="arg-threshold">threshold<a class="anchor" aria-label="anchor" href="#arg-threshold"></a></dt>
+<dd><p>(round10 H.4) `type = 'exceedance'` only: a vector of thresholds; result columns are `p_ge_&lt;threshold&gt;`, `P(Y &gt;= threshold)`.</p></dd>
+
+
+<dt id="arg-n-draws">n_draws<a class="anchor" aria-label="anchor" href="#arg-n-draws"></a></dt>
+<dd><p>(round10 H.5) `type = 'draws'` only: number of predictive draws per row.</p></dd>
+
+
+<dt id="arg-parameter-uncertainty">parameter_uncertainty<a class="anchor" aria-label="anchor" href="#arg-parameter-uncertainty"></a></dt>
+<dd><p>(round10 H.5) `type = 'draws'` only: if `TRUE`, each draw uses a randomly chosen usable bootstrap replicate's parameters instead of the full-sample estimate.</p></dd>
+
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>(round10 H.5) `type = 'draws'` only: optional seed; the caller's `.Random.seed` is left untouched either way (same convention as `simulate()`).</p></dd>
+
+
+<dt id="arg-keep">keep<a class="anchor" aria-label="anchor" href="#arg-keep"></a></dt>
+<dd><p>(round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.</p></dd>
+
+
+<dt id="arg-clamp-alpha-pl">clamp_alpha_pl<a class="anchor" aria-label="anchor" href="#arg-clamp-alpha-pl"></a></dt>
+<dd><p>(round11 A4) `type = 'explog'` (and `'all'`) only: `FALSE` (default) uses the fitted `alpha_pl` as-is and warns below 0.1; `TRUE` clamps at 0.1; a positive number clamps there instead. Exempt from the global `alpha_pl_floor` (which stays in force for `'harmonic'`/`'quantile'`). The clamp used is recorded as a `"clamp_alpha_pl"` attribute on the result.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Other arguments passed to predict function</p></dd>
+<dd><p>Not used; any name here is an unknown argument and errors (round11 A5), naming the valid arguments for the requested `type`. A known argument supplied for a `type` it does nothing for (e.g. `threshold` with `type = "harmonic"`) warns instead, since it has a named formal below and never reaches here.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T</p>
+    <p>A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' (scalar), or a tibble for type 'states', 'all', 'quantile' (vector), 'distribution' (`format = 'long'`), 'exceedance', 'draws', or if confint=T; a matrix for 'distribution' with `format = 'matrix'`.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -131,14 +176,18 @@ restored on exit.</p></dd>
   this keeps existing point predictions unchanged but means they are not
   computed from exactly the same distribution as the rest of the model.</p>
 <p><code>type = 'explog'</code> is \(C \cdot \exp(1/\alpha_{PL})\), which grows
-  explosively as the fitted Pareto shape \(\alpha_{PL}\) approaches 0 –
-  <code>evinf_control(alpha_pl_floor = )</code> (default 0.01) keeps it finite,
-  but not sane (\(C \cdot e^{100}\) at the floor). A warning fires
-  whenever any \(\alpha_{PL}\) used in an explog prediction is below
-  0.1, since the prediction is effectively undefined well before the
-  floor is reached (\(e^{10} \approx 2.2 \times 10^4\)); check
-  <code>glance()$min_alpha_pl</code>, and prefer <code>type = 'harmonic'</code> when
-  this fires. No separate clamp is applied beyond <code>alpha_pl_floor</code>.</p>
+  explosively as the fitted Pareto shape \(\alpha_{PL}\) approaches 0.
+  Unlike <code>'harmonic'</code> and <code>'quantile'</code>, this path is exempt from
+  the global <code>evinf_control(alpha_pl_floor = )</code>; <code>clamp_alpha_pl</code>
+  is its own, separate knob (round11 A4). With <code>clamp_alpha_pl = FALSE</code>
+  (the default), the fitted \(\alpha_{PL}\) is used as-is and a warning
+  fires whenever any value is below 0.1, since the prediction is
+  effectively undefined there (\(e^{10} \approx 2.2 \times 10^4\), and it
+  may be <code>Inf</code>); check <code>glance()$min_alpha_pl</code>, and either pass
+  <code>clamp_alpha_pl = TRUE</code> (clamps at 0.1) or a positive number (clamps
+  there instead), or use <code>type = 'harmonic'</code>. The clamp actually
+  applied (<code>FALSE</code>, or the numeric floor) is recorded as a
+  <code>"clamp_alpha_pl"</code> attribute on the result.</p>
     </div>
     <div class="section level2">
     <h2 id="parallel-processing">Parallel processing<a class="anchor" aria-label="anchor" href="#parallel-processing"></a></h2>
@@ -183,9 +232,7 @@ fixed plan.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evinb.html">evinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   [1]   53.549686   60.127971  410.351359   12.431620   39.194583   34.139420</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   [7]  148.622606   99.329017   36.948813   40.651211    5.503769    1.450365</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [13]  261.660557   12.502587   30.214181   13.977638  481.714310   25.192966</span>
@@ -204,7 +251,7 @@ fixed plan.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [91]   13.833416   64.543036 1031.629755   77.681179   40.425301   21.961707</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [97]  139.887921   11.336808   16.955050   34.099904</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, type<span class="op">=</span><span class="st">'all'</span>, quantile <span class="op">=</span> <span class="fl">0.9</span><span class="op">)</span> <span class="co"># all available predicted values</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (explog prediction): 3 fitted Pareto alpha values below 0.1 (smallest: 0.0108); the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4) and may be Inf. Consider predict(..., type = "explog", clamp_alpha_pl = TRUE).</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 100 × 8</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    harmonic explog   q90 pr_count pr_evi pr_pareto  count pareto_alpha</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
@@ -219,6 +266,67 @@ fixed plan.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span>     36.9   37.5   192    0.896 0.104     0.104   15.1         4.38 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span>     40.7   40.8   185    0.939 0.061<span style="text-decoration: underline;">2</span>    0.061<span style="text-decoration: underline;">2</span>  29.3         5.98 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 90 more rows</span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, type<span class="op">=</span><span class="st">'quantile'</span>, quantile <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.5</span>, <span class="fl">.9</span>, <span class="fl">.99</span><span class="op">)</span><span class="op">)</span> <span class="co"># several quantiles (H.3)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 100 × 3</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      q50   q90   q99</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span>     0   229   886</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span>     0   184   848</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span>     9   971  <span style="text-decoration: underline;">6</span>625</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span>     0     8   347</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span>     0   184   456</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span>     0   186   216</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span>     2   668 <span style="text-decoration: underline;">26</span>323</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span>     2   314  <span style="text-decoration: underline;">1</span>114</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span>     0   192   346</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span>     0   185   460</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 90 more rows</span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, type<span class="op">=</span><span class="st">'distribution'</span><span class="op">)</span> <span class="co"># the full predictive distribution (H.2)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> evinf (predict distribution): the default support's upper bound (86294293458, the 0.999 mixture quantile of the heaviest-tailed row) exceeds max_support (1e+05); truncating there. Pass `support = ` explicitly for a wider (or narrower) support.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 10,000,100 × 3</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     .row     y    prob</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span>     1     0 0.518  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span>     1     1 0.051<span style="text-decoration: underline;">3</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span>     1     2 0.028<span style="text-decoration: underline;">1</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span>     1     3 0.019<span style="text-decoration: underline;">6</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span>     1     4 0.015<span style="text-decoration: underline;">1</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span>     1     5 0.012<span style="text-decoration: underline;">3</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span>     1     6 0.010<span style="text-decoration: underline;">4</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span>     1     7 0.009<span style="text-decoration: underline;">05</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span>     1     8 0.007<span style="text-decoration: underline;">99</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span>     1     9 0.007<span style="text-decoration: underline;">16</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 10,000,090 more rows</span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, type<span class="op">=</span><span class="st">'exceedance'</span>, threshold <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">100</span><span class="op">)</span><span class="op">)</span> <span class="co"># exceedance probs (H.4)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 100 × 2</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    p_ge_10 p_ge_100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span>  0.321    0.170 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span>  0.330    0.166 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span>  0.497    0.365 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span>  0.088<span style="text-decoration: underline;">8</span>   0.040<span style="text-decoration: underline;">8</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span>  0.302    0.141 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span>  0.290    0.151 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span>  0.421    0.276 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span>  0.427    0.285 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span>  0.289    0.142 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span>  0.301    0.139 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 90 more rows</span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, type<span class="op">=</span><span class="st">'draws'</span>, n_draws <span class="op">=</span> <span class="fl">100</span><span class="op">)</span> <span class="co"># predictive draws (H.5)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 10,000 × 3</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     .row .draw     y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span>     1     1     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span>     2     1   150</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span>     3     1     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span>     4     1     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span>     5     1     2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span>     6     1     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span>     7     1     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span>     8     1     4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span>     9     1     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span>    10     1     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 9,990 more rows</span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

@@ -13,7 +13,7 @@ element."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@ element.</p>
 <span>  <span class="va">seed</span>,</span>
 <span>  label <span class="op">=</span> <span class="st">"bootstrap"</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  chunk_size <span class="op">=</span> <span class="fl">1L</span></span>
+<span>  chunk_size <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -91,7 +91,17 @@ shown only when the user has enabled a global <span class="pkg">progressr</span>
 
 
 <dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
-<dd><p>Number of elements handed to a worker at a time.</p></dd>
+<dd><p>Number of elements handed to a worker at a time.
+<code>NULL</code> (the default, round10 J.2, audit §5.11) picks
+<code>max(1, ceiling(length(.x) / (4 * future::nbrOfWorkers())))</code> – four
+chunks per worker, balancing per-task scheduling overhead (a
+<code>chunk_size</code> of 1 when <code>length(.x)</code> is far larger than the
+worker count) against a straggler chunk leaving workers idle near the
+end (a <code>chunk_size</code> close to <code>length(.x) / nbrOfWorkers()</code>).
+This only changes how elements are grouped for dispatch, never each
+element's L'Ecuyer stream (verified empirically: derived from the
+element's position in <code>.x</code>, not the chunk it lands in), so results
+are identical across chunk sizes for the same <code>seed</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

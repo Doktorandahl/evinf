@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,6 +55,7 @@
 <span>  block_length <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  family <span class="op">=</span> <span class="fu"><a href="evinf_family.html">evinf_family</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  boot_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  start_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="evinf_control.html">evinf_control</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">max.diff.par</span>,</span>
 <span>  <span class="va">max.no.em.steps</span>,</span>
@@ -218,6 +219,13 @@ it is used as-is; when <code>NULL</code> a seed is drawn and recorded, so
 (see <code><a href="add_bootstraps.html">add_bootstraps</a></code>).</p></dd>
 
 
+<dt id="arg-start-seed">start_seed<a class="anchor" aria-label="anchor" href="#arg-start-seed"></a></dt>
+<dd><p>Optional seed for the perturbed starts when
+<code>control$n_starts &gt; 1</code> (round10 G.1); recorded as
+<code>object$start_seed</code> (<code>NULL</code> for the default <code>n_starts =
+1</code>). Unused otherwise.</p></dd>
+
+
 <dt id="arg-control">control<a class="anchor" aria-label="anchor" href="#arg-control"></a></dt>
 <dd><p>An <code><a href="evinf_control.html">evinf_control()</a></code> object holding the EM tuning
 settings.</p></dd>
@@ -226,7 +234,8 @@ settings.</p></dd>
 <dt id="arg-max-diff-par-max-no-em-steps-max-no-em-steps-warmup-c-lim-prune-c-range-max-upd-par-pl-multinomial-max-upd-par-nb-max-upd-par-pl-no-m-bfgs-steps-multinomial-no-m-bfgs-steps-nb-no-m-bfgs-steps-pl-pdf-pl-type-eta-int-init-beta-multinom-pl-init-beta-nb-init-beta-pl-init-alpha-nb-init-c">max.diff.par, max.no.em.steps, max.no.em.steps.warmup, c.lim, prune.c.range, max.upd.par.pl.multinomial, max.upd.par.nb, max.upd.par.pl, no.m.bfgs.steps.multinomial, no.m.bfgs.steps.nb, no.m.bfgs.steps.pl, pdf.pl.type, eta.int, init.Beta.multinom.PL, init.Beta.NB, init.Beta.PL, init.Alpha.NB, init.C<a class="anchor" aria-label="anchor" href="#arg-max-diff-par-max-no-em-steps-max-no-em-steps-warmup-c-lim-prune-c-range-max-upd-par-pl-multinomial-max-upd-par-nb-max-upd-par-pl-no-m-bfgs-steps-multinomial-no-m-bfgs-steps-nb-no-m-bfgs-steps-pl-pdf-pl-type-eta-int-init-beta-multinom-pl-init-beta-nb-init-beta-pl-init-alpha-nb-init-c"></a></dt>
 <dd><p><strong>Deprecated.</strong> Pass these through <code>control = evinf_control(...)</code>;
 supplying one directly overrides the corresponding <code>control</code> element and
-emits a warning. See <code><a href="evinf_control.html">evinf_control</a></code>. Will be removed in 0.11.0.</p></dd>
+emits a warning. See <code><a href="evinf_control.html">evinf_control</a></code>. Will be removed in a
+future release.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -280,17 +289,19 @@ fixed plan.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">evinb</span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>,data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">hks</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">hks_mod</span> <span class="op">&lt;-</span> <span class="fu">evinb</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">osvAll</span> <span class="op">~</span> <span class="va">troopLag</span> <span class="op">+</span> <span class="va">policeLag</span> <span class="op">+</span> <span class="va">militaryobserversLag</span> <span class="op">+</span> <span class="va">epduration</span> <span class="op">+</span></span></span>
 <span class="r-in"><span>    <span class="va">lntpop</span> <span class="op">+</span> <span class="va">brv_AllLag_log</span> <span class="op">+</span> <span class="va">osvAllLagDum</span> <span class="op">+</span> <span class="va">incomp</span>,</span></span>
 <span class="r-in"><span>  formula_pareto <span class="op">=</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log1p</a></span><span class="op">(</span><span class="va">troopLag</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  data <span class="op">=</span> <span class="va">hks</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span>, multicore <span class="op">=</span> <span class="cn">FALSE</span></span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="va">hks</span>, n_bootstraps <span class="op">=</span> <span class="fl">2</span>, multicore <span class="op">=</span> <span class="cn">FALSE</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [209, 8586]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

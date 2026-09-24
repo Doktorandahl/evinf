@@ -37,7 +37,7 @@ predict(
 
 - pred:
 
-  Prediction type, 'original', 'bootstra_median', or 'bootstrap_mean'
+  Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'
 
 - quantile:
 

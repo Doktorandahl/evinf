@@ -16,6 +16,8 @@ Estimate the EVZINB / EVINB model and tune the EM algorithm.
   replicates to a fitted model
 - [`failed_bootstraps()`](failed_bootstraps.md) : Inspect the bootstrap
   replicates that failed or came out degenerate
+- [`check_evinf()`](check_evinf.md) : Diagnostic report for a fitted
+  evzinb / evinb model
 
 ## Summaries and tables
 
@@ -30,6 +32,9 @@ Inspect a fitted model and build regression tables.
 
 - [`glance(`*`<evzinb>`*`)`](glance.evzinb.md) : EVZINB and EVINB glance
   functions
+
+- [`augment(`*`<evzinb>`*`)`](augment.evzinb.md) : Augment data with
+  fitted values, residuals and state classification
 
 - [`coefficient_extractor()`](coefficient_extractor.md) : Bootstrap
   coefficient extractor
@@ -118,7 +123,8 @@ Compare against negative-binomial and ZINB alternatives.
   [`update(`*`<evinb>`*`)`](update.evzinb.md) : Update and re-fit an
   evzinb / evinb model
 - [`reexports`](reexports.md) [`tidy`](reexports.md)
-  [`glance`](reexports.md) : Objects exported from other packages
+  [`glance`](reexports.md) [`augment`](reexports.md) : Objects exported
+  from other packages
 
 ## Simulation
 
@@ -136,6 +142,8 @@ Compare against negative-binomial and ZINB alternatives.
   distribution
 - [`genevzinb2`](genevzinb2.md) : Simulated data from the EVZINB
   distribution
+- [`evinf_bench_data()`](evinf_bench_data.md) : Synthetic data from an
+  EVZINB model with known true parameters
 
 ## Estimation internals
 

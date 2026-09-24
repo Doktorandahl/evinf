@@ -13,7 +13,7 @@ instead of a bare vector/list.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">evinf</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,14 +82,14 @@ instead of a bare vector/list.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">genevzinb2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="evzinb.html">evzinb</a></span><span class="op">(</span><span class="va">y</span><span class="op">~</span><span class="va">x1</span><span class="op">+</span><span class="va">x2</span><span class="op">+</span><span class="va">x3</span>, data<span class="op">=</span><span class="va">genevzinb2</span>, n_bootstraps <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu">revzinb_fit</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   [1]    0    0    0    1    0    0   24  201    5    0    0    0  567    5   29</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [16]    0    5   33   61   25    0    0    0    0    0    8    7    6   46    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [31]   53    7    0   39    0    0    0    0    0    6    0    0    0    7    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [46]  187    0   35  211    0   39    0   61    0    3    0    0 1108   88   12</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [61]    0    0    5   24    8    0    0    0    0    5    0    0   50   68    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [76]    0   92    0    0    0    0    7    0    0    0    0    0    0    0    2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [91]    0    0    0  106   95   43  419    0    3    0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   [1]   5   0   0   0   0   0   0   0   0  52   0   0 155   0   0   6   0   0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [19]   8   0   0   0   0   0   3   8   0   0   0   0   0   0   0   0   9   0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [37]   0  32   0 365   0   0   0   9   0   0 190  18 206 184   0 149   0   0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [55]   8   0   0   0  86 427   0   0   0 276 699   0   0   2 192  85   0   0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [73]   1 219   0  43  27   0   0   4 190 186   0   0   0   0   0 374   0   0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [91]   0 235  44   6   0  60  37   8   0   0</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

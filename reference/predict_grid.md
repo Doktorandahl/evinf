@@ -14,10 +14,11 @@ predict_grid(
   n = 50,
   at = list(),
   fixed = c("mean", "median"),
-  type = c("states", "harmonic", "quantile", "counts", "pareto_alpha"),
+  type = c("states", "harmonic", "explog", "quantile", "counts", "pareto_alpha"),
   quantile = NULL,
   confint = FALSE,
-  conf_level = 0.9
+  conf_level = 0.9,
+  clamp_alpha_pl = FALSE
 )
 ```
 
@@ -50,8 +51,8 @@ predict_grid(
 
 - type:
 
-  Prediction type: `"states"`, `"harmonic"`, `"quantile"`, `"counts"` or
-  `"pareto_alpha"`.
+  Prediction type: `"states"`, `"harmonic"`, `"explog"`, `"quantile"`,
+  `"counts"` or `"pareto_alpha"`.
 
 - quantile:
 
@@ -64,6 +65,12 @@ predict_grid(
 - conf_level:
 
   Confidence level.
+
+- clamp_alpha_pl:
+
+  (round11 A4) `type = "explog"` only; forwarded to
+  [`predict()`](https://rdrr.io/r/stats/predict.html). See
+  [`?predict.evzinb`](predict.evzinb.md).
 
 ## Value
 
@@ -95,10 +102,25 @@ predict_grid(model, "x1", type = "harmonic")
 #> # ℹ 40 more rows
 # }
 
-if (FALSE) { # \dontrun{
+# \donttest{
 data(hks)
 hks_mod <- evzinb(osvAll ~ troopLag + lntpop + brv_AllLag_log,
-                  data = hks, n_bootstraps = 5, multicore = FALSE)
+                  data = hks, n_bootstraps = 2, multicore = FALSE)
+#> evinf: using a data-driven candidate range for C_EV: [209, 8586]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 predict_grid(hks_mod, "troopLag", type = "states")
-} # }
+#> # A tibble: 150 × 6
+#>    variable value type     estimate conf.low conf.high
+#>    <chr>    <dbl> <chr>       <dbl>    <dbl>     <dbl>
+#>  1 troopLag 0     pr_zero    0.742        NA        NA
+#>  2 troopLag 0     pr_count   0.248        NA        NA
+#>  3 troopLag 0     pr_evi     0.0100       NA        NA
+#>  4 troopLag 0.596 pr_zero    0.736        NA        NA
+#>  5 troopLag 0.596 pr_count   0.254        NA        NA
+#>  6 troopLag 0.596 pr_evi     0.0102       NA        NA
+#>  7 troopLag 1.19  pr_zero    0.730        NA        NA
+#>  8 troopLag 1.19  pr_count   0.259        NA        NA
+#>  9 troopLag 1.19  pr_evi     0.0103       NA        NA
+#> 10 troopLag 1.79  pr_zero    0.725        NA        NA
+#> # ℹ 140 more rows
+# }
 ```
