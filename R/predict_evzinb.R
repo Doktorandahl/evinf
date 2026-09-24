@@ -480,20 +480,28 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 #'
 #' @param object An evzinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
-#' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state,'zi' for the predicted probability of the zero state, 'all' for all predicted values, and 'quantile' for quantile prediction.
+#' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state,'zi' for the predicted probability of the zero state, 'all' for all predicted values, 'quantile' for quantile prediction (scalar or vector, see `quantile`), 'distribution' for the full predictive distribution, 'exceedance' for exceedance probabilities (see `threshold`), and 'draws' for predictive draws (see `n_draws`).
 #' @param ... Other arguments passed to predict function
-#' @param quantile Quantile for which to produce quantile prediction
+#' @param quantile Quantile(s) for which to produce quantile prediction. A single value keeps the existing scalar behavior exactly (a vector, e.g. `c(.5, .9, .99)` (round10 H.3), returns a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`)).
 #' @inheritParams evzinb
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
-#' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
+#' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states', 'all' or 'distribution'.
 #' @param conf_level What confidence level should be used for confidence intervals
 #' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
 #' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
+#' @param support (round10 H.2) `type = 'distribution'` only: shared support (vector of `y` values) for every row. `NULL` (default) uses `0:K`, `K` the ceiling of the 0.999 mixture quantile of the heaviest-tailed row, capped at `max_support`.
+#' @param max_support (round10 H.2) Upper bound on the default `support`'s `K` (default 1e5); ignored when `support` is given explicitly.
+#' @param format (round10 H.2) `type = 'distribution'` only: `'long'` (default; a tibble with `.row`, `y`, `prob`) or `'matrix'` (the raw n x K matrix; `keep` is ignored).
+#' @param threshold (round10 H.4) `type = 'exceedance'` only: a vector of thresholds; result columns are `p_ge_<threshold>`, `P(Y >= threshold)`.
+#' @param n_draws (round10 H.5) `type = 'draws'` only: number of predictive draws per row.
+#' @param parameter_uncertainty (round10 H.5) `type = 'draws'` only: if `TRUE`, each draw uses a randomly chosen usable bootstrap replicate's parameters instead of the full-sample estimate.
+#' @param seed (round10 H.5) `type = 'draws'` only: optional seed; the caller's `.Random.seed` is left untouched either way (same convention as `simulate()`).
+#' @param keep (round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.
 #'
 #' @inheritSection evzinb Parallel processing
 #' @inheritSection evzinb Reproducibility
 #'
-#' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
+#' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','zi','evinf', 'count_state', and 'quantile' (scalar), or a tibble for type 'states', 'all', 'quantile' (vector), 'distribution' (`format = 'long'`), 'exceedance', 'draws', or if confint=T; a matrix for 'distribution' with `format = 'matrix'`.
 #'
 #' @importFrom rlang :=
 #'
@@ -505,6 +513,10 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' predict(model)
 #' predict(model, type='all', quantile = 0.9) # all available predicted values
+#' predict(model, type='quantile', quantile = c(.5, .9, .99)) # several quantiles (H.3)
+#' predict(model, type='distribution') # the full predictive distribution (H.2)
+#' predict(model, type='exceedance', threshold = c(10, 100)) # exceedance probs (H.4)
+#' predict(model, type='draws', n_draws = 100) # predictive draws (H.5)
 #' }
 predict.evzinb <- function(
   object,
@@ -519,7 +531,10 @@ predict.evzinb <- function(
     'count_state',
     'states',
     'all',
-    'quantile'
+    'quantile',
+    'distribution',
+    'exceedance',
+    'draws'
   ),
   pred = c('original', 'bootstrap_median', 'bootstrap_mean'),
   quantile = NULL,
@@ -529,13 +544,24 @@ predict.evzinb <- function(
   ncores = NULL,
   return_bootstraps = FALSE,
   exclude_degenerate = TRUE,
+  support = NULL,
+  max_support = 1e5,
+  format = c('long', 'matrix'),
+  threshold = NULL,
+  n_draws = 1000,
+  parameter_uncertainty = FALSE,
+  seed = NULL,
+  keep = NULL,
   ...
 ) {
-  evinf_predict_engine(
+  evinf_predict_dispatch(
     object, newdata = newdata, type = type, pred = pred, quantile = quantile,
     confint = confint, conf_level = conf_level, multicore = multicore,
     ncores = ncores, return_bootstraps = return_bootstraps,
-    exclude_degenerate = exclude_degenerate, evzinb = TRUE
+    exclude_degenerate = exclude_degenerate, support = support,
+    max_support = max_support, format = format, threshold = threshold,
+    n_draws = n_draws, parameter_uncertainty = parameter_uncertainty,
+    seed = seed, keep = keep, evzinb = TRUE
   )
 }
 
@@ -562,20 +588,28 @@ predict.evzinb <- function(
 #'
 #' @param object An evinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
-#' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, and 'quantile' for quantile prediction.
+#' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, 'quantile' for quantile prediction (scalar or vector, see `quantile`), 'distribution' for the full predictive distribution, 'exceedance' for exceedance probabilities (see `threshold`), and 'draws' for predictive draws (see `n_draws`).
 #' @param ... Other arguments passed to predict function
-#' @param quantile Quantile for which to produce quantile prediction
+#' @param quantile Quantile(s) for which to produce quantile prediction. A single value keeps the existing scalar behavior exactly (a vector, e.g. `c(.5, .9, .99)` (round10 H.3), returns a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`)).
 #' @inheritParams evzinb
 #' @param pred Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction
-#' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.
+#' @param confint Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states', 'all' or 'distribution'.
 #' @param conf_level What confidence level should be used for confidence intervals
 #' @param return_bootstraps Should the bootstrapped predictions be returned as well? Useful for further custom analyses of the bootstrapped predictions.
 #' @param exclude_degenerate Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().
+#' @param support (round10 H.2) `type = 'distribution'` only: shared support (vector of `y` values) for every row. `NULL` (default) uses `0:K`, `K` the ceiling of the 0.999 mixture quantile of the heaviest-tailed row, capped at `max_support`.
+#' @param max_support (round10 H.2) Upper bound on the default `support`'s `K` (default 1e5); ignored when `support` is given explicitly.
+#' @param format (round10 H.2) `type = 'distribution'` only: `'long'` (default; a tibble with `.row`, `y`, `prob`) or `'matrix'` (the raw n x K matrix; `keep` is ignored).
+#' @param threshold (round10 H.4) `type = 'exceedance'` only: a vector of thresholds; result columns are `p_ge_<threshold>`, `P(Y >= threshold)`.
+#' @param n_draws (round10 H.5) `type = 'draws'` only: number of predictive draws per row.
+#' @param parameter_uncertainty (round10 H.5) `type = 'draws'` only: if `TRUE`, each draw uses a randomly chosen usable bootstrap replicate's parameters instead of the full-sample estimate.
+#' @param seed (round10 H.5) `type = 'draws'` only: optional seed; the caller's `.Random.seed` is left untouched either way (same convention as `simulate()`).
+#' @param keep (round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.
 #'
 #' @inheritSection evzinb Parallel processing
 #' @inheritSection evzinb Reproducibility
 #'
-#' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
+#' @return A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' (scalar), or a tibble for type 'states', 'all', 'quantile' (vector), 'distribution' (`format = 'long'`), 'exceedance', 'draws', or if confint=T; a matrix for 'distribution' with `format = 'matrix'`.
 #' @export
 #'
 #' @importFrom rlang :=
@@ -586,6 +620,10 @@ predict.evzinb <- function(
 #' model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' predict(model)
 #' predict(model, type='all', quantile = 0.9) # all available predicted values
+#' predict(model, type='quantile', quantile = c(.5, .9, .99)) # several quantiles (H.3)
+#' predict(model, type='distribution') # the full predictive distribution (H.2)
+#' predict(model, type='exceedance', threshold = c(10, 100)) # exceedance probs (H.4)
+#' predict(model, type='draws', n_draws = 100) # predictive draws (H.5)
 #' }
 predict.evinb <- function(
   object,
@@ -599,7 +637,10 @@ predict.evinb <- function(
     'count_state',
     'states',
     'all',
-    'quantile'
+    'quantile',
+    'distribution',
+    'exceedance',
+    'draws'
   ),
   pred = c('original', 'bootstrap_median', 'bootstrap_mean'),
   quantile = NULL,
@@ -609,13 +650,24 @@ predict.evinb <- function(
   ncores = NULL,
   return_bootstraps = FALSE,
   exclude_degenerate = TRUE,
+  support = NULL,
+  max_support = 1e5,
+  format = c('long', 'matrix'),
+  threshold = NULL,
+  n_draws = 1000,
+  parameter_uncertainty = FALSE,
+  seed = NULL,
+  keep = NULL,
   ...
 ) {
-  evinf_predict_engine(
+  evinf_predict_dispatch(
     object, newdata = newdata, type = type, pred = pred, quantile = quantile,
     confint = confint, conf_level = conf_level, multicore = multicore,
     ncores = ncores, return_bootstraps = return_bootstraps,
-    exclude_degenerate = exclude_degenerate, evzinb = FALSE
+    exclude_degenerate = exclude_degenerate, support = support,
+    max_support = max_support, format = format, threshold = threshold,
+    n_draws = n_draws, parameter_uncertainty = parameter_uncertainty,
+    seed = seed, keep = keep, evzinb = FALSE
   )
 }
 

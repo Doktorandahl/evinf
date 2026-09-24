@@ -8,7 +8,7 @@
   object,
   newdata = NULL,
   type = c("harmonic", "explog", "counts", "pareto_alpha", "evinf", "count_state",
-    "states", "all", "quantile"),
+    "states", "all", "quantile", "distribution", "exceedance", "draws"),
   pred = c("original", "bootstrap_median", "bootstrap_mean"),
   quantile = NULL,
   confint = FALSE,
@@ -17,6 +17,14 @@
   ncores = NULL,
   return_bootstraps = FALSE,
   exclude_degenerate = TRUE,
+  support = NULL,
+  max_support = 1e+05,
+  format = c("long", "matrix"),
+  threshold = NULL,
+  n_draws = 1000,
+  parameter_uncertainty = FALSE,
+  seed = NULL,
+  keep = NULL,
   ...
 )
 }
@@ -25,13 +33,13 @@
 
 \item{newdata}{Optional new data (tibble) to produce predicted values from}
 
-\item{type}{Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, and 'quantile' for quantile prediction.}
+\item{type}{Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state, 'all' for all predicted values, 'quantile' for quantile prediction (scalar or vector, see `quantile`), 'distribution' for the full predictive distribution, 'exceedance' for exceedance probabilities (see `threshold`), and 'draws' for predictive draws (see `n_draws`).}
 
 \item{pred}{Type of prediction to be used, defaults to the original prediction from the fitted model, with alternatives being the bootstrapped median or mean. Note that bootstrap mean may yield infinite values, especially when doing quantile prediction}
 
-\item{quantile}{Quantile for which to produce quantile prediction}
+\item{quantile}{Quantile(s) for which to produce quantile prediction. A single value keeps the existing scalar behavior exactly (a vector, e.g. `c(.5, .9, .99)` (round10 H.3), returns a tibble with one `qXX` column per probability (`qXX_lo`/`qXX_hi` too, with `confint = TRUE`)).}
 
-\item{confint}{Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states' and 'all'.}
+\item{confint}{Should confidence intervals be made for the predictions? Note: only available for vector type predictions and not 'states', 'all' or 'distribution'.}
 
 \item{conf_level}{What confidence level should be used for confidence intervals}
 
@@ -50,10 +58,26 @@ restored on exit.}
 
 \item{exclude_degenerate}{Drop bootstrap replicates flagged degenerate (default TRUE); see the alpha_floor argument of evinf_control().}
 
+\item{support}{(round10 H.2) `type = 'distribution'` only: shared support (vector of `y` values) for every row. `NULL` (default) uses `0:K`, `K` the ceiling of the 0.999 mixture quantile of the heaviest-tailed row, capped at `max_support`.}
+
+\item{max_support}{(round10 H.2) Upper bound on the default `support`'s `K` (default 1e5); ignored when `support` is given explicitly.}
+
+\item{format}{(round10 H.2) `type = 'distribution'` only: `'long'` (default; a tibble with `.row`, `y`, `prob`) or `'matrix'` (the raw n x K matrix; `keep` is ignored).}
+
+\item{threshold}{(round10 H.4) `type = 'exceedance'` only: a vector of thresholds; result columns are `p_ge_<threshold>`, `P(Y >= threshold)`.}
+
+\item{n_draws}{(round10 H.5) `type = 'draws'` only: number of predictive draws per row.}
+
+\item{parameter_uncertainty}{(round10 H.5) `type = 'draws'` only: if `TRUE`, each draw uses a randomly chosen usable bootstrap replicate's parameters instead of the full-sample estimate.}
+
+\item{seed}{(round10 H.5) `type = 'draws'` only: optional seed; the caller's `.Random.seed` is left untouched either way (same convention as `simulate()`).}
+
+\item{keep}{(round10 H.6) Optional character vector of `newdata` column names to carry into the result (a join key for panel data); supported for `type` in `'quantile'` (vector), `'distribution'` (`format = 'long'`), `'exceedance'` and `'draws'`.}
+
 \item{...}{Other arguments passed to predict function}
 }
 \value{
-A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' or a tibble of predicted values for type 'states' and 'all' or if confint=T
+A vector of predicted values for type 'harmonic', 'explog', 'counts', 'pareto_alpha','evinf', 'count_state', and 'quantile' (scalar), or a tibble for type 'states', 'all', 'quantile' (vector), 'distribution' (`format = 'long'`), 'exceedance', 'draws', or if confint=T; a matrix for 'distribution' with `format = 'matrix'`.
 }
 \description{
 Predictions from evinb object
@@ -122,5 +146,9 @@ data(genevzinb2)
 model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 predict(model)
 predict(model, type='all', quantile = 0.9) # all available predicted values
+predict(model, type='quantile', quantile = c(.5, .9, .99)) # several quantiles (H.3)
+predict(model, type='distribution') # the full predictive distribution (H.2)
+predict(model, type='exceedance', threshold = c(10, 100)) # exceedance probs (H.4)
+predict(model, type='draws', n_draws = 100) # predictive draws (H.5)
 }
 }

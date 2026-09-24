@@ -19,26 +19,10 @@
 # in update_bfgs_fun() (src/evinf.cpp) exactly.
 evinf_responsibilities <- function(y, mu_nb, alpha_nb, pl_alpha, C, prior,
                                    family = evinf_family()) {
-  d_zero <- as.numeric(y == 0)
-  d_count <- if (family$count == "poisson") {
-    stats::dpois(y, lambda = mu_nb)
-  } else {
-    stats::dnbinom(y, mu = mu_nb, size = 1 / alpha_nb)
-  }
-  d_evi <- dpareto_disc(y, C, pl_alpha)
-
-  if (identical(family$zero, "hurdle")) {
-    f0 <- if (family$count == "poisson") {
-      exp(-mu_nb)
-    } else {
-      (1 + alpha_nb * mu_nb)^(-1 / alpha_nb)
-    }
-    d_count <- ifelse(y == 0, 0, d_count / (1 - f0))
-  }
-
-  num <- cbind(prior[, 1] * d_zero,
-               prior[, 2] * d_count,
-               prior[, 3] * d_evi)
+  # round10 H.1: the three per-state densities are now the one shared
+  # building block (R/evinf_pmf.R), also behind evinf_pmf()/evinf_dmix().
+  d <- evinf_state_densities(y, mu_nb, alpha_nb, pl_alpha, C, prior, family = family)
+  num <- cbind(d$zero, d$count, d$evi)
   denom <- rowSums(num)
   denom[denom == 0] <- NA_real_
   resp <- num / denom
@@ -101,13 +85,13 @@ classify_states <- function(object, rule = c("map", "threshold"),
     colnames(prior) <- c("zero", "count", "evi")
     y <- object$data$y
   } else {
-    prb <- if (is_zinb) prob_from_evzinb(object, newdata = newdata) else
-      prob_from_evinb(object, newdata = newdata)
-    prior <- cbind(
-      zero = if (is_zinb) prb$pr_zc else 0,
-      count = prb$pr_count,
-      evi = prb$pr_pareto
-    )
+    # round10 H.1: shared with evinf_pmf()/evinf_cdf() (R/evinf_pmf.R) --
+    # also clamps alpha_pl (context = "distribution"), which this newdata
+    # path did not do before this refactor (predict() already clamped for
+    # every other type).
+    dp <- evinf_dist_params(object, newdata = newdata)
+    prior <- dp$probabilities
+    colnames(prior) <- c("zero", "count", "evi")
     resp_name <- all.vars(object$formulas$formula_nb)[1]
     y <- if (resp_name %in% names(newdata)) newdata[[resp_name]] else NULL
   }
@@ -120,11 +104,8 @@ classify_states <- function(object, rule = c("map", "threshold"),
     }
     colnames(posterior) <- c("zero", "count", "evi")
   } else if (!is.null(y)) {
-    cnt <- counts_from_evzinb(object, newdata = newdata)$count
-    alph <- fitted_alpha_from_evzinb(object, newdata = newdata)$pareto_alpha
-    posterior <- evinf_responsibilities(y, cnt, object$coef$Alpha.NB, alph,
-                                        object$coef$C, prior,
-                                        family = object$family %||% evinf_family())
+    posterior <- evinf_responsibilities(y, dp$nb_mu, dp$nb_alpha, dp$pl_alpha,
+                                        dp$C, prior, family = dp$family)
   } else {
     posterior <- matrix(NA_real_, nrow = nrow(prior), ncol = 3,
                         dimnames = list(NULL, c("zero", "count", "evi")))

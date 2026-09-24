@@ -296,18 +296,11 @@ residuals.evzinb <- function(object, type = c("response", "quantile"),
   if (type == "response") {
     return(y - stats::predict(object, type = "harmonic"))
   }
-  probs <- object$props
-  if (ncol(probs) == 2L) {          # evinb: prepend a zero-state column
-    probs <- cbind(0, probs)
-  }
-  mu <- object$fitted$mu.nb
-  alph <- object$fitted$alpha.pl
-  fam <- object$family %||% evinf_family()
-  Fy <- mixture_p(y, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
-                  family_count = fam$count, family_zero = fam$zero)
-  Fy1 <- ifelse(y <= 0, 0,
-                mixture_p(y - 1, alph, object$coef$C, mu, object$coef$Alpha.NB, probs,
-                          family_count = fam$count, family_zero = fam$zero))
+  # round10 H.1: shared with evinf_pmf()/evinf_cdf() (R/evinf_pmf.R) -- also
+  # clamps alpha_pl (context = "distribution"), which this did not do before
+  # this refactor (predict() already clamped for every other type).
+  Fy <- evinf_cdf(object, y = y)
+  Fy1 <- ifelse(y <= 0, 0, evinf_cdf(object, y = y - 1))
   Fy <- pmin(pmax(Fy, 0), 1)
   Fy1 <- pmin(pmax(Fy1, 0), Fy)
   # audit0.10 §1.14 (D.6): a seeded draw must not perturb the caller's RNG
