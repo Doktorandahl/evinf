@@ -1,3 +1,7 @@
+# round11 B2: dominated by bootstrap-heavy compare_models() fits; kept fast
+# on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("compare_models() fits the bootstrapped ZINB with the full formula (audit 1.2)", {
   m <- suppressWarnings(suppressMessages(evzinb(
     y ~ x1 + x2, formula_zi = ~x1,

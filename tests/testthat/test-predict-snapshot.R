@@ -82,6 +82,11 @@ check_class <- function(m, evzinb) {
   }
 }
 
+# round11 B2: this snapshot exercises every type x pred x confint x
+# return_bootstraps combination twice (evzinb/evinb) -- kept fast on CI
+# (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("predict.evzinb() matches the pre-refactor snapshot for every combination (audit0.10 F.5)", {
   check_class(mz, evzinb = TRUE)
 })

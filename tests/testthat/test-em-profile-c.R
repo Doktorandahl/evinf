@@ -55,6 +55,10 @@ expect_profile_matches_loop <- function(m, tol = 1e-10) {
   testthat::expect_equal(new, old, tolerance = tol)
 }
 
+# round11 B2: profiles the whole C_EV candidate grid repeatedly; kept fast
+# on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("log_lik_profile_fun() matches vapply(candidates, log_lik_fun, ...) on genevzinb2", {
   data(genevzinb2, package = "evinf", envir = environment())
   ctrl <- evinf::evinf_control(c.lim = c(50, 1000), init.C = 200)

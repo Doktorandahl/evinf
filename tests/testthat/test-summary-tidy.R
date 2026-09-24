@@ -1,3 +1,8 @@
+# round11 B2: broad summary()/tidy() coverage across bootstrap option
+# combinations; kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own
+# check-time budget.
+testthat::skip_on_cran()
+
 test_that("summary(p_value = 'both') returns both p-value columns (audit 1.3)", {
   m <- fit_evzinb_fast(n_bootstraps = 6)
   s <- suppressWarnings(summary(m, p_value = "both"))

@@ -5,6 +5,11 @@ make_comp <- function() {
   suppressWarnings(suppressMessages(compare_models(m)))
 }
 
+# round11 B2: dominated by bootstrap-heavy compare_models()/compare_fit()
+# fits; kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own
+# check-time budget.
+testthat::skip_on_cran()
+
 test_that("compare_fit() returns the documented shape and class", {
   comp <- make_comp()
   cf <- suppressWarnings(compare_fit(comp, metrics = c("aic", "bic")))

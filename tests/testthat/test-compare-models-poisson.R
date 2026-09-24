@@ -14,6 +14,11 @@ fit_evzinb_poisson_fast <- function(...) {
   )))
 }
 
+# round11 B2: this file is dominated by bootstrap-heavy compare_models()
+# fits; kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own check to
+# stay within its check-time budget.
+testthat::skip_on_cran()
+
 test_that("poisson_comparison/zip_comparison default to TRUE only for a Poisson-family fit", {
   m_pois <- fit_evzinb_poisson_fast()
   cmp_pois <- suppressWarnings(compare_models(m_pois, multicore = FALSE))

@@ -1,5 +1,10 @@
 # audit 4.8 - marginal_effects() and marginaleffects compatibility.
 
+# round11 B2: marginal_effects() recomputes AMEs across every bootstrap
+# replicate; kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own
+# check-time budget.
+testthat::skip_on_cran()
+
 test_that("marginal_effects() returns the documented tibble with finite estimates", {
   m <- fit_evzinb_fast(n_bootstraps = 8)
   me <- suppressWarnings(marginal_effects(m, variables = "x1"))

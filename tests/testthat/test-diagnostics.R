@@ -3,6 +3,10 @@
 
 # --- G.1: n_starts ------------------------------------------------------
 
+# round11 B2: multi-start (n_starts > 1) refits several times over; kept fast
+# on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("n_starts = 1 is bit-identical to a plain fit (round10 G.1)", {
   data(genevzinb2, package = "evinf", envir = environment())
   m_plain <- suppressMessages(suppressWarnings(evzinb(

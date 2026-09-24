@@ -30,6 +30,10 @@ test_that("tidy.nbboot() / tidy.zinbboot() honour their options", {
   expect_true("term" %in% names(tz2))
 })
 
+# round11 B2: exercises every competitor-boot class's tidy/predict paths;
+# kept fast on CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("coefficient_extractor() works for every supported class", {
   m <- fit_evzinb_fast(n_bootstraps = 6)
   mi <- fit_evinb_fast(n_bootstraps = 6)

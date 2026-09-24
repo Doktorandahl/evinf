@@ -5,6 +5,10 @@
 # evinf_clamp_alpha_pl() itself is exercised in test-quantile-extractor.R,
 # which also predates and motivated this shared helper.
 
+# round11 B2: includes hks fits and a bootstrap confint check; kept fast on
+# CI (NOT_CRAN=true) but skipped on CRAN's own check-time budget.
+testthat::skip_on_cran()
+
 test_that("predict(type = 'harmonic') clamps near-zero alpha_pl (via alpha_pl_floor) and warns naming the count", {
   m <- fit_evzinb_fast(bootstrap = FALSE)
   n <- nobs(m)
