@@ -11,10 +11,11 @@ predict_grid(
   n = 50,
   at = list(),
   fixed = c("mean", "median"),
-  type = c("states", "harmonic", "quantile", "counts", "pareto_alpha"),
+  type = c("states", "harmonic", "explog", "quantile", "counts", "pareto_alpha"),
   quantile = NULL,
   confint = FALSE,
-  conf_level = 0.9
+  conf_level = 0.9,
+  clamp_alpha_pl = FALSE
 )
 }
 \arguments{
@@ -33,13 +34,16 @@ evenly spaced sequence (numeric) or all levels (factor).}
 \code{"median"}.}
 
 \item{type}{Prediction type: \code{"states"}, \code{"harmonic"},
-\code{"quantile"}, \code{"counts"} or \code{"pareto_alpha"}.}
+\code{"explog"}, \code{"quantile"}, \code{"counts"} or \code{"pareto_alpha"}.}
 
 \item{quantile}{Quantile for \code{type = "quantile"}.}
 
 \item{confint}{Add bootstrap confidence intervals (not for \code{"states"}).}
 
 \item{conf_level}{Confidence level.}
+
+\item{clamp_alpha_pl}{(round11 A4) \code{type = "explog"} only; forwarded to
+\code{predict()}. See \code{?predict.evzinb}.}
 }
 \value{
 A tibble with columns \code{variable}, \code{value}, \code{type},

@@ -177,3 +177,75 @@ test_that("formula_var_remover() keeps a no-intercept specification (round10 0.1
   expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 0L)
   expect_false("x2" %in% all.vars(out$formulas$nb))
 })
+
+# round11 A1: formula_var_remover() must build an intercept-only formula (or
+# a no-intercept one, or an offset-only one) when a component's only term is
+# removed, instead of erroring out of reformulate(). These are regression
+# tests for that empty-component path across every family/spec combination
+# the review flagged (single-covariate models empty every component at
+# once, since formula_zi/evi/pareto default to formula_nb).
+
+test_that("lr_test() handles a single-covariate model where every component empties (round11 A1)", {
+  m <- fit_evzinb_fast(y ~ x1, bootstrap = FALSE)
+  res <- suppressWarnings(lr_test(m, "x1"))
+  expect_s3_class(res, "tbl_df")
+  expect_true(is.finite(res$statistic))
+  expect_equal(res$df, 4L)
+})
+
+test_that("lr_test() empties formula_zi/formula_evi/formula_pareto in turn (round11 A1)", {
+  m <- fit_evzinb_fast(
+    y ~ x1 + x2 + x3,
+    formula_zi = ~x1, formula_evi = ~x2, formula_pareto = ~x3,
+    bootstrap = FALSE
+  )
+  for (v in c("x1", "x2", "x3")) {
+    res <- suppressWarnings(lr_test(m, v))
+    expect_true(is.finite(res$statistic), info = v)
+    expect_equal(res$df, 2L, info = v)
+  }
+})
+
+test_that("lr_test() empties every component under family = 'poisson' (round11 A1)", {
+  m <- fit_evzinb_fast(y ~ x1, bootstrap = FALSE,
+                       family = evinf_family(count = "poisson"))
+  res <- suppressWarnings(lr_test(m, "x1"))
+  expect_true(is.finite(res$statistic))
+})
+
+test_that("lr_test() empties every component under zero = 'hurdle' (round11 A1)", {
+  m <- fit_evzinb_fast(y ~ x1, bootstrap = FALSE,
+                       family = evinf_family(zero = "hurdle"))
+  res <- suppressWarnings(lr_test(m, "x1"))
+  expect_true(is.finite(res$statistic))
+})
+
+test_that("lr_test() empties a no-intercept ('- 1') model without erroring (round11 A1)", {
+  m <- fit_evzinb_fast(y ~ x1 - 1, bootstrap = FALSE)
+  res <- suppressWarnings(lr_test(m, "x1"))
+  expect_true(is.finite(res$statistic))
+
+  reduced <- formula_var_remover(m$formulas, "x1", m$data$data)$formulas
+  expect_equal(attr(stats::terms(reduced$nb), "intercept"), 0L)
+})
+
+test_that("lr_test() keeps the offset when the count component empties (round11 A1)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  set.seed(22)
+  d <- genevzinb2
+  d$ex <- runif(nrow(d), 0.5, 2)
+
+  m <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1 + offset(log(ex)), data = d,
+    control = .fast_control(), bootstrap = FALSE, verbose = FALSE
+  )))
+  res <- suppressWarnings(lr_test(m, "x1"))
+  expect_true(is.finite(res$statistic))
+  # x1 removed from all four components (1 col each) = 4; the offset
+  # contributes no design columns either before or after reduction.
+  expect_equal(res$df, 4L)
+
+  reduced <- formula_var_remover(m$formulas, "x1", m$data$data)$formulas
+  expect_true(!is.null(attr(stats::terms(reduced$nb), "offset")))
+  expect_true(grepl("offset\\(log\\(ex\\)\\)", deparse(reduced$nb)))
+})

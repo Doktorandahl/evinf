@@ -109,7 +109,14 @@ evinf_get_predict <- function(model, newdata, type, ...) {
   if (length(type) != 1L || is.na(type) || !type %in% ok) {
     type <- "harmonic"
   }
-  p <- stats::predict(model, newdata = newdata, type = type)
+  # round11 A4: clamp_alpha_pl only means anything for type = "explog"; predict()
+  # itself would warn if it were forwarded for any other type (round11 A5).
+  p <- if (identical(type, "explog") && !is.null(list(...)$clamp_alpha_pl)) {
+    stats::predict(model, newdata = newdata, type = type,
+                   clamp_alpha_pl = list(...)$clamp_alpha_pl)
+  } else {
+    stats::predict(model, newdata = newdata, type = type)
+  }
   data.frame(rowid = seq_len(NROW(p)), estimate = as.numeric(p))
 }
 
