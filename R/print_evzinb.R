@@ -101,7 +101,13 @@ print.evinb <- function(x, ...) {
 
 #' Print method for compare_models() output
 #'
+#' Shows the compared models, a compact \code{\link{glance}()} table (one row
+#' per slot, key fit statistics only), and the paired bootstrap comparison
+#' from \code{\link{compare_fit}()} (round10 I.4, audit §5.9) -- previously
+#' only the compared-model names and bootstrap count.
+#'
 #' @param x An \code{evzinbcomp} object returned by \code{\link{compare_models}}.
+#' @param metrics Metrics for the \code{compare_fit()} table; see there.
 #' @param ... Not used
 #' @return \code{x}, invisibly.
 #' @export
@@ -112,14 +118,31 @@ print.evinb <- function(x, ...) {
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' print(compare_models(model))
 #' }
-print.evzinbcomp <- function(x, ...) {
+print.evzinbcomp <- function(x, metrics = c("aic", "bic", "rmse", "rmsle"), ...) {
   comp_slots <- setdiff(names(x), c('model', 'evzinb'))
   comp_class <- class(x$model)
 
   cat('\n', 'Model comparison of ', comp_class,
       '\n ', 'Compared models: ', paste(comp_slots, collapse = ', '),
       '\n ', 'Number of compared models: ', length(comp_slots),
-      '\n Number of bootstraps:', length(x$model$bootstraps), '\n')
+      '\n Number of bootstraps:', length(x$model$bootstraps), '\n\n', sep = '')
+
+  gl <- tryCatch(glance.evzinbcomp(x), error = function(e) NULL)
+  if (!is.null(gl)) {
+    cols <- intersect(c("model", "nobs", "npar", "logLik", "aic", "bic"), names(gl))
+    df <- as.data.frame(gl[, cols, drop = FALSE])
+    round_cols <- intersect(c("logLik", "aic", "bic"), names(df))
+    df[round_cols] <- lapply(df[round_cols], round, digits = 1)
+    cat("Fit summary\n")
+    print(df, row.names = FALSE)
+    cat("\n")
+  }
+
+  cf <- tryCatch(compare_fit(x, metrics = metrics), error = function(e) NULL)
+  if (!is.null(cf)) {
+    print(cf)
+  }
+
   invisible(x)
 }
 

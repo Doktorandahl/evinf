@@ -42,7 +42,9 @@ Suggests:
     broom,
     covr,
     quarto,
-    withr
+    withr,
+    emmeans,
+    estimability
 RoxygenNote: 7.3.3
 RdMacros: Rdpack
 Depends:

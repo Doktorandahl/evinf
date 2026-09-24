@@ -53,7 +53,58 @@ get_vcov.evzinb <- function(model, ...) vcov(model)
 #' @exportS3Method marginaleffects::get_vcov evinb
 get_vcov.evinb <- function(model, ...) vcov(model)
 
-evinf_get_predict <- function(model, newdata, type) {
+# round10 I.1 (audit §5.9): "states" (a long group/estimate frame, one group
+# per component, the marginaleffects::get_predict.multinom() convention --
+# group = rep(colnames, each = nrow), estimate = c(pred)), "quantile" (a
+# single quantile passed through `...`, defaulting to the median so
+# avg_predictions()/avg_slopes() work without it) and "exceedance" (a single
+# threshold passed through `...`; several thresholds fan out into groups the
+# same way "states" does) join the pre-round10 scalar types.
+evinf_get_predict <- function(model, newdata, type, ...) {
+  if (identical(type, "states")) {
+    st <- stats::predict(model, newdata = newdata, type = "states")
+    cols <- intersect(c("pr_zero", "pr_count", "pr_evi"), names(st))
+    return(data.frame(
+      rowid = rep(seq_len(nrow(st)), times = length(cols)),
+      group = rep(sub("^pr_", "", cols), each = nrow(st)),
+      estimate = unlist(st[cols], use.names = FALSE)
+    ))
+  }
+  if (identical(type, "quantile")) {
+    quantile <- list(...)$quantile %||% 0.5
+    if (length(quantile) != 1L) {
+      stop("get_predict(..., type = \"quantile\"): pass a single `quantile` ",
+          "(marginaleffects perturbs coefficients one at a time and expects ",
+          "one estimate per row); use predict() directly for several at once.",
+          call. = FALSE)
+    }
+    # audit N1's own precedent (predict_from_boot(), used by the
+    # bootstrap-based marginal_effects()): the integer mixture quantile has a
+    # zero derivative almost everywhere, which starves marginaleffects'
+    # numeric-differentiation delta method (NA std. errors) -- the
+    # continuous (linearly-interpolated) surrogate quantiles_from_evzinb()/
+    # quantiles_from_evinb() already provide via round = FALSE fixes that.
+    qfn <- if (inherits(model, "evzinb")) quantiles_from_evzinb else quantiles_from_evinb
+    p <- qfn(model, quantile, newdata = newdata, return_data = FALSE,
+            multicore = FALSE, round = FALSE)
+    return(data.frame(rowid = seq_len(NROW(p)), estimate = as.numeric(p)))
+  }
+  if (identical(type, "exceedance")) {
+    threshold <- list(...)$threshold
+    if (is.null(threshold)) {
+      stop("get_predict(..., type = \"exceedance\"): `threshold` must be ",
+          "provided.", call. = FALSE)
+    }
+    p <- stats::predict(model, newdata = newdata, type = "exceedance", threshold = threshold)
+    if (length(threshold) == 1L) {
+      return(data.frame(rowid = seq_len(nrow(p)), estimate = p[[1]]))
+    }
+    return(data.frame(
+      rowid = rep(seq_len(nrow(p)), times = length(threshold)),
+      group = rep(names(p), each = nrow(p)),
+      estimate = unlist(p, use.names = FALSE)
+    ))
+  }
   ok <- c("harmonic", "explog", "counts", "pareto_alpha")
   if (length(type) != 1L || is.na(type) || !type %in% ok) {
     type <- "harmonic"
@@ -64,11 +115,11 @@ evinf_get_predict <- function(model, newdata, type) {
 
 #' @exportS3Method marginaleffects::get_predict evzinb
 get_predict.evzinb <- function(model, newdata, type = "harmonic", ...) {
-  evinf_get_predict(model, newdata, type)
+  evinf_get_predict(model, newdata, type, ...)
 }
 #' @exportS3Method marginaleffects::get_predict evinb
 get_predict.evinb <- function(model, newdata, type = "harmonic", ...) {
-  evinf_get_predict(model, newdata, type)
+  evinf_get_predict(model, newdata, type, ...)
 }
 
 # insight (used by marginaleffects) tries to recover the model frame from the
