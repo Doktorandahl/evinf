@@ -11,7 +11,7 @@ evinf_pmap(
   seed,
   label = "bootstrap",
   verbose = FALSE,
-  chunk_size = 1L
+  chunk_size = NULL
 )
 }
 \arguments{
@@ -30,7 +30,17 @@ workers or the chunk size.}
 \item{verbose}{If \code{TRUE}, always show a progress bar. Otherwise one is
 shown only when the user has enabled a global \pkg{progressr} handler.}
 
-\item{chunk_size}{Number of elements handed to a worker at a time.}
+\item{chunk_size}{Number of elements handed to a worker at a time.
+\code{NULL} (the default, round10 J.2, audit §5.11) picks
+\code{max(1, ceiling(length(.x) / (4 * future::nbrOfWorkers())))} -- four
+chunks per worker, balancing per-task scheduling overhead (a
+\code{chunk_size} of 1 when \code{length(.x)} is far larger than the
+worker count) against a straggler chunk leaving workers idle near the
+end (a \code{chunk_size} close to \code{length(.x) / nbrOfWorkers()}).
+This only changes how elements are grouped for dispatch, never each
+element's L'Ecuyer stream (verified empirically: derived from the
+element's position in \code{.x}, not the chunk it lands in), so results
+are identical across chunk sizes for the same \code{seed}.}
 }
 \value{
 A list, the element-wise results of \code{.f}.

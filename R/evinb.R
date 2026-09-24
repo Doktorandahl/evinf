@@ -516,7 +516,6 @@ evinb <- function(
   stored_call$data <- mc$data  # the expression, not the data frame (audit N6)
 
   # NULL component formulas are resolved in run_evinb() (audit 4.4).
-  t1 <- Sys.time()
   full_run <- run_evinb(
     formula_nb = formula_nb,
     formula_evi = formula_evi,
@@ -536,7 +535,6 @@ evinb <- function(
   )
   full_run$weights_col <- weights_col
   full_run$call <- stored_call
-  runtime <- difftime(Sys.time(), t1)
 
   block2 <- full_run$block_vec
   time2 <- full_run$time_vec
@@ -548,23 +546,22 @@ evinb <- function(
     }
     full_run$boot_seeds <- list(boot_seed)
 
-    if (verbose) {
-      cat(
-        "\n ======",
-        "Approximate runtime for bootstraps is",
-        runtime * n_bootstraps,
-        attributes(runtime)$units,
-        ". Note: This is a very rough estimate of the runtime (sequential)."
-      )
-    }
-
     boot_spec <- evinf_boot_spec(full_run)
     boots <- evinf_with_plan(multicore, ncores, {
+      # round10 J.1 (audit §5.11): project total runtime from the first
+      # min(4, n_bootstraps) replicates actually completing, not the
+      # full-sample fit's own time x n_bootstraps (the old proxy -- it
+      # ignored parallelism, and a replicate's fit time can differ
+      # substantially from the full-sample fit's).
+      evinf_estimate_boot_runtime(
+        bootrun_evinb, boot_spec, block2, time2, n_bootstraps, boot_seed, verbose
+      )
       evinf_pmap(
         seq_len(n_bootstraps),
         function(i, spec, blk, tv) try(bootrun_evinb(spec, blk, tv)),
         spec = boot_spec, blk = block2, tv = time2,
-        seed = boot_seed, label = "bootstrap", verbose = verbose
+        seed = boot_seed, label = "bootstrap", verbose = verbose,
+        chunk_size = ctrl$chunk_size
       )
     })
     names(boots) <- paste0("bootstrap_", seq_along(boots))

@@ -69,7 +69,8 @@ add_bootstraps <- function(object, n, boot_seed = NULL, multicore = NULL,
       seq_len(n),
       function(i, spec, blk, tv) try(runner(spec, blk, tv)),
       spec = boot_spec, blk = block2, tv = time2,
-      seed = boot_seed, label = "bootstrap", verbose = verbose
+      seed = boot_seed, label = "bootstrap", verbose = verbose,
+      chunk_size = object$control$chunk_size
     )
   })
   names(new_boots) <- paste0("bootstrap_", start + seq_len(n))

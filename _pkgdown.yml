@@ -71,6 +71,7 @@ reference:
   - hks
   - genevzinb
   - genevzinb2
+  - evinf_bench_data
 
 - title: Estimation internals
   desc: >

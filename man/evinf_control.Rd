@@ -30,7 +30,8 @@ evinf_control(
   max.c.iter = 50,
   alpha_pl_floor = 0.01,
   n_starts = 1L,
-  start_jitter = 0.5
+  start_jitter = 0.5,
+  chunk_size = NULL
 )
 }
 \arguments{
@@ -132,6 +133,21 @@ perturbation applied to each component's starting coefficients for the
 \code{n_starts - 1} perturbed starts; their starting \eqn{C_{EV}} is
 drawn uniformly from the candidate grid instead. Unused when
 \code{n_starts <= 1}.}
+
+\item{chunk_size}{Number of bootstrap replicates (or starts) handed to a
+worker at a time in \code{\link{evinf_pmap}} (round10 J.2, audit §5.11).
+\code{NULL} (the default) picks
+\code{max(1, ceiling(B / (4 * future::nbrOfWorkers())))} at dispatch time
+(\code{B} the number of replicates being dispatched) -- four chunks per
+worker, balancing per-task scheduling overhead (worse for \code{B} far
+larger than the worker count and \code{chunk_size = 1}) against a
+straggler chunk leaving workers idle near the end (worse for a
+\code{chunk_size} close to \code{B / nbrOfWorkers()}). Chunk size only
+changes how replicates are grouped for dispatch, never which
+\code{boot_id}s they draw (each replicate's L'Ecuyer stream comes from
+its position in the full sequence, not from the chunk it lands in), so
+bootstrap output is identical across chunk sizes for the same seed. Set
+explicitly to override, e.g. \code{1L} to restore the pre-J.2 default.}
 }
 \value{
 A list of class \code{"evinf_control"}.

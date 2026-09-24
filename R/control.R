@@ -77,6 +77,20 @@
 #'   \code{n_starts - 1} perturbed starts; their starting \eqn{C_{EV}} is
 #'   drawn uniformly from the candidate grid instead. Unused when
 #'   \code{n_starts <= 1}.
+#' @param chunk_size Number of bootstrap replicates (or starts) handed to a
+#'   worker at a time in \code{\link{evinf_pmap}} (round10 J.2, audit §5.11).
+#'   \code{NULL} (the default) picks
+#'   \code{max(1, ceiling(B / (4 * future::nbrOfWorkers())))} at dispatch time
+#'   (\code{B} the number of replicates being dispatched) -- four chunks per
+#'   worker, balancing per-task scheduling overhead (worse for \code{B} far
+#'   larger than the worker count and \code{chunk_size = 1}) against a
+#'   straggler chunk leaving workers idle near the end (worse for a
+#'   \code{chunk_size} close to \code{B / nbrOfWorkers()}). Chunk size only
+#'   changes how replicates are grouped for dispatch, never which
+#'   \code{boot_id}s they draw (each replicate's L'Ecuyer stream comes from
+#'   its position in the full sequence, not from the chunk it lands in), so
+#'   bootstrap output is identical across chunk sizes for the same seed. Set
+#'   explicitly to override, e.g. \code{1L} to restore the pre-J.2 default.
 #' @param alpha_floor,coef_limit Thresholds for flagging a bootstrap replicate
 #'   as \emph{degenerate} (\code{$degenerate}, \code{$degenerate_reason}), so it
 #'   is excluded from bootstrap summaries by default (see
@@ -129,7 +143,8 @@ evinf_control <- function(
   max.c.iter = 50,
   alpha_pl_floor = 0.01,
   n_starts = 1L,
-  start_jitter = 0.5
+  start_jitter = 0.5,
+  chunk_size = NULL
 ) {
   pdf.pl.type <- match.arg(pdf.pl.type, c("approx", "exact"))
   control <- list(
@@ -158,7 +173,8 @@ evinf_control <- function(
     max.c.iter = max.c.iter,
     alpha_pl_floor = alpha_pl_floor,
     n_starts = n_starts,
-    start_jitter = start_jitter
+    start_jitter = start_jitter,
+    chunk_size = chunk_size
   )
   validate_evinf_control(control)
 }
@@ -191,6 +207,18 @@ validate_evinf_control <- function(control) {
   }
   if (is.null(control$start_jitter)) {
     control$start_jitter <- 0.5
+  }
+  # round10 J.2: NULL (the default, "auto") is left as-is, including for a
+  # control object saved before this argument existed -- only an explicit,
+  # invalid override is rejected.
+  if (!is.null(control$chunk_size)) {
+    cs <- control$chunk_size
+    if (!is.numeric(cs) || length(cs) != 1L || !is.finite(cs) || cs < 1 ||
+        cs != round(cs)) {
+      stop("evinf_control(): `chunk_size` must be NULL or a single positive integer.",
+           call. = FALSE)
+    }
+    control$chunk_size <- as.integer(cs)
   }
   pos_scalar <- c(
     "max.diff.par", "max.no.em.steps", "max.no.em.steps.warmup",
