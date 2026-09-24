@@ -29,8 +29,15 @@ capture_fit_id <- function(m) {
   )
 }
 
+# round10 0.6: these fields no longer exist on a fresh fit (legacy, not
+# hurdle-aware -- removed rather than compared away from the baselines).
+.legacy_fitted_fields <- c("y.hat.pl_exp.E.logy", "y.hat.pl_E.inv.y",
+                          "y.hat.pl_median", "y.hat.pl_mean")
+
 expect_fit_equal <- function(actual, baseline_file, tol) {
   base <- readRDS(test_path("fixtures", baseline_file))
+  actual$fitted <- actual$fitted[setdiff(names(actual$fitted), .legacy_fitted_fields)]
+  base$fitted   <- base$fitted[setdiff(names(base$fitted), .legacy_fitted_fields)]
   expect_equal(actual$beta_nb,      base$beta_nb,      tolerance = tol)
   expect_equal(actual$beta_zc,      base$beta_zc,      tolerance = tol)
   expect_equal(actual$beta_pl_mult, base$beta_pl_mult, tolerance = tol)
@@ -58,6 +65,13 @@ gf_id <- local({
   d
 })
 
+# round10 0.5 (review §5): this 1e-8 gate is unchanged, but is worth a note
+# now that it also covers round9 D.2's weights code (has_weights in
+# src/evinf.cpp). Default fits are bit-identical to before D.2 wherever
+# checked directly (genevzinb2/hks, evzinb/evinb) and within a couple of
+# ULPs (~1e-13) everywhere else, from up to 8.6e-8 before the fix -- see
+# test-weights.R's own round10 0.5 tests and their header comment for why a
+# residual can remain on some inputs (compiler codegen, not arithmetic).
 test_that("evzinb() estimation is identical after the em_*.R refactor", {
   m <- fit_z_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = FALSE)
   expect_fit_equal(capture_fit_id(m), "em_baseline_evzinb.rds", 1e-8)
@@ -108,21 +122,6 @@ test_that("bootstrap coefficient matrices are identical (n = 3, seed 123)", {
   expect_equal(as.data.frame(suppressWarnings(
                  coefficient_extractor(mib, "all", exclude_degenerate = FALSE))),
                as.data.frame(base$evinb), tolerance = 1e-8)
-})
-
-test_that("fitted$y.hat.pl_E.inv.y matches predict(type = 'harmonic') exactly (round8 0.3)", {
-  # review §4: em_fitted_values() used to run on the E-step's pre-recompute
-  # props ("props.old"), one step behind the props used for object$props /
-  # predict(). y.hat.pl_E.inv.y is the harmonic-mean weighting, so it must
-  # equal predict(type = "harmonic") once both are computed from the same,
-  # final-parameter props.
-  mz <- fit_z_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = FALSE)
-  expect_equal(mz$fitted$y.hat.pl_E.inv.y,
-               unname(predict(mz, type = "harmonic")))
-
-  mi <- fit_i_id(y ~ x1 + x2 + x3, genevzinb2, bootstrap = FALSE)
-  expect_equal(mi$fitted$y.hat.pl_E.inv.y,
-               unname(predict(mi, type = "harmonic")))
 })
 
 test_that("hks estimation is identical after the em_*.R refactor", {

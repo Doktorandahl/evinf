@@ -5,6 +5,21 @@
 #' truncated-count state, a geometric count) do not add more arguments to
 #' \code{\link{evzinb}()} / \code{\link{evinb}()}.
 #'
+#' @details \strong{Sign convention against \code{pscl}} (round10 0.9,
+#'   review §7): for \code{zero = "hurdle"}, \code{\link[pscl]{hurdle}}'s
+#'   zero-hurdle component models \eqn{P(Y > 0)}, while evinf's zero-state
+#'   coefficients model \eqn{P(\text{zero state})} directly -- so a fitted
+#'   \code{evzinb(family = evinf_family(zero = "hurdle"))} model's zero
+#'   coefficients (\code{Beta.multinom.ZC}) are the exact negatives of the
+#'   corresponding \code{pscl::hurdle(..., dist = "negbin")} zero
+#'   coefficients, everything else about the fit being equal (verified in
+#'   \code{test-hurdle.R}). This is a clean reparameterisation because a
+#'   hurdle's zero state owns every zero outright. \code{zero = "mixture"}
+#'   (the default) has no such simple relationship to
+#'   \code{\link[pscl]{zeroinfl}}'s zero-inflation coefficients: a mixture's
+#'   zeros can also arise from the count state, so the two models' zero
+#'   components are not a reparameterisation of each other.
+#'
 #' @param count \code{"nbinom"} (the default; a negative-binomial count
 #'   state) or \code{"poisson"} (a Poisson count state -- \code{Alpha.NB} is
 #'   dropped entirely: not in \code{par.all}, not in \code{coef()}/

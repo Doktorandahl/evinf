@@ -74,6 +74,25 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
     }
   }
 
+  # round10 0.2 (review §2): every competitor fit was unweighted, so a
+  # weighted evzinb()/evinb() fit's AIC/BIC comparisons were between a
+  # weighted and an unweighted likelihood. object$weights_col (NULL when
+  # unweighted) already names a column of object$data$data -- and of every
+  # data frame derived from it below, since winsorising/razorising only
+  # mutate or subset rows -- so cmp_fit() below references it by name via
+  # do.call() rather than passing the weight *vector* directly: glm()/
+  # glm.nb()/zeroinfl() re-resolve `weights` against environment(formula)
+  # when it is not found in `data`, not against the caller's frame, once
+  # model.frame()'s NSE machinery runs inside the try() these are wrapped
+  # in, so a vector held in a local variable fails to resolve there.
+  wcol <- object$weights_col
+  cmp_fit <- function(fn, args) {
+    if (!is.null(wcol)) {
+      args$weights <- as.name(wcol)
+    }
+    try(do.call(fn, args))
+  }
+
   deparse_rhs <- function(f){
     if(is.null(f)) return('1')
     rhs <- if(length(f) == 3L) f[[3]] else f[[2]]
@@ -92,19 +111,19 @@ if(zip_comparison){
 }
   if(nb_comparison){
     if(!is.null(init_theta)){
-  full_nb <- try(MASS::glm.nb(object$formulas$formula_nb,data = object$data$data,init.theta=init_theta))
+  full_nb <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = object$data$data, init.theta = init_theta))
     }else{
-      full_nb <- try(MASS::glm.nb(object$formulas$formula_nb,data = object$data$data))
+      full_nb <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = object$data$data))
     }
   }
   if(zinb_comparison){
-  full_zinb <- try(pscl::zeroinfl(f_zinb,data = object$data$data,dist = 'negbin'))
+  full_zinb <- cmp_fit(pscl::zeroinfl, list(formula = f_zinb, data = object$data$data, dist = 'negbin'))
   }
   if(poisson_comparison){
-  full_poisson <- try(stats::glm(object$formulas$formula_nb,data = object$data$data,family = stats::poisson()))
+  full_poisson <- cmp_fit(stats::glm, list(formula = object$formulas$formula_nb, data = object$data$data, family = stats::poisson()))
   }
   if(zip_comparison){
-  full_zip <- try(pscl::zeroinfl(f_zip,data = object$data$data,dist = 'poisson'))
+  full_zip <- cmp_fit(pscl::zeroinfl, list(formula = f_zip, data = object$data$data, dist = 'poisson'))
   }
 
   if(winsorize){
@@ -114,19 +133,19 @@ if(zip_comparison){
     data_winsor[[dv_f]][which(data_winsor[dv_f]>sort(dplyr::pull(data_winsor[dv_f]),decreasing = T)[cutoff_value])] <- sort(dplyr::pull(data_winsor[dv_f]),decreasing = T)[cutoff_value]
   if(nb_comparison){
     if(!is.null(init_theta)){
-  full_nb_winsor <- try(MASS::glm.nb(object$formulas$formula_nb,data = data_winsor,init.theta=init_theta))
+  full_nb_winsor <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = data_winsor, init.theta = init_theta))
     }else{
-      full_nb_winsor <- try(MASS::glm.nb(object$formulas$formula_nb,data = data_winsor))
+      full_nb_winsor <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = data_winsor))
     }
   }
   if(zinb_comparison){
-  full_zinb_winsor <- try(pscl::zeroinfl(f_zinb,data = data_winsor,dist = 'negbin'))
+  full_zinb_winsor <- cmp_fit(pscl::zeroinfl, list(formula = f_zinb, data = data_winsor, dist = 'negbin'))
   }
   if(poisson_comparison){
-  full_poisson_winsor <- try(stats::glm(object$formulas$formula_nb,data = data_winsor,family = stats::poisson()))
+  full_poisson_winsor <- cmp_fit(stats::glm, list(formula = object$formulas$formula_nb, data = data_winsor, family = stats::poisson()))
   }
   if(zip_comparison){
-  full_zip_winsor <- try(pscl::zeroinfl(f_zip,data = data_winsor,dist = 'poisson'))
+  full_zip_winsor <- cmp_fit(pscl::zeroinfl, list(formula = f_zip, data = data_winsor, dist = 'poisson'))
   }
   }
   if(razorize){
@@ -138,20 +157,20 @@ if(zip_comparison){
   data_razor <- object$data$data[keep_rows, ]
   if(nb_comparison){
     if(!is.null(init_theta)){
-  full_nb_razor <- try(MASS::glm.nb(object$formulas$formula_nb,data = data_razor,init.theta=init_theta))
+  full_nb_razor <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = data_razor, init.theta = init_theta))
     }else{
-      full_nb_razor <- try(MASS::glm.nb(object$formulas$formula_nb,data = data_razor))
-      
+      full_nb_razor <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = data_razor))
+
     }
   }
   if(zinb_comparison){
-  full_zinb_razor <- try(pscl::zeroinfl(f_zinb,data = data_razor,dist = 'negbin'))
+  full_zinb_razor <- cmp_fit(pscl::zeroinfl, list(formula = f_zinb, data = data_razor, dist = 'negbin'))
   }
   if(poisson_comparison){
-  full_poisson_razor <- try(stats::glm(object$formulas$formula_nb,data = data_razor,family = stats::poisson()))
+  full_poisson_razor <- cmp_fit(stats::glm, list(formula = object$formulas$formula_nb, data = data_razor, family = stats::poisson()))
   }
   if(zip_comparison){
-  full_zip_razor <- try(pscl::zeroinfl(f_zip,data = data_razor,dist = 'poisson'))
+  full_zip_razor <- cmp_fit(pscl::zeroinfl, list(formula = f_zip, data = data_razor, dist = 'poisson'))
   }
   }
   # One spec per family member: its (winsorised / razorised) data set, the
@@ -168,7 +187,7 @@ if(zip_comparison){
          formulas = fmls, f_zinb = if (type == "zinb") f_zinb else NULL,
          f_zip = if (type == "zip") f_zip else NULL,
          has_init_theta = !is.null(init_theta), init_theta = init_theta,
-         keep = keep,
+         keep = keep, weights_col = wcol,
          y_orig = if (is.null(keep)) y_orig_full else y_orig_full[keep])
   }
   specs <- list()
@@ -210,16 +229,16 @@ boot_refit_one <- function(sp, boot_id) {
   b_stub <- list(boot_id = boot_id)
   if (sp$type == "nb") {
     if (sp$has_init_theta) {
-      try(inner_nb(b_stub, sp$data, sp$formulas, sp$init_theta, sp$y_orig), silent = TRUE)
+      try(inner_nb(b_stub, sp$data, sp$formulas, sp$init_theta, sp$y_orig, sp$weights_col), silent = TRUE)
     } else {
-      try(inner_nb(b_stub, sp$data, sp$formulas, y_orig = sp$y_orig), silent = TRUE)
+      try(inner_nb(b_stub, sp$data, sp$formulas, y_orig = sp$y_orig, weights_col = sp$weights_col), silent = TRUE)
     }
   } else if (sp$type == "poisson") {
-    try(inner_poisson(b_stub, sp$data, sp$formulas, sp$y_orig), silent = TRUE)
+    try(inner_poisson(b_stub, sp$data, sp$formulas, sp$y_orig, sp$weights_col), silent = TRUE)
   } else if (sp$type == "zip") {
-    try(inner_zip(b_stub, sp$data, sp$formulas, sp$f_zip, sp$y_orig), silent = TRUE)
+    try(inner_zip(b_stub, sp$data, sp$formulas, sp$f_zip, sp$y_orig, sp$weights_col), silent = TRUE)
   } else {
-    try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb, sp$y_orig), silent = TRUE)
+    try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb, sp$y_orig, sp$weights_col), silent = TRUE)
   }
 }
 
@@ -268,7 +287,7 @@ empty_boot_id_error <- function(fn_name) {
   ), silent = TRUE)
 }
 
-inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
+inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig,weights_col=NULL){
   if (length(bootstrap$boot_id) == 0) {
     return(empty_boot_id_error("inner_nb"))
   }
@@ -279,7 +298,13 @@ inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
   # not whatever `data` currently holds (winsorised values would make the
   # winsorised OOB error incomparable to evinf's).
   dv <- y_orig[-bootstrap$boot_id]
-  boot_nb <- try(MASS::glm.nb(formulas$formula_nb,data = data_ib,init.theta=init_theta), silent = TRUE)
+  # round10 0.2: weights_col names a column already present in data_ib
+  # (resampling rows keeps every column, weights included); referenced by
+  # name via do.call() rather than as a vector, see cmp_fit() above.
+  args <- list(formula = formulas$formula_nb, data = data_ib)
+  if (!missing(init_theta)) args$init.theta <- init_theta
+  if (!is.null(weights_col)) args$weights <- as.name(weights_col)
+  boot_nb <- try(do.call(MASS::glm.nb, args), silent = TRUE)
   if(!('try-error' %in% class(boot_nb))){
   boot_nb$oob_predictions <- exp(predict(boot_nb,newdata=data_oob))
   boot_nb$oob_rmse <- sqrt(mean((dv-boot_nb$oob_predictions)^2))
@@ -300,7 +325,7 @@ inner_nb <- function(bootstrap,data,formulas,init_theta,y_orig){
   return(boot_nb)
 }
 
-inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig){
+inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig,weights_col=NULL){
   if (length(bootstrap$boot_id) == 0) {
     return(empty_boot_id_error("inner_zinb"))
   }
@@ -312,7 +337,9 @@ inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig){
   # Use the full two-part formula (count | zero), matching the full-sample fit
   # (audit 1.2); formulas$formula_zi alone would use the ZI regressors for both
   # parts.
-  boot_zinb <- try(pscl::zeroinfl(f_zinb,data = data_ib,dist = 'negbin'), silent = TRUE)
+  args <- list(formula = f_zinb, data = data_ib, dist = 'negbin')
+  if (!is.null(weights_col)) args$weights <- as.name(weights_col)
+  boot_zinb <- try(do.call(pscl::zeroinfl, args), silent = TRUE)
   if(!('try-error' %in% class(boot_zinb))){
     boot_zinb$oob_predictions <- predict(boot_zinb,newdata=data_oob)
     boot_zinb$oob_rmse <- sqrt(mean((dv-boot_zinb$oob_predictions)^2))
@@ -335,7 +362,7 @@ inner_zinb <- function(bootstrap,data,formulas,f_zinb,y_orig){
 # round9 E.3 (audit §5.5): Poisson competitor baseline, mirroring inner_nb()
 # above but via glm(family = poisson()) -- no dispersion parameter, so
 # npar = rank (not rank + 1).
-inner_poisson <- function(bootstrap,data,formulas,y_orig){
+inner_poisson <- function(bootstrap,data,formulas,y_orig,weights_col=NULL){
   if (length(bootstrap$boot_id) == 0) {
     return(empty_boot_id_error("inner_poisson"))
   }
@@ -343,7 +370,9 @@ inner_poisson <- function(bootstrap,data,formulas,y_orig){
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
   dv <- y_orig[-bootstrap$boot_id]
-  boot_pois <- try(stats::glm(formulas$formula_nb,data = data_ib,family = stats::poisson()), silent = TRUE)
+  args <- list(formula = formulas$formula_nb, data = data_ib, family = stats::poisson())
+  if (!is.null(weights_col)) args$weights <- as.name(weights_col)
+  boot_pois <- try(do.call(stats::glm, args), silent = TRUE)
   if(!('try-error' %in% class(boot_pois))){
   boot_pois$oob_predictions <- exp(predict(boot_pois,newdata=data_oob))
   boot_pois$oob_rmse <- sqrt(mean((dv-boot_pois$oob_predictions)^2))
@@ -365,7 +394,7 @@ inner_poisson <- function(bootstrap,data,formulas,y_orig){
 
 # round9 E.3: zero-inflated-Poisson competitor baseline, mirroring
 # inner_zinb() above but via pscl::zeroinfl(dist = "poisson").
-inner_zip <- function(bootstrap,data,formulas,f_zip,y_orig){
+inner_zip <- function(bootstrap,data,formulas,f_zip,y_orig,weights_col=NULL){
   if (length(bootstrap$boot_id) == 0) {
     return(empty_boot_id_error("inner_zip"))
   }
@@ -373,7 +402,9 @@ inner_zip <- function(bootstrap,data,formulas,f_zip,y_orig){
   data_ib <- data[bootstrap$boot_id,]
   data_oob <- data[-bootstrap$boot_id,]
   dv <- y_orig[-bootstrap$boot_id]
-  boot_zip <- try(pscl::zeroinfl(f_zip,data = data_ib,dist = 'poisson'), silent = TRUE)
+  args <- list(formula = f_zip, data = data_ib, dist = 'poisson')
+  if (!is.null(weights_col)) args$weights <- as.name(weights_col)
+  boot_zip <- try(do.call(pscl::zeroinfl, args), silent = TRUE)
   if(!('try-error' %in% class(boot_zip))){
     boot_zip$oob_predictions <- predict(boot_zip,newdata=data_oob)
     boot_zip$oob_rmse <- sqrt(mean((dv-boot_zip$oob_predictions)^2))

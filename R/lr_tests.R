@@ -8,20 +8,34 @@
 # parallel workers do not receive the calling frame.
 #   reduced  the $formulas list from formula_var_remover()
 #   data     the (possibly resampled) data to fit on
-#   obj      a stand-in carrying only $control and $coef, with the model class
+#   obj      a stand-in carrying only $control, $coef, $family and $weights,
+#            with the model class
 #   md       the full model data (for resolving reduced design column names)
+#   weights  the weights vector aligned to `data`'s rows (NULL for an
+#            unweighted fit); round10 0.1
 #
 # audit0.10 §1.7: passed as control = restricted_control(...) rather than the
 # ~20 individual tuning arguments, so nothing reaches resolve_evinf_control()'s
 # deprecation warning (which fires on exactly those arguments).
-lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE) {
+#
+# round10 0.1: the restricted refit must reproduce the full model exactly
+# except for the dropped variables -- so it needs the same `family` and
+# `weights`, not just the same control/warm start. Without these, a weighted
+# fit's restricted log-likelihood came from an *unweighted* refit (statistic
+# silently wrong, occasionally negative), and a Poisson or hurdle fit's
+# restricted refit errored or compared against the wrong nested model.
+lr_refit_restricted <- function(reduced, data, obj, md, verbose = FALSE,
+                                 weights = NULL) {
   ctrl <- restricted_control(obj, reduced, md)
+  fam <- obj$family %||% evinf_family()
   if (inherits(obj, "evzinb")) {
     evinf::evzinb(reduced$nb, reduced$zi, reduced$evinf, reduced$pareto,
-                 data = data, control = ctrl, bootstrap = FALSE, verbose = verbose)
+                 data = data, control = ctrl, bootstrap = FALSE, verbose = verbose,
+                 weights = weights, family = fam)
   } else {
     evinf::evinb(reduced$nb, reduced$evinf, reduced$pareto,
-                data = data, control = ctrl, bootstrap = FALSE, verbose = verbose)
+                data = data, control = ctrl, bootstrap = FALSE, verbose = verbose,
+                weights = weights, family = fam)
   }
 }
 
@@ -78,11 +92,15 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
 
   # A lightweight stand-in carrying only what lr_refit_restricted() needs, so
   # the bootstrap workers never receive the (large) $bootstraps list.
-  lr_obj <- structure(list(control = object$control, coef = object$coef),
+  # round10 0.1: $family and $weights travel with it so the refit is the same
+  # model as the full fit, minus the restricted variables.
+  lr_obj <- structure(list(control = object$control, coef = object$coef,
+                           family = object$family, weights = object$weights),
                       class = class(object))
 
   reruns <- purrr::map(formulas_dfs, function(fd)
-    lr_refit_restricted(fd$formulas, model_data, lr_obj, model_data, verbose))
+    lr_refit_restricted(fd$formulas, model_data, lr_obj, model_data, verbose,
+                        weights = lr_obj$weights))
 
     logliks <- reruns %>% purrr::map('log.lik') %>% purrr::reduce(c)
     dfs <- formulas_dfs %>% purrr::map('df') %>% purrr::reduce(c)
@@ -112,9 +130,13 @@ lr_test <- function(object, vars, single = TRUE, bootstrap = FALSE, multicore = 
         seq_len(nrow(grid)),
         function(k, grid, formulas_dfs, boot_ids, model_data, lr_obj) {
           fi <- grid$fi[k]; bj <- grid$bj[k]
+          # round10 0.1: subset weights the same way as the resampled rows,
+          # so a weighted bootstrap replicate's restricted refit is weighted
+          # on exactly the rows it was resampled onto.
+          w <- if (is.null(lr_obj$weights)) NULL else lr_obj$weights[boot_ids[[bj]]]
           try(lr_refit_restricted(formulas_dfs[[fi]]$formulas,
                                   model_data[boot_ids[[bj]], ],
-                                  lr_obj, model_data, FALSE))
+                                  lr_obj, model_data, FALSE, weights = w))
         },
         grid = grid, formulas_dfs = formulas_dfs, boot_ids = boot_ids,
         model_data = model_data, lr_obj = lr_obj,
@@ -189,17 +211,27 @@ formula_var_remover <- function(formulas, vars, data){
     if(is.null(f)){
       return(NULL)
     }
-    tl <- attr(terms.formula(f), 'term.labels')
+    tt <- stats::terms(f)
+    tl <- attr(tt, 'term.labels')
     if(length(tl) == 0){
       return(f)
     }
-    keep <- vapply(tl, function(term){
+    drop_idx <- which(vapply(tl, function(term){
       term_vars <- all.vars(stats::as.formula(paste('~', term)))
-      !any(vars %in% term_vars)
-    }, logical(1))
-    lhs <- deparse(f[[2]])
-    rhs <- if(any(keep)) paste(tl[keep], collapse = ' + ') else '1'
-    stats::as.formula(paste(lhs, '~', rhs), env = environment(f))
+      any(vars %in% term_vars)
+    }, logical(1)))
+    if(length(drop_idx) == 0){
+      return(f)
+    }
+    # round10 0.1 (review §1): rebuild from the terms object with
+    # stats::drop.terms() rather than pasting the surviving term.labels back
+    # together. offset() terms never appear in term.labels, so the old
+    # paste-based reconstruction silently dropped every offset (and, since
+    # dropping to an empty term.labels forced '1' onto the RHS, silently
+    # dropped a `- 1` no-intercept specification too). drop.terms() carries
+    # both through because it operates on the terms object itself.
+    new_tt <- stats::drop.terms(tt, dropx = drop_idx, keep.response = TRUE)
+    stats::formula(new_tt)
   }
 
   ncol_mm <- function(f){
@@ -267,7 +299,13 @@ restricted_control <- function(object, reduced, data) {
     as.numeric(v)
   }
 
-  ctrl$init.Alpha.NB <- as.numeric(object$coef$Alpha.NB)
+  # round10 0.1: a Poisson count state has no Alpha.NB (audit's E.1 drop) --
+  # object$coef$Alpha.NB is NULL there, so leave ctrl$init.Alpha.NB at its
+  # inherited (unused) value instead of overwriting it with numeric(0), which
+  # evinf_control() rejects as "must be a single positive number".
+  if (!isTRUE((object$family %||% evinf_family())$count == "poisson")) {
+    ctrl$init.Alpha.NB <- as.numeric(object$coef$Alpha.NB)
+  }
   ctrl$init.C <- as.numeric(object$coef$C)
   ctrl$init.Beta.NB <- beta_start(object$coef$Beta.NB, reduced$nb)
   ctrl$init.Beta.multinom.PL <- beta_start(object$coef$Beta.multinom.PL, reduced$evinf)

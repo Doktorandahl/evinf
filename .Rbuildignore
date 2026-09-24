@@ -13,3 +13,4 @@
 ^vignettes$
 ^\.github$
 ^codecov\.yml$
+^\.claude$

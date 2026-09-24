@@ -72,22 +72,36 @@ fd2_cross <- function(f, x, y, hx = 1e-4, hy = 1e-4) {
   (f(x + hx, y + hy) - f(x + hx, y - hy) - f(x - hx, y + hy) + f(x - hx, y - hy)) / (4 * hx * hy)
 }
 
+# round10 0.9 (review §7): a plain central second difference balances O(h^2)
+# truncation error against O(1/h^2) roundoff amplification, so no single h
+# gets much past ~1e-2 relative accuracy. Richardson extrapolation --
+# combining the estimates at h and h/2 as (4*D(h/2) - D(h))/3 -- cancels the
+# leading h^2 error term, giving O(h^4) accuracy without shrinking h enough
+# to hit the roundoff floor, and reaches ~1e-6 (verified against the raw
+# central difference above, which this replaces rather than supplements).
+fd2_richardson <- function(f, x, h = 1e-2) {
+  (4 * fd2(f, x, h / 2) - fd2(f, x, h)) / 3
+}
+fd2_cross_richardson <- function(f, x, y, hx = 1e-2, hy = 1e-2) {
+  (4 * fd2_cross(f, x, y, hx / 2, hy / 2) - fd2_cross(f, x, y, hx, hy)) / 3
+}
+
 test_that("hurdle zero-truncation derivatives (NB) match central finite differences", {
   mus <- c(0.5, 2, 10, 50)
   alphas <- c(0.05, 0.3, 1, 3)
   for (mu in mus) for (alpha in alphas) {
     expect_equal(dGdmu_nb(mu, alpha), fd1(function(m) G_nb(m, alpha), mu), tolerance = 1e-4)
     expect_equal(dGdalpha_nb(mu, alpha), fd1(function(a) G_nb(mu, a), alpha), tolerance = 1e-4)
-    expect_equal(d2Gdmu2_nb(mu, alpha), fd2(function(m) G_nb(m, alpha), mu), tolerance = 1e-2)
-    expect_equal(d2Gdmudalpha_nb(mu, alpha), fd2_cross(G_nb, mu, alpha), tolerance = 1e-2)
-    expect_equal(d2Gdalpha2_nb(mu, alpha), fd2(function(a) G_nb(mu, a), alpha), tolerance = 1e-2)
+    expect_equal(d2Gdmu2_nb(mu, alpha), fd2_richardson(function(m) G_nb(m, alpha), mu), tolerance = 1e-6)
+    expect_equal(d2Gdmudalpha_nb(mu, alpha), fd2_cross_richardson(G_nb, mu, alpha), tolerance = 1e-6)
+    expect_equal(d2Gdalpha2_nb(mu, alpha), fd2_richardson(function(a) G_nb(mu, a), alpha), tolerance = 1e-6)
   }
 })
 
 test_that("hurdle zero-truncation derivatives (Poisson) match central finite differences", {
   for (mu in c(0.5, 2, 10, 50)) {
     expect_equal(dGdmu_pois(mu), fd1(G_pois, mu), tolerance = 1e-4)
-    expect_equal(d2Gdmu2_pois(mu), fd2(G_pois, mu), tolerance = 1e-2)
+    expect_equal(d2Gdmu2_pois(mu), fd2_richardson(G_pois, mu), tolerance = 1e-6)
   }
 })
 
@@ -310,4 +324,45 @@ test_that("on data simulated without a separate zero-inflation process, mixture 
 
   expect_equal(m_mix$log.lik, m_hurdle$log.lik, tolerance = 0.05 * abs(m_hurdle$log.lik))
   expect_true(mean(m_mix$props[, 1]) < 0.1)
+})
+
+test_that("an intercept-only hurdle zero probability equals the observed zero share at tight convergence (round10 0.9)", {
+  # review §8: at exact convergence, an intercept-only zero logit's score
+  # equation is sum(r_i0 - pi_i0) = 0; a hurdle's zero-state responsibility
+  # r_i0 is exactly 1 for y = 0 rows (forced in the E-step) and 0 otherwise,
+  # so mean(pi_i0) must equal the observed zero share exactly. The default
+  # max.diff.par = 0.01 stops early enough that this only holds to ~1e-4
+  # (review's own reproduction: 0.392159 fitted vs 0.3925 observed); a tight
+  # max.diff.par makes it a free, exact test of the hurdle E/M-step algebra.
+  # fit_evzinb_hurdle() already hard-codes `control =`, so this can't reuse
+  # it via ... (duplicate named argument) -- inline the same data generator.
+  set.seed(11)
+  n <- 300
+  x1 <- rnorm(n)
+  zc_eta <- 0.2 - 0.4 * x1
+  mu <- exp(0.9 + 0.3 * x1)
+  alpha_true <- 0.6
+  rztnb <- function(n, mu, alpha) {
+    out <- integer(n)
+    for (i in seq_len(n)) repeat {
+      v <- rnbinom(1, mu = mu[i], size = 1 / alpha)
+      if (v > 0) { out[i] <- v; break }
+    }
+    out
+  }
+  is_zero <- runif(n) < plogis(zc_eta)
+  y <- integer(n)
+  y[!is_zero] <- rztnb(sum(!is_zero), mu[!is_zero], alpha_true)
+  y[1:6] <- y[1:6] + 40L
+  d <- data.frame(y = y, x1 = x1)
+
+  m <- suppressMessages(suppressWarnings(evzinb(
+    y ~ x1, formula_zi = ~1, data = d, family = evinf_family(zero = "hurdle"),
+    bootstrap = FALSE, verbose = FALSE,
+    control = evinf_control(c.lim = c(20, 1000), init.C = 30,
+                            max.diff.par = 1e-8, max.no.em.steps = 5000)
+  )))
+  expect_true(m$converge)
+  observed_zero_share <- mean(m$data$y == 0)
+  expect_equal(mean(m$props[, "zero"]), observed_zero_share, tolerance = 1e-6)
 })

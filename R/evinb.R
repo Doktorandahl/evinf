@@ -72,6 +72,15 @@ run_evinb <- function(
     dplyr::select(dplyr::all_of(model_vars)) %>%
     na.omit()
 
+  # round10 0.4 (review §3): validate `time` against `block` once, here,
+  # before any EM fitting -- see evinf_validate_time()'s comment in
+  # R/resample.R.
+  evinf_validate_time(
+    nrow(model_data), bootstrap_scheme,
+    if (!is.null(block)) model_data[[block]] else NULL,
+    if (!is.null(time)) model_data[[time]] else NULL
+  )
+
   d_nb <- evinf_design(formula_nb, model_data)
   d_evi <- evinf_design(formula_evi, model_data)
   d_pareto <- evinf_design(formula_pareto, model_data)
@@ -104,6 +113,10 @@ run_evinb <- function(
   OBS.X.obj$offset.nb <- offset_nb
   OBS.X.obj$offset.pl_mult <- offset_pl_mult
   OBS.X.obj$weights <- weights_vec
+  # round10 0.5: `weights` here is still the R-level argument (a column name
+  # or NULL), not weights_vec -- has_weights is TRUE only when the user
+  # actually supplied weights, never merely because weights_vec is all 1s.
+  OBS.X.obj$has_weights <- !is.null(weights)
 
   # Parameter counts include the intercept the C++ routines prepend.
   n_nb <- ncol(d_nb$X) + 1L
@@ -182,6 +195,7 @@ run_evinb <- function(
   object$offset_nb <- offset_nb
   object$offset_pl_mult <- offset_pl_mult
   object$weights <- weights_vec
+  object$has_weights <- !is.null(weights)
   object$data <- list()
 
   object$data$data <- model_data
@@ -237,13 +251,13 @@ run_evinb <- function(
   object$n_em_steps <- length(object$log.lik.vec.all)
 
   object$fitted <- list()
-  object$fitted$y.hat.pl_exp.E.logy <- object$y.hat.plexpElogy
+  # round10 0.6 (review §4/§7, breaking change): see the matching comment in
+  # run_evzinb() -- the legacy y.hat.pl_* point predictions duplicated
+  # predict() but were not hurdle-aware, and no internal reader of
+  # object$fitted$y.hat.pl_* remained.
   object$y.hat.plexpElogy <- NULL
-  object$fitted$y.hat.pl_E.inv.y <- object$y.hat.pl.E.inv.y
   object$y.hat.pl.E.inv.y <- NULL
-  object$fitted$y.hat.pl_median <- object$y.hat.plmedian
   object$y.hat.plmedian <- NULL
-  object$fitted$y.hat.pl_mean <- object$y.hat.plmean
   object$y.hat.plmean <- NULL
   object$fitted$mu.nb <- object$mu.nb.vec
   object$mu.nb.vec <- NULL
@@ -308,6 +322,7 @@ bootrun_evinb <- function(
     object$offset_pl_mult[boot_id]
   OBS.X.obj$weights <- if (is.null(object$weights)) rep(1, length(boot_id)) else
     object$weights[boot_id]
+  OBS.X.obj$has_weights <- isTRUE(object$has_weights)  # round10 0.5
   Control <- object$control
 
   Ini.Val <- list()

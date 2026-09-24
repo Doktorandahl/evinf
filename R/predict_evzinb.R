@@ -78,6 +78,22 @@ canonical_prbs <- function(prbs) {
 
 explog_calc <- function(pr_count, count, pr_pareto, C, pareto_alpha,
                         floor = 0.01) {
+  # round10 0.6 (review §4, decision D1): the alpha_pl_floor keeps
+  # exp(1/alpha) finite, but not sane -- C * exp(100) at the default 0.01
+  # floor. Warn (once per call), against the *unclamped* alpha, whenever it
+  # drops below 0.1: the geometric-mean prediction is effectively undefined
+  # well before the floor bites (exp(10) ~= 2.2e4 already).
+  n_undefined <- sum(pareto_alpha < 0.1, na.rm = TRUE)
+  if (n_undefined > 0L) {
+    warning(
+      "evinf (explog prediction): ", n_undefined, " fitted Pareto alpha ",
+      "value", if (n_undefined != 1L) "s" else "", " below 0.1; the ",
+      "geometric-mean prediction C * exp(1 / alpha_pl) is effectively ",
+      "undefined there (e.g. exp(10) ~= 2.2e4). Consider ",
+      "predict(type = \"harmonic\") instead.",
+      call. = FALSE
+    )
+  }
   pareto_alpha <- evinf_clamp_alpha_pl(pareto_alpha, floor = floor,
                                        context = "explog prediction")
   pr_count * count + C * pr_pareto * exp(1 / pareto_alpha)
@@ -452,6 +468,16 @@ evinf_predict_engine <- function(object, newdata, type, pred, quantile,
 #'   this keeps existing point predictions unchanged but means they are not
 #'   computed from exactly the same distribution as the rest of the model.
 #'
+#'   \code{type = 'explog'} is \eqn{C \cdot \exp(1/\alpha_{PL})}, which grows
+#'   explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0 --
+#'   \code{evinf_control(alpha_pl_floor = )} (default 0.01) keeps it finite,
+#'   but not sane (\eqn{C \cdot e^{100}} at the floor). A warning fires
+#'   whenever any \eqn{\alpha_{PL}} used in an explog prediction is below
+#'   0.1, since the prediction is effectively undefined well before the
+#'   floor is reached (\eqn{e^{10} \approx 2.2 \times 10^4}); check
+#'   \code{glance()$min_alpha_pl}, and prefer \code{type = 'harmonic'} when
+#'   this fires. No separate clamp is applied beyond \code{alpha_pl_floor}.
+#'
 #' @param object An evzinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from
 #' @param type Character string, 'harmonic' for the harmonic mean and 'explog' for exponentiated expected log, 'counts' for predicted count of the negative binomial component, 'pareto_alpha' for the predicted pareto alpha value, 'states' for the predicted component states (prior), 'count_state' for predicted probability of the count state, 'evinf' for predicted probability of the pareto state,'zi' for the predicted probability of the zero state, 'all' for all predicted values, and 'quantile' for quantile prediction.
@@ -523,6 +549,16 @@ predict.evzinb <- function(
 #'   closed-form approximation to the corresponding discretised-Pareto moments;
 #'   this keeps existing point predictions unchanged but means they are not
 #'   computed from exactly the same distribution as the rest of the model.
+#'
+#'   \code{type = 'explog'} is \eqn{C \cdot \exp(1/\alpha_{PL})}, which grows
+#'   explosively as the fitted Pareto shape \eqn{\alpha_{PL}} approaches 0 --
+#'   \code{evinf_control(alpha_pl_floor = )} (default 0.01) keeps it finite,
+#'   but not sane (\eqn{C \cdot e^{100}} at the floor). A warning fires
+#'   whenever any \eqn{\alpha_{PL}} used in an explog prediction is below
+#'   0.1, since the prediction is effectively undefined well before the
+#'   floor is reached (\eqn{e^{10} \approx 2.2 \times 10^4}); check
+#'   \code{glance()$min_alpha_pl}, and prefer \code{type = 'harmonic'} when
+#'   this fires. No separate clamp is applied beyond \code{alpha_pl_floor}.
 #'
 #' @param object An evinb object for which to produce predicted values
 #' @param newdata Optional new data (tibble) to produce predicted values from

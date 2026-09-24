@@ -1,6 +1,34 @@
 # Estimation internals: one generalised EM step at a fixed threshold.
 # See R/em_fit.R for the map of how the em_*.R files fit together.
 
+# round10 0.7 (review §6): shrink the NB line search's eta interval so it
+# never probes a negative alpha_nb. On near-Poisson data (alpha_nb already
+# close to 0), the unconstrained eta.int let the Newton step's direction
+# push alpha_new negative for some trial eta; log_lik_fun()'s NB branch is
+# undefined there (returns NaN/Inf), so stats::optimise() silently
+# substituted its own "maximum positive value" and warned on every probe --
+# a stream of warnings on affected fits, not a correctness issue in the
+# accepted step itself (which never lands outside eta.int).
+#
+# alpha_new(eta) = alpha_old + eta * d is linear in eta (d is the Newton
+# step's alpha component), so the zero-crossing eta_boundary = -alpha_old/d
+# is the one point that matters: admissible eta is on the same side of 0 as
+# eta_boundary. Shrinking that boundary by `margin` toward 0 keeps every eta
+# stats::optimise() actually evaluates (interior to the returned interval,
+# never the interval's own endpoints) strictly on the positive-alpha side,
+# since alpha_new() is monotonic in eta.
+evinf_eta_interval_positive_alpha <- function(eta_int, alpha_old, d, margin = 0.01) {
+  if (!is.finite(d) || d == 0 || !is.finite(alpha_old)) {
+    return(eta_int)
+  }
+  eta_boundary <- -alpha_old / d
+  if (d > 0) {
+    c(max(eta_int[1], eta_boundary * (1 - margin)), eta_int[2])
+  } else {
+    c(eta_int[1], min(eta_int[2], eta_boundary * (1 - margin)))
+  }
+}
+
 #' One EM step for the EVZINB / EVINB mixture at fixed \eqn{C_{EV}}
 #'
 #' Performs a single generalised-EM iteration: the C++ routine
@@ -55,7 +83,7 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_famil
     log_lik_fun(zc, plm, nb, al, pl, c_pl,
                 ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
                 ext$offset_zc, ext$offset_pl_mult, ext$weights, family_count_code,
-                family_zero_code)
+                family_zero_code, ext$has_weights)
   }
 
   # audit0.10 §1.8: pdf.pl.type = "exact" uses the discretised-Pareto
@@ -66,7 +94,8 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_famil
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y,
     control$max.upd.par.nb, control$no.m.bfgs.steps.nb, ext$offset,
     ext$offset_zc, ext$offset_pl_mult, ext$weights,
-    family_count_code, identical(control$pdf.pl.type, "exact"), family_zero_code
+    family_count_code, identical(control$pdf.pl.type, "exact"), family_zero_code,
+    ext$has_weights
   )
 
   # --- take the BFGS values where they are finite, otherwise keep the old ----
@@ -92,7 +121,10 @@ em_step <- function(y, ext, par, control, fixed_zc = FALSE, family = evinf_famil
       -1.0 * ll(zc_old, pl_mult_old, th[seq_len(n_beta_nb)],
                 th[n_beta_nb + 1], pl_old)
     }
-    eta_nb <- stats::optimise(obj_nb, interval = control$eta.int)$minimum
+    eta_int_nb <- evinf_eta_interval_positive_alpha(
+      control$eta.int, alpha_old, upd$change_nb_bfgs[n_beta_nb + 1]
+    )
+    eta_nb <- stats::optimise(obj_nb, interval = eta_int_nb)$minimum
     th <- theta0 + eta_nb * upd$change_nb_bfgs
     nb_new    <- th[seq_len(n_beta_nb)]
     alpha_new <- th[n_beta_nb + 1]

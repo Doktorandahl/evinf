@@ -4,6 +4,82 @@ Implements audit §5.6 (offsets and weights), §5.5 (model families) and §5.7
 (panel/time-series resampling): work packages D, E and F of
 `dev/plan_0.12_families_offsets_panel.md`.
 
+## Breaking changes
+
+* The legacy `object$fitted$y.hat.pl_exp.E.logy`, `y.hat.pl_E.inv.y`,
+  `y.hat.pl_median` and `y.hat.pl_mean` fields are no longer stored. They
+  duplicated `predict(type = "explog"/"harmonic"/"quantile")` but were not
+  hurdle-aware (on a hurdle fit, correlation with the corresponding
+  `predict()` output was as low as 0.9988). `fitted()` already routes
+  through `predict()`; use that instead. The other `object$fitted$*` fields
+  (`mu.nb`, `alpha.pl`, the `pl_*`/`prob_*`/`posterior_*` summaries) are
+  unaffected (round10 0.6).
+
+## Bug fixes
+
+Round-9 follow-ups (`dev/review_round9.md`):
+
+* `lr_test()` refits now carry the full model's `weights`, `family` and
+  every `offset()` term. Previously a weighted fit's restricted
+  log-likelihood came from an unweighted refit (silently wrong, occasionally
+  a negative LR statistic), a Poisson or hurdle fit's restricted refit
+  errored or compared against the wrong nested model, and an offset model's
+  restricted formula silently dropped its offset (round10 0.1).
+* `compare_models()`'s NB/ZINB/Poisson/ZIP competitor baselines -- including
+  winsorised/razorised variants and every bootstrap refit -- are now fitted
+  with the same `weights` as the evzinb/evinb model, so `compare_fit()`'s
+  AIC/BIC comparisons are no longer between a weighted and an unweighted
+  likelihood (round10 0.2).
+* `evzinb()`/`evinb()`/`add_bootstraps()` now validate `time` against
+  `block` once, up front, before any fitting. Previously a duplicated or
+  out-of-order `time` under `bootstrap_scheme = "moving_block"`/
+  `"stationary"` let the full-sample fit complete and only surfaced as every
+  bootstrap replicate failing; the error now fires immediately and, when
+  `time` was given without `block`, names that as the likely cause
+  (round10 0.4).
+* Default (unweighted) fits are bit-identical again to before round9 D.2's
+  weights code (verified directly against `b63b302` for `genevzinb2` and
+  `hks`, both `evzinb()` and `evinb()`); a residual of at most a couple of
+  ULPs can remain on other inputs, down from up to 8.6e-8. See
+  `has_weights` in `src/evinf.cpp` and `test-weights.R`'s round10 0.5 tests
+  (round10 0.5).
+* `predict(type = "explog")` warns when any fitted Pareto `alpha_pl` used in
+  the prediction is below 0.1: the geometric-mean prediction
+  `C * exp(1 / alpha_pl)` is effectively undefined well before that (and
+  before `evinf_control(alpha_pl_floor = )`, default 0.01, clamps it to a
+  finite but still absurd value). No separate clamp is applied; see
+  `?predict.evzinb` (round10 0.6).
+* On near-Poisson data, a default (`nbinom`) fit no longer emits a stream of
+  `NA/Inf replaced by maximum positive value` warnings from the NB
+  dispersion line search. The search's `eta` interval is now shrunk (with a
+  small margin) so it never probes a negative `alpha_nb`, instead of relying
+  on `stats::optimise()` to silently recover from evaluating the
+  log-likelihood there; default-family fits are unaffected (round10 0.7).
+* `glance()` reports `oob_fraction_mean`/`oob_fraction_min`/
+  `oob_fraction_max` (`NA` without bootstraps), a fit-level summary across
+  usable bootstrap replicates of a quantity that previously lived only on
+  each replicate; most informative for the block schemes, where overlapping
+  blocks change how much of the data a replicate leaves out (round10 0.9).
+* `time` given without `block`, with repeated values, now warns (rather
+  than passing silently) for `bootstrap_scheme`s that don't use `time`
+  (`"iid"`/`"cluster"`) -- `"moving_block"`/`"stationary"` already error on
+  this (round10 0.4); `time` is otherwise unused for the other schemes, so
+  this is the same likely-missing-`block =` mistake surfacing outside the
+  case that errors (round10 0.9).
+* Tightened the hurdle zero-truncation second-derivative regression test
+  from a plain central finite difference (~1e-2 relative) to a
+  Richardson-extrapolated one (~1e-6 relative); documented the `pscl` sign
+  convention (`hurdle()`'s zero component models `P(Y > 0)`, evinf's models
+  the zero state directly) in `?evinf_family` (round10 0.9).
+* CI: `R-CMD-check.yaml`'s dependency-install step now retries once on
+  failure and pins an explicit cache key, to absorb the RSPM binary
+  download that has intermittently failed on its first attempt (seen on
+  macOS). Added `^\.claude$` to `.Rbuildignore` so a local `.claude`
+  directory cannot produce an `R CMD check` NOTE or leak into a submitted
+  tarball. `test-coverage.yaml` already references
+  `secrets.CODECOV_TOKEN`; that repository secret still needs to be created
+  in GitHub settings for Codecov to report a figure (round10 0.8).
+
 ## New features
 
 * `evzinb()` / `evinb()` gain `family = `, an `evinf_family()` object (or a

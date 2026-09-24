@@ -52,6 +52,61 @@ evinf_check_unit_time_order <- function(idx, time_vec, unit_label) {
   }
 }
 
+# round10 0.4 (review §3): the check above only ran inside each bootstrap
+# replicate, so a duplicated or out-of-order `time` under moving_block /
+# stationary let the full-sample fit complete and only surfaced as every
+# bootstrap replicate being a try-error. Called once, up front, from
+# run_evzinb()/run_evinb()/add_bootstraps() -- before any EM fitting -- so it
+# errors immediately instead. evinf_resample_ids()'s own per-replicate check
+# is unchanged, still guarding any direct/standalone caller.
+#
+# When `block` is NULL, evinf_split_by_unit() treats the whole data set as
+# one unit, which is the usual mistake this guards against: forgetting
+# `block =` on panel data makes every unit's genuinely-increasing timestamps
+# look like duplicates once concatenated, so the error names that as the
+# likely cause.
+evinf_validate_time <- function(n, scheme, block_vec, time_vec) {
+  if (!scheme %in% c("moving_block", "stationary")) {
+    # round10 0.9 (review §7): `time` given without `block` under a
+    # non-block scheme never reaches evinf_resample_ids() at all (`time` is
+    # simply unused for "iid"/"cluster") -- so the error above never fires,
+    # even when the data have repeated time values that look exactly like
+    # the same forgotten-`block =` mistake it guards against. Warn instead
+    # of erroring, since a non-block scheme genuinely doesn't need `time` to
+    # be meaningful.
+    if (is.null(block_vec) && !is.null(time_vec) && anyDuplicated(time_vec) > 0L) {
+      warning(
+        "`time` was given without `block`, and it has repeated values; ",
+        "bootstrap_scheme = \"", scheme, "\" does not use `time`, so this ",
+        "has no effect. If this is panel data, `block =` (and ",
+        "bootstrap_scheme = \"moving_block\"/\"stationary\" to actually ",
+        "resample within units) may be missing.",
+        call. = FALSE
+      )
+    }
+    return(invisible(NULL))
+  }
+  units <- evinf_split_by_unit(n, block_vec)
+  for (u in names(units)) {
+    tryCatch(
+      evinf_check_unit_time_order(units[[u]], time_vec, u),
+      error = function(e) {
+        msg <- conditionMessage(e)
+        if (is.null(block_vec) && grepl("not strictly increasing", msg, fixed = TRUE)) {
+          msg <- paste0(
+            msg, " This usually means `block =` is missing: without it, the ",
+            "whole data set is treated as a single time series, so repeated ",
+            "timestamps across what are really separate units look like ",
+            "duplicates within it."
+          )
+        }
+        stop(msg, call. = FALSE)
+      }
+    )
+  }
+  invisible(NULL)
+}
+
 # Default block length for one unit of length T (round9 F): ceiling(T^(1/3)),
 # the usual block-bootstrap rule of thumb. Always <= T for T >= 1, so it
 # never needs clamping the way a user-supplied block_length might.

@@ -40,7 +40,7 @@ em_profile_c <- function(y, x_obj, par, c_candidates, family = evinf_family()) {
     par$Beta.PL, c_candidates,
     ext$zc, ext$pl_mult, ext$nb, ext$pl, y, ext$offset,
     ext$offset_zc, ext$offset_pl_mult, ext$weights, evinf_family_count_code(family),
-    evinf_family_zero_code(family)
+    evinf_family_zero_code(family), ext$has_weights
   ))
 
   # audit0.10 §1.4: which(loglik == max(loglik)) returns a vector on an exact

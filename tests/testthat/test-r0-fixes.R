@@ -87,11 +87,12 @@ test_that("design matrix rejects non-finite columns (R0.8)", {
 
 test_that("fitted-value computation is unchanged by vectorisation (4.13)", {
   m <- fit_evzinb_fast(bootstrap = FALSE)
-  # values captured from the pre-vectorisation loop; refreshed for round8 0.3
-  # (review §4), which recomputes y.hat.pl_* from the final-parameter props
-  # instead of the one-step-stale props.old -- log.lik is untouched.
-  expect_equal(unname(head(m$fitted$y.hat.pl_median, 3)),
-               c(42.2297, 63.9899, 320.8950), tolerance = 1e-3)
+  # value captured from the pre-vectorisation loop; refreshed for round8 0.3
+  # (review §4), which recomputes props-derived quantities from the
+  # final-parameter props instead of the one-step-stale props.old. The
+  # $fitted$y.hat.pl_median field this test used to also pin was removed in
+  # round10 0.6 (a legacy duplicate of predict(), not hurdle-aware); see
+  # test-predict.R for predict(type = 'harmonic'/'quantile') coverage.
   expect_equal(m$log.lik, -251.2682021, tolerance = 1e-6)
 })
 
