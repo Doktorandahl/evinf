@@ -199,10 +199,22 @@ model <- evzinb(y ~ x1 + x2 + x3, data = genevzinb2, n_bootstraps = 10)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 #> Warning: C_EV equalled the lower endpoint (173) in 2 of 10 bootstrap replicates; consider widening c.lim.
 marginal_effects(model, variables = "x1")
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> Warning: evinf (harmonic prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
+#> Warning: evinf (explog prediction): 5 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
 #> Warning: evinf (harmonic prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
+#> Warning: evinf (explog prediction): 5 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
+#> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> # A tibble: 1 × 7
 #>   variable contrast type     estimate std.error conf.low conf.high
 #>   <chr>    <chr>    <chr>       <dbl>     <dbl>    <dbl>     <dbl>

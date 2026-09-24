@@ -89,6 +89,7 @@ plot(model, type = "coefficients")
 #> (`geom_density()`).
 
 plot(model, type = "prediction", variable = "x1")
+#> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> Warning: Removed 100 rows containing missing values or values outside the scale range
 #> (`geom_ribbon()`).
 

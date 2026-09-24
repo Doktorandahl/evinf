@@ -62,7 +62,10 @@ model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 #> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 oob_evaluation(model)
+#> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> Warning: evinf (harmonic prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
+#> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> Warning: evinf (explog prediction): 2 fitted Pareto alpha values below the floor (0.01); clamping to the floor. Set `alpha_pl_floor` in evinf_control() to change this.
 #> [1] 3.325499 2.603393       NA 3.127722       NA
 # }

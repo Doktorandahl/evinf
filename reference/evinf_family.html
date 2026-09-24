@@ -76,6 +76,23 @@ zero state to hurdle over and errors if asked for one).</p></dd>
     <p>An object of class <code>"evinf_family"</code>: a list with elements
   <code>count</code> and <code>zero</code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p><strong>Sign convention against <code>pscl</code></strong> (round10 0.9,
+  review §7): for <code>zero = "hurdle"</code>, <code><a href="https://rdrr.io/pkg/pscl/man/hurdle.html" class="external-link">hurdle</a></code>'s
+  zero-hurdle component models \(P(Y &gt; 0)\), while evinf's zero-state
+  coefficients model \(P(\text{zero state})\) directly – so a fitted
+  <code>evzinb(family = evinf_family(zero = "hurdle"))</code> model's zero
+  coefficients (<code>Beta.multinom.ZC</code>) are the exact negatives of the
+  corresponding <code>pscl::hurdle(..., dist = "negbin")</code> zero
+  coefficients, everything else about the fit being equal (verified in
+  <code>test-hurdle.R</code>). This is a clean reparameterisation because a
+  hurdle's zero state owns every zero outright. <code>zero = "mixture"</code>
+  (the default) has no such simple relationship to
+  <code><a href="https://rdrr.io/pkg/pscl/man/zeroinfl.html" class="external-link">zeroinfl</a></code>'s zero-inflation coefficients: a mixture's
+  zeros can also arise from the count state, so the two models' zero
+  components are not a reparameterisation of each other.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

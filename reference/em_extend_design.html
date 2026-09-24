@@ -65,8 +65,8 @@ none was given.</p>
 <dd><p>List with elements <code>X.multinom.ZC</code>, <code>X.multinom.PL</code>,
 <code>X.NB</code>, <code>X.PL</code> (each a numeric matrix \(n \times p\) without an
 intercept column, or <code>NULL</code>) and optionally <code>offset.nb</code>,
-<code>offset.zc</code>, <code>offset.pl_mult</code> (round9 D.1) and <code>weights</code>
-(round9 D.2).</p></dd>
+<code>offset.zc</code>, <code>offset.pl_mult</code> (round9 D.1), <code>weights</code>
+(round9 D.2) and <code>has_weights</code> (round10 0.5).</p></dd>
 
 
 <dt id="arg-n">n<a class="anchor" aria-label="anchor" href="#arg-n"></a></dt>
@@ -77,8 +77,9 @@ intercept column, or <code>NULL</code>) and optionally <code>offset.nb</code>,
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with elements <code>zc</code>, <code>pl_mult</code>, <code>nb</code>, <code>pl</code>
   (the extended numeric matrices), <code>offset</code>, <code>offset_zc</code>,
-  <code>offset_pl_mult</code> (length-<code>n</code> numeric, zero when not supplied)
-  and <code>weights</code> (length-<code>n</code> numeric, one when not supplied).</p>
+  <code>offset_pl_mult</code> (length-<code>n</code> numeric, zero when not supplied),
+  <code>weights</code> (length-<code>n</code> numeric, one when not supplied) and
+  <code>has_weights</code> (logical, <code>FALSE</code> when not supplied).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

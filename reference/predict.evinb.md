@@ -110,6 +110,16 @@ corresponding discretised-Pareto moments; this keeps existing point
 predictions unchanged but means they are not computed from exactly the
 same distribution as the rest of the model.
 
+`type = 'explog'` is \\C \cdot \exp(1/\alpha\_{PL})\\, which grows
+explosively as the fitted Pareto shape \\\alpha\_{PL}\\ approaches 0 –
+`evinf_control(alpha_pl_floor = )` (default 0.01) keeps it finite, but
+not sane (\\C \cdot e^{100}\\ at the floor). A warning fires whenever
+any \\\alpha\_{PL}\\ used in an explog prediction is below 0.1, since
+the prediction is effectively undefined well before the floor is reached
+(\\e^{10} \approx 2.2 \times 10^4\\); check `glance()$min_alpha_pl`, and
+prefer `type = 'harmonic'` when this fires. No separate clamp is applied
+beyond `alpha_pl_floor`.
+
 ## Parallel processing
 
 Bootstrap fits (and the per-bootstrap work in
@@ -159,6 +169,7 @@ model <- evinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 #> Warning: C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.
 predict(model)
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #>   [1]   53.549686   60.127971  410.351359   12.431620   39.194583   34.139420
 #>   [7]  148.622606   99.329017   36.948813   40.651211    5.503769    1.450365
 #>  [13]  261.660557   12.502587   30.214181   13.977638  481.714310   25.192966
@@ -177,6 +188,7 @@ predict(model)
 #>  [91]   13.833416   64.543036 1031.629755   77.681179   40.425301   21.961707
 #>  [97]  139.887921   11.336808   16.955050   34.099904
 predict(model, type='all', quantile = 0.9) # all available predicted values
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> # A tibble: 100 × 8
 #>    harmonic explog   q90 pr_count pr_evi pr_pareto  count pareto_alpha
 #>       <dbl>  <dbl> <dbl>    <dbl>  <dbl>     <dbl>  <dbl>        <dbl>

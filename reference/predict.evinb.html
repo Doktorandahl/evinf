@@ -130,6 +130,15 @@ restored on exit.</p></dd>
   closed-form approximation to the corresponding discretised-Pareto moments;
   this keeps existing point predictions unchanged but means they are not
   computed from exactly the same distribution as the rest of the model.</p>
+<p><code>type = 'explog'</code> is \(C \cdot \exp(1/\alpha_{PL})\), which grows
+  explosively as the fitted Pareto shape \(\alpha_{PL}\) approaches 0 –
+  <code>evinf_control(alpha_pl_floor = )</code> (default 0.01) keeps it finite,
+  but not sane (\(C \cdot e^{100}\) at the floor). A warning fires
+  whenever any \(\alpha_{PL}\) used in an explog prediction is below
+  0.1, since the prediction is effectively undefined well before the
+  floor is reached (\(e^{10} \approx 2.2 \times 10^4\)); check
+  <code>glance()$min_alpha_pl</code>, and prefer <code>type = 'harmonic'</code> when
+  this fires. No separate clamp is applied beyond <code>alpha_pl_floor</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="parallel-processing">Parallel processing<a class="anchor" aria-label="anchor" href="#parallel-processing"></a></h2>
@@ -176,6 +185,7 @@ fixed plan.</p>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   [1]   53.549686   60.127971  410.351359   12.431620   39.194583   34.139420</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   [7]  148.622606   99.329017   36.948813   40.651211    5.503769    1.450365</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [13]  261.660557   12.502587   30.214181   13.977638  481.714310   25.192966</span>
@@ -194,6 +204,7 @@ fixed plan.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [91]   13.833416   64.543036 1031.629755   77.681179   40.425301   21.961707</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [97]  139.887921   11.336808   16.955050   34.099904</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, type<span class="op">=</span><span class="st">'all'</span>, quantile <span class="op">=</span> <span class="fl">0.9</span><span class="op">)</span> <span class="co"># all available predicted values</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 100 × 8</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    harmonic explog   q90 pr_count pr_evi pr_pareto  count pareto_alpha</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>

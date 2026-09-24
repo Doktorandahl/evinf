@@ -36,6 +36,25 @@ evinf_family(count = c("nbinom", "poisson"), zero = c("mixture", "hurdle"))
 An object of class `"evinf_family"`: a list with elements `count` and
 `zero`.
 
+## Details
+
+**Sign convention against `pscl`** (round10 0.9, review §7): for
+`zero = "hurdle"`,
+[`hurdle`](https://rdrr.io/pkg/pscl/man/hurdle.html)'s zero-hurdle
+component models \\P(Y \> 0)\\, while evinf's zero-state coefficients
+model \\P(\text{zero state})\\ directly – so a fitted
+`evzinb(family = evinf_family(zero = "hurdle"))` model's zero
+coefficients (`Beta.multinom.ZC`) are the exact negatives of the
+corresponding `pscl::hurdle(..., dist = "negbin")` zero coefficients,
+everything else about the fit being equal (verified in `test-hurdle.R`).
+This is a clean reparameterisation because a hurdle's zero state owns
+every zero outright. `zero = "mixture"` (the default) has no such simple
+relationship to
+[`zeroinfl`](https://rdrr.io/pkg/pscl/man/zeroinfl.html)'s
+zero-inflation coefficients: a mixture's zeros can also arise from the
+count state, so the two models' zero components are not a
+reparameterisation of each other.
+
 ## Examples
 
 ``` r

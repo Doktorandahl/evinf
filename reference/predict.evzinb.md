@@ -111,6 +111,16 @@ corresponding discretised-Pareto moments; this keeps existing point
 predictions unchanged but means they are not computed from exactly the
 same distribution as the rest of the model.
 
+`type = 'explog'` is \\C \cdot \exp(1/\alpha\_{PL})\\, which grows
+explosively as the fitted Pareto shape \\\alpha\_{PL}\\ approaches 0 –
+`evinf_control(alpha_pl_floor = )` (default 0.01) keeps it finite, but
+not sane (\\C \cdot e^{100}\\ at the floor). A warning fires whenever
+any \\\alpha\_{PL}\\ used in an explog prediction is below 0.1, since
+the prediction is effectively undefined well before the floor is reached
+(\\e^{10} \approx 2.2 \times 10^4\\); check `glance()$min_alpha_pl`, and
+prefer `type = 'harmonic'` when this fires. No separate clamp is applied
+beyond `alpha_pl_floor`.
+
 ## Parallel processing
 
 Bootstrap fits (and the per-bootstrap work in
@@ -159,27 +169,29 @@ model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.
 #> Warning: C_EV equalled the lower endpoint (173) in 2 of 5 bootstrap replicates; consider widening c.lim.
 predict(model)
-#>   [1]   52.3536769   57.1668382  376.9452698   11.1639892   38.8170531
-#>   [6]   35.9055807  126.3183686   90.7615236   37.3853032   34.0306144
-#>  [11]    3.8757346    0.7290348  211.7443391   12.7340813   32.1514187
-#>  [16]   14.0972436  391.8414201   25.8481012  220.0886237    3.4952654
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
+#>   [1]   52.3536768   57.1668381  376.9452687   11.1639892   38.8170530
+#>   [6]   35.9055806  126.3183684   90.7615235   37.3853032   34.0306144
+#>  [11]    3.8757346    0.7290348  211.7443388   12.7340813   32.1514187
+#>  [16]   14.0972436  391.8414182   25.8481011  220.0886230    3.4952654
 #>  [21]    9.8384299    5.9820263   12.6066990   12.1342843    0.7762911
-#>  [26]   76.3148527   14.1944890   18.5612434    9.6734937   28.8526825
-#>  [31]   16.5098346   22.4290441   38.6944355   41.3541612    7.8551612
-#>  [36]  114.3658285    3.1848768   22.0641625   10.4536677   71.7961908
-#>  [41] 1339.4846913    3.5523495   10.0391497   19.7056928   28.4332799
-#>  [46]  102.5571596   57.4677196   38.7979659  100.6043595    2.7228403
-#>  [51]   20.6829272   41.1815094   15.9032426   55.6687633   95.2497252
-#>  [56]   11.9472583    1.1241349  164.7064471   89.6777189   21.1429787
-#>  [61]   18.3951387   52.2695260    3.2066429  119.4794260   66.6140901
-#>  [66]   26.6852148   10.1881157   29.5384885  188.2644629   68.4199363
-#>  [71]    1.8008339   20.0119216   45.7608924  122.9404740    2.6452961
+#>  [26]   76.3148526   14.1944891   18.5612434    9.6734937   28.8526825
+#>  [31]   16.5098346   22.4290440   38.6944355   41.3541612    7.8551612
+#>  [36]  114.3658284    3.1848768   22.0641625   10.4536677   71.7961908
+#>  [41] 1339.4846821    3.5523495   10.0391497   19.7056928   28.4332799
+#>  [46]  102.5571595   57.4677195   38.7979659  100.6043594    2.7228403
+#>  [51]   20.6829272   41.1815094   15.9032426   55.6687633   95.2497251
+#>  [56]   11.9472583    1.1241349  164.7064469   89.6777188   21.1429786
+#>  [61]   18.3951387   52.2695259    3.2066429  119.4794258   66.6140900
+#>  [66]   26.6852148   10.1881157   29.5384884  188.2644625   68.4199362
+#>  [71]    1.8008339   20.0119216   45.7608924  122.9404738    2.6452961
 #>  [76]   17.6827614   24.1374749    4.8513851   12.8528147   53.8795835
 #>  [81]   33.1428461   14.5640965    7.6367303   16.1336634    7.4460037
-#>  [86]   26.0772200    2.8713642  113.1886229    2.0980822   24.7794615
-#>  [91]   11.0102490   64.8139950  752.3960503   74.1029728   38.7799201
-#>  [96]   21.6369011  132.7022803    9.7755182   19.1935263   38.9803140
+#>  [86]   26.0772200    2.8713642  113.1886227    2.0980822   24.7794615
+#>  [91]   11.0102490   64.8139949  752.3960458   74.1029728   38.7799200
+#>  [96]   21.6369011  132.7022801    9.7755182   19.1935263   38.9803139
 predict(model, type='all', quantile = 0.9) # all available predicted values
+#> Warning: evinf (explog prediction): 3 fitted Pareto alpha values below 0.1; the geometric-mean prediction C * exp(1 / alpha_pl) is effectively undefined there (e.g. exp(10) ~= 2.2e4). Consider predict(type = "harmonic") instead.
 #> # A tibble: 100 × 10
 #>    harmonic explog   q90 pr_zero pr_count pr_evi pr_zc pr_pareto  count
 #>       <dbl>  <dbl> <dbl>   <dbl>    <dbl>  <dbl> <dbl>     <dbl>  <dbl>

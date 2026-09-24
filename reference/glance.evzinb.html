@@ -75,7 +75,11 @@
   partition the number of replicates requested (see <code><a href="evinf_control.html">evinf_control</a></code>
   for "degenerate") — and <code>n_c_on_boundary</code>, the number of replicates
   whose C_EV landed on a candidate-grid endpoint (informational, not counted
-  as degenerate).</p>
+  as degenerate); <code>oob_fraction_mean</code>/<code>oob_fraction_min</code>/
+  <code>oob_fraction_max</code> (round10 0.9), the mean/min/max of each usable
+  replicate's out-of-bag row fraction (<code>NA</code> without bootstraps) –
+  most informative for the block schemes, where overlapping blocks change
+  how much of the data a replicate leaves out.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -90,13 +94,14 @@
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evinf: using a data-driven candidate range for C_EV: [173, 263]. Pass `c.lim` / `control = evinf_control(c.lim = ...)` to override.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>C_EV equalled the lower endpoint (173) in 1 of 5 bootstrap replicates; consider widening c.lim.</span>
 <span class="r-in"><span><span class="fu"><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 18</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 21</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    nobs sum_weights  npar family    alpha parameter   aic   bic logLik converged</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>   100         100    18 nbinom/m…  1.43       184  544.  591.  -<span style="color: #BB0000;">254.</span> TRUE     </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 8 more variables: c_converged &lt;lgl&gt;, n_above_c &lt;int&gt;, n_em_steps &lt;int&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 11 more variables: c_converged &lt;lgl&gt;, n_above_c &lt;int&gt;, n_em_steps &lt;int&gt;,</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   min_alpha_pl &lt;dbl&gt;, n_bootstraps &lt;int&gt;, n_failed_bootstraps &lt;int&gt;,</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   n_degenerate_bootstraps &lt;int&gt;, n_c_on_boundary &lt;int&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   n_degenerate_bootstraps &lt;int&gt;, n_c_on_boundary &lt;int&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   oob_fraction_mean &lt;dbl&gt;, oob_fraction_min &lt;dbl&gt;, oob_fraction_max &lt;dbl&gt;</span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
