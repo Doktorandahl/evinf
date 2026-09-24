@@ -37,6 +37,10 @@ readiness review and prepares the package for submission.
   (`?evzinb`, `?evinb`, `?plot.evzinb`, `?predict_grid`, `?tidy.evzinb`,
   `?compare_models`), trimming `n_bootstraps` so `--run-donttest` stays
   fast (round11 B1).
+* `summary()` no longer errors ("Repaired names have length 3 instead of
+  length 1") when exactly one bootstrap replicate is usable -- found via
+  `--run-donttest` on `?evzinb`'s own example after the previous fix
+  unhid it (round11 B1 follow-up).
 
 ## New features
 
