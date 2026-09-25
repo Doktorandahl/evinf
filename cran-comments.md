@@ -1,6 +1,6 @@
 ## R CMD check results
 
-0 errors | 1 warning | 2 notes
+0 errors | 1 warning | 3 notes
 
 * The warning ("checking whether package 'evinf' can be installed") is a
   compiler-flag warning from R's own bundled header
@@ -14,11 +14,30 @@
   rendering: package 'V8' unavailable") is a local-machine limitation (V8
   is not installed here) and is not expected to reproduce on CRAN's check
   machines.
+* The "unable to verify current time" note (round12) is this local
+  machine's clock-verification service being unreachable from its network;
+  a known, environment-specific `R CMD check --as-cran` note unrelated to
+  the package, and not expected to reproduce on CRAN's own check machines.
 
-Full local run: examples (including `--run-donttest`) in 90s, tests in
-43s (down from ~265s before this round's `skip_on_cran()` pass on the
-slowest test files -- everything still runs under CI, where
-`NOT_CRAN=true`).
+Full local run (round12): examples (including `--run-donttest`) in ~105s,
+tests in ~45s -- both essentially unchanged from round 11's ~90s/~43s
+despite the new `hurdle_comparison` tests, since bootstrap-heavy files stay
+`skip_on_cran()`-gated (everything still runs under CI, where
+`NOT_CRAN=true`; the full CI suite, including the new `hurdle_comparison`
+tests, is exercised there). Also verified on R 4.3 (the package's declared
+floor) via a dedicated CI job added this round -- see the R-version note
+below.
+
+## R-version note (round12)
+
+`lr_test()` crashed on R < 4.4 (`stats::drop.terms()` errors when a model
+component's every term is dropped): fixed by building the emptied formula
+by hand in that case instead of relying on `drop.terms()`'s version-
+dependent tolerance for an empty result. Round 11 believed this already
+fixed based on a reproduction run on R 4.5.2, which is why a CI job pinned
+to the package's declared floor (`R (>= 4.1.0)`, tested here as R 4.3) was
+added alongside the existing `release`/`oldrel-1` jobs -- `oldrel-1` floats
+with each R release and does not itself guard the declared floor.
 
 ## Changes since the last CRAN release (0.8.10)
 
@@ -36,7 +55,8 @@ the arc:
 * **Model families:** `evinf_family()` generalises the count process
   (negative binomial or Poisson) and the zero process (zero-inflation
   mixture or hurdle); `compare_models()` gained matching Poisson/ZIP
-  competitor baselines.
+  competitor baselines, and (round12) a `pscl::hurdle()` competitor
+  alongside the existing ZINB/ZIP one for a hurdle-family fit.
 * **Weights and offsets:** `weights =` on `evzinb()`/`evinb()`, carried
   through bootstrap resampling, `lr_test()`'s restricted refits, and every
   `compare_models()` competitor fit (including winsorised/razorised
@@ -67,7 +87,11 @@ the arc:
   `modelsummary` tables via `tidy()`/`glance()`.
 * **Numerous EM correctness fixes:** a numerically stable log-space
   likelihood, guarded Hessian solves in the C++ optimiser, capped profiling
-  loops, and (round11) a hardened `lr_test()` formula-reduction path and a
+  loops, and a hardened `lr_test()` formula-reduction path -- offsets and
+  no-intercept specifications preserved through formula reduction (round10),
+  and the reduction no longer crashes on R < 4.4 when a component's every
+  term is dropped (round12, with a CI job now pinned to the package's
+  declared R floor to catch this class of regression) -- and (round11) a
   `predict()` argument-validation pass that rejects unknown arguments and
   warns on ones irrelevant to the requested `type`. Default (unweighted)
   fits are bit-identical to 0.8.10 on every model this was checked against.

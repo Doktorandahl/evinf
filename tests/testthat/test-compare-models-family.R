@@ -27,13 +27,15 @@ test_that("compare_models() carries an offset into the NB/ZINB competitor formul
 })
 
 test_that("compare_models() runs for a hurdle-family fit; the ZINB/ZIP baseline stays the standard toolkit model (round11 C1 gap)", {
-  # R/zinb_comparison.R never reads family$zero, so the competitor is always
-  # pscl::zeroinfl() regardless of whether `object` itself is a mixture or a
-  # hurdle model. This test documents that as the current, deliberate-or-not
-  # behavior (flagged for the maintainer in the round11 report) rather than
-  # silently assuming a fix is wanted.
+  # round12 B1: the maintainer's resolution of the round11 C1 gap was to add
+  # a hurdle competitor *alongside* the existing ZINB one (see
+  # test-compare-models-hurdle.R), not to replace it -- so a hurdle-family
+  # fit's zinb_comparison stays pscl::zeroinfl(), the standard-toolkit
+  # baseline, regardless of whether `object` itself is a mixture or a hurdle
+  # model.
   m <- fit_evzinb_fast(family = evinf_family(zero = "hurdle"), n_bootstraps = 2)
   comp <- suppressWarnings(suppressMessages(compare_models(m, multicore = FALSE)))
 
   expect_s3_class(comp$zinb$full_run, "zeroinfl")
+  expect_s3_class(comp$hurdle$full_run, "hurdle")
 })

@@ -230,6 +230,24 @@ formula_var_remover <- function(formulas, vars, data){
     # dropping to an empty term.labels forced '1' onto the RHS, silently
     # dropped a `- 1` no-intercept specification too). drop.terms() carries
     # both through because it operates on the terms object itself.
+    #
+    # round12 A1: on R < 4.4, stats::drop.terms() calls reformulate() with a
+    # zero-length termlabels when every term is dropped, which errors
+    # ("'termlabels' must be a character vector of length at least one").
+    # Newer R tolerates it. Since DESCRIPTION claims R >= 4.1.0, build the
+    # emptied formula by hand instead of relying on that version-dependent
+    # tolerance -- same result (response, offset()s, intercept setting kept),
+    # every R version.
+    if (length(drop_idx) == length(tl)) {
+      variables <- attr(tt, 'variables')
+      resp <- if (attr(tt, 'response') == 1) deparse(variables[[2]]) else NULL
+      offset_idx <- attr(tt, 'offset')
+      offset_terms <- if (is.null(offset_idx)) character(0) else
+        vapply(offset_idx, function(i) deparse(variables[[i + 1]]), character(1))
+      rhs <- paste(c(if (attr(tt, 'intercept') == 1) '1' else '0', offset_terms),
+                  collapse = ' + ')
+      return(stats::as.formula(paste(resp, '~', rhs), env = environment(f)))
+    }
     new_tt <- stats::drop.terms(tt, dropx = drop_idx, keep.response = TRUE)
     stats::formula(new_tt)
   }

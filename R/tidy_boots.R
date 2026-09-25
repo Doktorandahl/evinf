@@ -125,6 +125,124 @@ evinf_boot_confint <- function(tab, boot_long, confint, conf_level, err_df) {
   tab
 }
 
+#' Tidy function for hurdleboot
+#'
+#' @param x A fitted bootstrapped hurdle model
+#' @param coef_type What type of coefficient should be reported, original, bootstrapped mean, or bootstrapped median
+#' @param standard_error Should bootstrapped standard errors be reported?
+#' @param p_value What type of p-value should be reported? Bootstrapped p_values, approximate p-values, or none?
+#' @param confint What type of confidence intervals should be reported? Bootstrapped p_values, approximate p-values, or none?
+#' @param conf_level Confidence level for confidence intervals
+#' @param approx_t_value Should approximate t_values be reported
+#' @param symmetric_bootstrap_p Should bootstrap p-values be computed as symmetric (leaving alpha/2 percent in each tail)? FALSE gives non-symmetric, but narrower, intervals. TRUE corresponds most closely to conventional p-values.
+#' @param ... Other arguments to be passed to tidy
+#' @param component Which component should be shown?
+#'
+#' @details \code{component = 'zero'} reports \code{pscl::hurdle()}'s own
+#'   zero-hurdle coefficients, unnegated -- these model \eqn{P(Y > 0)}, the
+#'   exact opposite sign convention from evinf's own zero-state coefficients
+#'   (\eqn{P(\text{zero state})}); see \code{\link{evinf_family}} and
+#'   \code{\link{compare_models}}.
+#'
+#' @return A tidy function for a bootstrapped hurdle model
+#'
+#' @export
+#'
+#' @examples
+#' \donttest{
+#' data(genevzinb2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2,
+#'                  family = evinf_family(zero = "hurdle"), n_bootstraps = 5)
+#' hurdle_comp <- compare_models(model)
+#' tidy(hurdle_comp$hurdle)
+#' }
+tidy.hurdleboot <- function(x, component = c('all','count','zero'),coef_type = c('original','bootstrap_mean','bootstrap_median'), standard_error=TRUE, p_value = c('bootstrapped','approx','none'), confint = c('none','bootstrapped','approx'),conf_level = 0.95,approx_t_value = TRUE,symmetric_bootstrap_p = TRUE,...){
+
+  coef_type <- match.arg(coef_type, c('original','bootstrap_mean','bootstrap_median'))
+  p_value <- match.arg(p_value, c('bootstrapped','approx','none'))
+  confint <- match.arg(confint, c('none','bootstrapped','approx'))
+  component <- normalize_component(component, c('all','count','zero'))
+  if (confint == 'approx') standard_error <- TRUE
+
+  inv_leftjoin <- invisible(dplyr::left_join)
+
+  nobs <- x$full_run$n
+  # round12 B1: unlike zinbboot (always dist = 'negbin'), a hurdle competitor's
+  # count distribution matches the fitted evinf model's own -- add the
+  # dispersion parameter to npar only when it actually has one.
+  npar <- nrow(x$full_run$vcov) + (if (identical(x$full_run$dist$count, "negbin")) 1L else 0L)
+  if(!is.null(x$bootstraps)){
+
+    n_bootstraps_org <- length(x$bootstraps)
+    x$bootstraps <- x$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
+    n_failed_bootstraps <- n_bootstraps_org-length(x$bootstraps)
+
+    nb_boot <- x$bootstraps %>% purrr::map('coefficients') %>% purrr::map('count') %>% dplyr::bind_rows() %>% tidyr::pivot_longer(dplyr::everything(),names_to = 'term')
+
+    zi_boot <- x$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows() %>% tidyr::pivot_longer(dplyr::everything(),names_to = 'term')
+
+
+  }
+
+
+  if(coef_type == 'original'){
+    nb <- dplyr::tibble(term = names(x$full_run$coefficients$count),estimate = x$full_run$coefficients$count)
+    zi <- dplyr::tibble(term = names(x$full_run$coefficients$zero),estimate = x$full_run$coefficients$zero)
+
+  }else if(coef_type == 'bootstrap_mean'){
+    nb <- dplyr::tibble(term = names(x$full_run$coefficients$count)) %>% dplyr::left_join(nb_boot %>% dplyr::group_by(.data$term) %>%
+                                                                                            dplyr::summarize(estimate = mean(.data$value)),by='term')
+    zi <- dplyr::tibble(term = names(x$full_run$coefficients$zero)) %>% dplyr::left_join(zi_boot %>% dplyr::group_by(.data$term) %>%
+                                                                                           dplyr::summarize(estimate = mean(.data$value)),by='term')
+
+  }else if(coef_type == 'bootstrap_median'){
+    nb <- dplyr::tibble(term = names(x$full_run$coefficients$count)) %>% dplyr::left_join(nb_boot %>% dplyr::group_by(.data$term) %>%
+                                                                                            dplyr::summarize(estimate = median(.data$value)),by='term')
+    zi <- dplyr::tibble(term = names(x$full_run$coefficients$zero)) %>% dplyr::left_join(zi_boot %>% dplyr::group_by(.data$term) %>%
+                                                                                           dplyr::summarize(estimate = median(.data$value)),by='term')
+
+  }
+  if(standard_error){
+    nb <- nb %>% dplyr::left_join(nb_boot %>% dplyr::group_by(.data$term) %>%
+                                    dplyr::summarize(std.error = sd(.data$value)), by = 'term')
+    zi <- zi %>% dplyr::left_join(zi_boot %>% dplyr::group_by(.data$term) %>%
+                                    dplyr::summarize(std.error = sd(.data$value)), by = 'term')
+
+  }
+
+  if(approx_t_value){
+    nb <- nb %>% dplyr::mutate(statistic = .data$estimate/.data$std.error)
+    zi <- zi %>% dplyr::mutate(statistic = .data$estimate/.data$std.error)
+
+  }
+
+  if(p_value == 'bootstrapped'){
+    nb <- nb %>% dplyr::left_join(dplyr::left_join(nb_boot,nb, by = 'term') %>% dplyr::group_by(.data$term) %>%
+                                    dplyr::summarize(p.value = bootstrap_p_value_calculator(.data$value,.data$estimate[1],symmetric=symmetric_bootstrap_p)), by = 'term')
+    zi <- zi %>% dplyr::left_join(dplyr::left_join(zi_boot,zi, by = 'term') %>% dplyr::group_by(.data$term) %>%
+                                    dplyr::summarize(p.value = bootstrap_p_value_calculator(.data$value,.data$estimate[1],symmetric=symmetric_bootstrap_p)), by = 'term')
+
+  }else if(p_value == 'approx'){
+    nb <- nb %>% dplyr::mutate(p.value = 2*(1-pt(abs(.data$statistic),df = nobs-npar)))
+    zi <- zi %>% dplyr::mutate(p.value = 2*(1-pt(abs(.data$statistic),df = nobs-npar)))
+
+  }
+
+  nb <- evinf_boot_confint(nb, nb_boot, confint, conf_level, nobs - npar)
+  zi <- evinf_boot_confint(zi, zi_boot, confint, conf_level, nobs - npar)
+
+  if(component == 'count'){
+    return(nb)
+  }else if(component == 'zero'){
+    return(zi)
+  }else if(component == 'all'){
+    return(dplyr::bind_rows(dplyr::mutate(zi,y.level='zero',.before=1),
+                            dplyr::mutate(nb,y.level='count',.before=1)))
+  }
+
+
+}
+
 #' Tidy function for nbboot
 #'
 #' @param x A fitted bootstrapped zero-inflated model 

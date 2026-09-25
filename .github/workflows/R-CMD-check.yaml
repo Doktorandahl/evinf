@@ -24,6 +24,11 @@ jobs:
           - {os: windows-latest, r: 'release'}
           - {os: ubuntu-latest,  r: 'release'}
           - {os: ubuntu-latest,  r: 'oldrel-1'}
+          # round12 A4: pinned to the package's declared floor (DESCRIPTION
+          # says R >= 4.1.0). 'oldrel-1' floats with each R release and had
+          # already drifted past 4.3 by the time round11 ran on 4.5.2, which
+          # is how the drop.terms() crash on R 4.3 (round12 A1) escaped CI.
+          - {os: ubuntu-latest,  r: '4.3'}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}

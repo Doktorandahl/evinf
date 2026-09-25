@@ -5,6 +5,7 @@
 \alias{coefficient_extractor.evzinb}
 \alias{coefficient_extractor.evinb}
 \alias{coefficient_extractor.zinbboot}
+\alias{coefficient_extractor.hurdleboot}
 \alias{coefficient_extractor.nbboot}
 \title{Bootstrap coefficient extractor}
 \usage{
@@ -25,6 +26,8 @@ coefficient_extractor(object, ...)
 )
 
 \method{coefficient_extractor}{zinbboot}(object, component = c("all", "count", "zero"), ...)
+
+\method{coefficient_extractor}{hurdleboot}(object, component = c("all", "count", "zero"), ...)
 
 \method{coefficient_extractor}{nbboot}(object, ...)
 }
@@ -58,6 +61,13 @@ data(genevzinb2)
 model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 zinb_comp <- compare_models(model)
 coefficient_extractor(zinb_comp$zinb)
+}
+\donttest{
+data(genevzinb2)
+model <- evzinb(y~x1+x2+x3,data=genevzinb2,
+                 family = evinf_family(zero = "hurdle"), n_bootstraps = 5)
+hurdle_comp <- compare_models(model)
+coefficient_extractor(hurdle_comp$hurdle)
 }
 \donttest{
 data(genevzinb2)

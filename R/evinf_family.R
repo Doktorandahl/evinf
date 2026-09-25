@@ -13,7 +13,12 @@
 #'   coefficients (\code{Beta.multinom.ZC}) are the exact negatives of the
 #'   corresponding \code{pscl::hurdle(..., dist = "negbin")} zero
 #'   coefficients, everything else about the fit being equal (verified in
-#'   \code{test-hurdle.R}). This is a clean reparameterisation because a
+#'   \code{test-hurdle.R}). \code{\link{compare_models}(hurdle_comparison =
+#'   TRUE)} fits exactly that \code{pscl::hurdle()} competitor and reports its
+#'   coefficients unnegated, as \code{pscl} estimated them -- see its
+#'   \code{hurdle_comparison} argument for the same sign-convention note
+#'   applied to a side-by-side coefficient table. This is a clean
+#'   reparameterisation because a
 #'   hurdle's zero state owns every zero outright. \code{zero = "mixture"}
 #'   (the default) has no such simple relationship to
 #'   \code{\link[pscl]{zeroinfl}}'s zero-inflation coefficients: a mixture's

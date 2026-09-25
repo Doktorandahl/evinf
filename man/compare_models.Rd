@@ -10,6 +10,7 @@ compare_models(
   zinb_comparison = TRUE,
   poisson_comparison = identical((object$family \%||\% evinf_family())$count, "poisson"),
   zip_comparison = identical((object$family \%||\% evinf_family())$count, "poisson"),
+  hurdle_comparison = identical((object$family \%||\% evinf_family())$zero, "hurdle"),
   winsorize = FALSE,
   razorize = FALSE,
   cutoff_value = 10,
@@ -39,6 +40,27 @@ available for \code{evinb} objects, with the same
 defaults-to-\code{FALSE}-with-a-message / errors-if-\code{TRUE} behaviour
 as \code{zinb_comparison}.}
 
+\item{hurdle_comparison}{Should comparison be made with a hurdle model
+(\code{\link[pscl]{hurdle}}, count distribution matching \code{object}'s
+own -- negative binomial or Poisson -- and \code{zero.dist = "binomial"})?
+Defaults to \code{TRUE} when \code{object} was itself fitted with
+\code{family = evinf_family(zero = "hurdle")}, \code{FALSE} otherwise
+(round12 B1), so the comparison table can show both what the
+extreme-value state buys over the standard toolkit model (the ZINB/ZIP
+row) and what it buys over the like-for-like hurdle. Not available for
+\code{evinb} objects, with the same defaults-to-\code{FALSE}-with-a-
+message / errors-if-\code{TRUE} behaviour as \code{zinb_comparison}.
+\strong{Sign convention:} \code{pscl::hurdle()}'s zero-hurdle component
+models \eqn{P(Y > 0)}, while evinf's zero equation (and every other
+competitor's zero/zero-inflation component in this table) models
+\eqn{P(\text{zero state})} -- the two are exact negations of each other
+on the coefficient scale, not an approximation (see
+\code{\link{evinf_family}}). \code{tidy()} on the \code{$hurdle} slot
+reports \code{pscl}'s coefficients as fitted, unnegated, so a
+side-by-side coefficient table will show the zero-component signs
+flipped relative to every other row -- that is expected, not a
+disagreement between the models.}
+
 \item{winsorize}{Should winsorizing be done in the comparisons?}
 
 \item{razorize}{Should razorizing (trimming) be done in the comparisons?}
@@ -62,8 +84,8 @@ restored on exit.}
 An object of class \code{evzinbcomp}: a list whose first element
   \code{model} is the original evzinb/evinb model (also available as
   \code{evzinb} for backwards compatibility), followed by the compared
-  \code{nb} / \code{zinb} models (and their winsorized/razorized variants when
-  requested).
+  \code{nb} / \code{zinb} / \code{hurdle} models (and their
+  winsorized/razorized variants when requested).
 }
 \description{
 Function to compare evzinb or evinb models with zinb and nb models
