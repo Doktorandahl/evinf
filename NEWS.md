@@ -59,6 +59,27 @@ readiness review and prepares the package for submission.
 
 ## New features
 
+* `compare_models()` gains `hurdle_comparison`, a `pscl::hurdle()` competitor
+  (count distribution matching the fitted model's own -- negative binomial
+  or Poisson -- and `zero.dist = "binomial"`), defaulting to `TRUE` when the
+  fitted model itself used `family = evinf_family(zero = "hurdle")` and
+  `FALSE` otherwise; user-overridable either way, and not available for
+  `evinb` objects (no zero-inflation component), matching
+  `zinb_comparison`'s existing evinb guard. It is added *alongside* the
+  existing ZINB/ZIP competitor rather than replacing it, so the comparison
+  table answers both what the extreme-value state buys over the standard
+  toolkit model and what it buys over the like-for-like hurdle. Comes with
+  a `$hurdle` slot (class `hurdleboot`) with `tidy()`, `glance()`,
+  `predict()` and `coefficient_extractor()` methods mirroring `zinbboot`,
+  so it flows into `compare_fit()`, `oob_evaluation()`,
+  `print.evzinbcomp()` and `modelsummary()` without special-casing; the
+  winsorised/razorised variants get the same treatment as every other
+  competitor. `pscl::hurdle()`'s zero-hurdle component models P(Y > 0), the
+  exact opposite sign convention from evinf's own zero equation
+  (P(zero state)) -- documented in `?compare_models`,
+  `?evinf_family` and `?print.evzinbcomp` so a side-by-side coefficient
+  table's flipped zero-component signs read as expected, not as a
+  disagreement between the models (round12 B1/B2).
 * `predict()`/`fitted()` gain `clamp_alpha_pl` for `type = "explog"`
   (also reachable through `type = "all"`, `predict_grid()` and
   `marginal_effects()`): `FALSE` (the default) uses the fitted `alpha_pl`

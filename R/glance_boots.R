@@ -117,3 +117,41 @@ glance.poissonboot <- function(x, ...) {
     n_failed_bootstraps = boot$n_failed_bootstraps
   )
 }
+
+#' hurdleboot glance function
+#'
+#' @param x A hurdleboot object
+#' @param ... Further arguments to be passed to glance()
+#'
+#' @return A one-row tibble of goodness-of-fit statistics, including whether the
+#'   full-sample model converged and the number of (failed) bootstraps.
+#'   \code{alpha} is \code{NA} when the hurdle competitor's count distribution
+#'   is Poisson (round12 B1, mirroring \code{alpha}'s \code{NA} for
+#'   \code{glance.zipboot()}).
+#' @seealso \code{\link[generics]{glance}}
+#' @export
+#'
+#' @examples
+#' \donttest{
+#' data(genevzinb2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2,
+#'                  family = evinf_family(zero = "hurdle"), n_bootstraps = 5)
+#' hurdle_comp <- compare_models(model)
+#' glance(hurdle_comp$hurdle)
+#' }
+glance.hurdleboot <- function(x, ...) {
+  boot <- evinf_boot_counts(x)
+  is_nb <- identical(x$full_run$dist$count, "negbin")
+
+  tibble::tibble(
+    nobs = x$full_run$n,
+    npar = nrow(x$full_run$vcov) + (if (is_nb) 1L else 0L),
+    alpha = if (is_nb) 1 / x$full_run$theta else NA_real_,
+    aic = AIC(x$full_run),
+    bic = BIC(x$full_run),
+    logLik = x$full_run$loglik,
+    converged = isTRUE(x$full_run$converged),
+    n_bootstraps = boot$n_bootstraps,
+    n_failed_bootstraps = boot$n_failed_bootstraps
+  )
+}

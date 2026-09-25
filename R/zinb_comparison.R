@@ -23,6 +23,26 @@ inv <- function(x){
 #'   available for \code{evinb} objects, with the same
 #'   defaults-to-\code{FALSE}-with-a-message / errors-if-\code{TRUE} behaviour
 #'   as \code{zinb_comparison}.
+#' @param hurdle_comparison Should comparison be made with a hurdle model
+#'   (\code{\link[pscl]{hurdle}}, count distribution matching \code{object}'s
+#'   own -- negative binomial or Poisson -- and \code{zero.dist = "binomial"})?
+#'   Defaults to \code{TRUE} when \code{object} was itself fitted with
+#'   \code{family = evinf_family(zero = "hurdle")}, \code{FALSE} otherwise
+#'   (round12 B1), so the comparison table can show both what the
+#'   extreme-value state buys over the standard toolkit model (the ZINB/ZIP
+#'   row) and what it buys over the like-for-like hurdle. Not available for
+#'   \code{evinb} objects, with the same defaults-to-\code{FALSE}-with-a-
+#'   message / errors-if-\code{TRUE} behaviour as \code{zinb_comparison}.
+#'   \strong{Sign convention:} \code{pscl::hurdle()}'s zero-hurdle component
+#'   models \eqn{P(Y > 0)}, while evinf's zero equation (and every other
+#'   competitor's zero/zero-inflation component in this table) models
+#'   \eqn{P(\text{zero state})} -- the two are exact negations of each other
+#'   on the coefficient scale, not an approximation (see
+#'   \code{\link{evinf_family}}). \code{tidy()} on the \code{$hurdle} slot
+#'   reports \code{pscl}'s coefficients as fitted, unnegated, so a
+#'   side-by-side coefficient table will show the zero-component signs
+#'   flipped relative to every other row -- that is expected, not a
+#'   disagreement between the models.
 #' @inheritParams evzinb
 #'
 #' @inheritSection evzinb Parallel processing
@@ -31,8 +51,8 @@ inv <- function(x){
 #' @return An object of class \code{evzinbcomp}: a list whose first element
 #'   \code{model} is the original evzinb/evinb model (also available as
 #'   \code{evzinb} for backwards compatibility), followed by the compared
-#'   \code{nb} / \code{zinb} models (and their winsorized/razorized variants when
-#'   requested).
+#'   \code{nb} / \code{zinb} / \code{hurdle} models (and their
+#'   winsorized/razorized variants when requested).
 #' @export
 #'
 #' @examples
@@ -53,6 +73,7 @@ inv <- function(x){
 compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
                            poisson_comparison = identical((object$family %||% evinf_family())$count, "poisson"),
                            zip_comparison = identical((object$family %||% evinf_family())$count, "poisson"),
+                           hurdle_comparison = identical((object$family %||% evinf_family())$zero, "hurdle"),
                            winsorize = FALSE, razorize = FALSE, cutoff_value=10, init_theta=NULL, multicore = NULL, ncores=NULL){
 
   if(!inherits(object, c('evzinb','evinb'))){
@@ -71,6 +92,12 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
       zip_comparison <- FALSE
     }else if(isTRUE(zip_comparison)){
       stop('compare_models(): zip_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
+    }
+    if(missing(hurdle_comparison)){
+      message('compare_models(): evinb models have no zero-inflation component; setting hurdle_comparison = FALSE.')
+      hurdle_comparison <- FALSE
+    }else if(isTRUE(hurdle_comparison)){
+      stop('compare_models(): hurdle_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
     }
   }
 
@@ -109,6 +136,13 @@ if(zinb_comparison){
 if(zip_comparison){
   f_zip <- as.formula(paste(dv_f, '~', rhs_nb, '|', rhs_zi))
 }
+if(hurdle_comparison){
+  f_hurdle <- as.formula(paste(dv_f, '~', rhs_nb, '|', rhs_zi))
+  # round12 B1: match the hurdle competitor's count distribution to the
+  # fitted model's own (Poisson stays Poisson; every other count family in
+  # evinf is negative-binomial-based).
+  hurdle_dist <- if (identical((object$family %||% evinf_family())$count, "poisson")) "poisson" else "negbin"
+}
   if(nb_comparison){
     if(!is.null(init_theta)){
   full_nb <- cmp_fit(MASS::glm.nb, list(formula = object$formulas$formula_nb, data = object$data$data, init.theta = init_theta))
@@ -124,6 +158,9 @@ if(zip_comparison){
   }
   if(zip_comparison){
   full_zip <- cmp_fit(pscl::zeroinfl, list(formula = f_zip, data = object$data$data, dist = 'poisson'))
+  }
+  if(hurdle_comparison){
+  full_hurdle <- cmp_fit(pscl::hurdle, list(formula = f_hurdle, data = object$data$data, dist = hurdle_dist, zero.dist = 'binomial'))
   }
 
   if(winsorize){
@@ -146,6 +183,9 @@ if(zip_comparison){
   }
   if(zip_comparison){
   full_zip_winsor <- cmp_fit(pscl::zeroinfl, list(formula = f_zip, data = data_winsor, dist = 'poisson'))
+  }
+  if(hurdle_comparison){
+  full_hurdle_winsor <- cmp_fit(pscl::hurdle, list(formula = f_hurdle, data = data_winsor, dist = hurdle_dist, zero.dist = 'binomial'))
   }
   }
   if(razorize){
@@ -172,6 +212,9 @@ if(zip_comparison){
   if(zip_comparison){
   full_zip_razor <- cmp_fit(pscl::zeroinfl, list(formula = f_zip, data = data_razor, dist = 'poisson'))
   }
+  if(hurdle_comparison){
+  full_hurdle_razor <- cmp_fit(pscl::hurdle, list(formula = f_hurdle, data = data_razor, dist = hurdle_dist, zero.dist = 'binomial'))
+  }
   }
   # One spec per family member: its (winsorised / razorised) data set, the
   # full-data fit computed above, and just enough to refit it on a resample
@@ -186,6 +229,8 @@ if(zip_comparison){
     list(class = cls, type = type, data = data, full = full,
          formulas = fmls, f_zinb = if (type == "zinb") f_zinb else NULL,
          f_zip = if (type == "zip") f_zip else NULL,
+         f_hurdle = if (type == "hurdle") f_hurdle else NULL,
+         hurdle_dist = if (type == "hurdle") hurdle_dist else NULL,
          has_init_theta = !is.null(init_theta), init_theta = init_theta,
          keep = keep, weights_col = wcol,
          y_orig = if (is.null(keep)) y_orig_full else y_orig_full[keep])
@@ -195,14 +240,17 @@ if(zip_comparison){
   if (zinb_comparison)    specs$zinb    <- mk("zinb",    "zinbboot",    object$data$data, full_zinb)
   if (poisson_comparison) specs$poisson <- mk("poisson", "poissonboot", object$data$data, full_poisson)
   if (zip_comparison)     specs$zip     <- mk("zip",     "zipboot",     object$data$data, full_zip)
+  if (hurdle_comparison)  specs$hurdle  <- mk("hurdle",  "hurdleboot",  object$data$data, full_hurdle)
   if (winsorize && nb_comparison)      specs$nb_winsor      <- mk("nb",      "nbboot",      data_winsor, full_nb_winsor)
   if (winsorize && zinb_comparison)    specs$zinb_winsor    <- mk("zinb",    "zinbboot",    data_winsor, full_zinb_winsor)
   if (winsorize && poisson_comparison) specs$poisson_winsor <- mk("poisson", "poissonboot", data_winsor, full_poisson_winsor)
   if (winsorize && zip_comparison)     specs$zip_winsor     <- mk("zip",     "zipboot",     data_winsor, full_zip_winsor)
+  if (winsorize && hurdle_comparison)  specs$hurdle_winsor  <- mk("hurdle",  "hurdleboot",  data_winsor, full_hurdle_winsor)
   if (razorize && nb_comparison)      specs$nb_razor      <- mk("nb",      "nbboot",      data_razor, full_nb_razor, keep = keep_rows)
   if (razorize && zinb_comparison)    specs$zinb_razor    <- mk("zinb",    "zinbboot",    data_razor, full_zinb_razor, keep = keep_rows)
   if (razorize && poisson_comparison) specs$poisson_razor <- mk("poisson", "poissonboot", data_razor, full_poisson_razor, keep = keep_rows)
   if (razorize && zip_comparison)     specs$zip_razor     <- mk("zip",     "zipboot",     data_razor, full_zip_razor, keep = keep_rows)
+  if (razorize && hurdle_comparison)  specs$hurdle_razor  <- mk("hurdle",  "hurdleboot",  data_razor, full_hurdle_razor, keep = keep_rows)
 
   fam <- evinf_with_plan(multicore, ncores, {
     boot_refit_family(specs, object$bootstraps, object$boot_seeds[[1]])
@@ -237,6 +285,8 @@ boot_refit_one <- function(sp, boot_id) {
     try(inner_poisson(b_stub, sp$data, sp$formulas, sp$y_orig, sp$weights_col), silent = TRUE)
   } else if (sp$type == "zip") {
     try(inner_zip(b_stub, sp$data, sp$formulas, sp$f_zip, sp$y_orig, sp$weights_col), silent = TRUE)
+  } else if (sp$type == "hurdle") {
+    try(inner_hurdle(b_stub, sp$data, sp$formulas, sp$f_hurdle, sp$hurdle_dist, sp$y_orig, sp$weights_col), silent = TRUE)
   } else {
     try(inner_zinb(b_stub, sp$data, sp$formulas, sp$f_zinb, sp$y_orig, sp$weights_col), silent = TRUE)
   }
@@ -423,6 +473,40 @@ inner_zip <- function(bootstrap,data,formulas,f_zip,y_orig,weights_col=NULL){
   return(boot_zip)
 }
 
+# round12 B1: hurdle competitor baseline, mirroring inner_zinb()/inner_zip()
+# above but via pscl::hurdle(dist = <count family>, zero.dist = "binomial").
+# `dist` matches the fitted evinf model's own count state (negbin/poisson),
+# resolved once in compare_models() and carried on the spec rather than
+# re-derived here.
+inner_hurdle <- function(bootstrap,data,formulas,f_hurdle,dist,y_orig,weights_col=NULL){
+  if (length(bootstrap$boot_id) == 0) {
+    return(empty_boot_id_error("inner_hurdle"))
+  }
+
+  data_ib <- data[bootstrap$boot_id,]
+  data_oob <- data[-bootstrap$boot_id,]
+  dv <- y_orig[-bootstrap$boot_id]
+  args <- list(formula = f_hurdle, data = data_ib, dist = dist, zero.dist = 'binomial')
+  if (!is.null(weights_col)) args$weights <- as.name(weights_col)
+  boot_hurdle <- try(do.call(pscl::hurdle, args), silent = TRUE)
+  if(!('try-error' %in% class(boot_hurdle))){
+    boot_hurdle$oob_predictions <- predict(boot_hurdle,newdata=data_oob)
+    boot_hurdle$oob_rmse <- sqrt(mean((dv-boot_hurdle$oob_predictions)^2))
+    boot_hurdle$oob_rmsle <- sqrt(mean((log1p(dv)-log1p(boot_hurdle$oob_predictions))^2))
+    ll <- stats::logLik(boot_hurdle)
+    boot_hurdle$fit_stats <- c(logLik = as.numeric(ll),
+                               npar = attr(ll, "df"),
+                               AIC = stats::AIC(boot_hurdle),
+                               BIC = stats::BIC(boot_hurdle))
+    boot_hurdle$model <- NULL
+    boot_hurdle$y <- NULL
+    boot_hurdle$weights <- NULL
+    boot_hurdle$residuals <- NULL
+    boot_hurdle$fitted.values <- NULL
+  }
+  return(boot_hurdle)
+}
+
 
 model_remover <- function(obj){
   if('evzinb' %in% class(obj$full_run)){
@@ -567,6 +651,49 @@ quantiles_from_zip <- function(quantile,zip,
                          newdata = newdata)
   out <- quantiles_zip(quantile,mu=cnts,p_zero=prbs$pr_zc)
   return(out)
+}
+
+# round12 B1: pscl::hurdle()'s zero-hurdle component models Pr(Y > 0), the
+# opposite convention from pscl::zeroinfl()'s zero-inflation component
+# (Pr(structural zero)) that prob_from_znb() was written for -- see
+# ?evinf_family. The underlying computation (a logit-linked linear
+# predictor from $coefficients$zero) is identical either way, so reuse
+# prob_from_znb() and swap the two columns' labels rather than duplicate the
+# model.matrix plumbing, keeping pr_zc / pr_count meaning "probability of
+# the zero state" / "probability of the count state" for every competitor
+# in the table (matching evinf's own predict(type = 'zi'/'count_state')).
+prob_from_hurdle <- function(hrd, newdata = NULL){
+  raw <- prob_from_znb(hrd, newdata = newdata)
+  tibble::tibble(pr_zc = raw$pr_count, pr_count = raw$pr_zc)
+}
+
+# round12 B1: hurdle counterparts of quantiles_zinb()/quantiles_zip(). A
+# hurdle's count component is *zero-truncated* -- every zero comes from the
+# hurdle, none from the count process -- unlike the zero-inflation mixture,
+# where the count component's own zero mass is folded into F(0). Inverting
+# the hurdle CDF therefore has to route the target probability through the
+# untruncated distribution's own zero mass (q0) before calling qnbinom()/
+# qpois(), rather than a plain linear rescaling by (1 - p_zero).
+quantiles_hurdle_nb <- function(quantile, mu, theta, p_zero){
+  q0 <- stats::dnbinom(0, mu = mu, size = theta)
+  target <- q0 + (1 - q0) * pmax(quantile - p_zero, 0) / (1 - p_zero)
+  ifelse(quantile - p_zero > 0, stats::qnbinom(target, mu = mu, size = theta), 0)
+}
+
+quantiles_hurdle_pois <- function(quantile, mu, p_zero){
+  q0 <- stats::dpois(0, lambda = mu)
+  target <- q0 + (1 - q0) * pmax(quantile - p_zero, 0) / (1 - p_zero)
+  ifelse(quantile - p_zero > 0, stats::qpois(target, lambda = mu), 0)
+}
+
+quantiles_from_hurdle <- function(quantile, hrd, newdata = NULL){
+  prbs <- prob_from_hurdle(hrd, newdata = newdata)
+  cnts <- count_from_znb(hrd, newdata = newdata)
+  if (identical(hrd$dist$count, "negbin")) {
+    quantiles_hurdle_nb(quantile, mu = cnts, theta = hrd$theta, p_zero = prbs$pr_zc)
+  } else {
+    quantiles_hurdle_pois(quantile, mu = cnts, p_zero = prbs$pr_zc)
+  }
 }
 
 
@@ -731,6 +858,201 @@ predict.zinbboot <- function(object,newdata=NULL, type = c('predicted','counts',
       return(dplyr::bind_cols(tibble::tibble(!!q_name:=q),ci))
     }
     
+  }else{
+    if(type == "predicted"){
+      return(predicted)
+    }
+    if(type == "counts"){
+      return(cnts$count)
+    }
+    if(type == "zi"){
+      return(prbs$pr_zc)
+    }
+    if(type == "count_state"){
+      return(prbs$pr_count)
+    }
+    if(type == 'states'){
+      return(prbs)
+    }
+    if(type == 'quantile'){
+      return(q)
+    }
+    if(type == 'all'){
+      q_name <- paste0('q',100*quantile)
+      return(dplyr::bind_cols(tibble::tibble(predicted = predicted,
+                                             !!q_name := q,
+                                             prbs,cnts)))
+    }
+  }
+
+}
+
+#' Prediction for hurdleboot
+#'
+#' @param object a fitted hurdleboot object
+#' @param newdata Data to make predictions on
+#' @param type What prediction should be computed? One of \code{"predicted"},
+#'   \code{"counts"}, \code{"zi"}, \code{"count_state"}, \code{"states"},
+#'   \code{"all"} or \code{"quantile"}. \code{"zi"} / \code{"count_state"} are
+#'   \eqn{P(\text{zero state})} / \eqn{P(\text{count state})} -- the same
+#'   direction as \code{predict.zinbboot()} and \code{evzinb}'s own
+#'   \code{predict(type = "zi"/"count_state")} -- even though
+#'   \code{pscl::hurdle()}'s own zero-hurdle component is fit in the opposite
+#'   direction (\eqn{P(Y > 0)}; see \code{\link{evinf_family}}). (A hurdle
+#'   model has no extreme-value state, so \code{"evinf"} is not accepted.)
+#' @param pred Prediction type, 'original', 'bootstrap_median', or 'bootstrap_mean'
+#' @param quantile Quantile for quantile prediction
+#' @param confint Should confidence intervals be created?
+#' @param conf_level Confidence level when predicting with CIs
+#' @param ... Not used
+#'
+#' @importFrom rlang :=
+#'
+#' @return Predictions from hurdleboot
+#' @export
+predict.hurdleboot <- function(object,newdata=NULL, type = c('predicted','counts','zi','count_state','states','all', 'quantile'), pred = c('original','bootstrap_median','bootstrap_mean'),quantile=NULL,confint=FALSE, conf_level=0.9,...){
+
+  pred <- match.arg(pred, c('original','bootstrap_median','bootstrap_mean'))
+
+  type <- match.arg(type,c('predicted','counts','zi','count_state','states','all', 'quantile'))
+
+  if(type %in% c('states','all') & confint){
+    stop('Confidence interval prediction only available for vector outputs')
+  }
+
+  if(pred %in% c('bootstrap_median','bootstrap_mean') | confint){
+    object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
+    nboots <- length(object$bootstraps)
+    if(is.null(newdata)){
+      newdata <- object$full_run$model
+    }
+    prbs_boot <- purrr::map(object$bootstraps, function(b)
+      dplyr::bind_cols(prob_from_hurdle(b, newdata = newdata),
+                       tibble::tibble(id = 1:nrow(newdata))))
+    cnts_boot <- purrr::map(object$bootstraps, function(b)
+      dplyr::bind_cols(tibble::tibble(count = count_from_znb(b, newdata = newdata)),
+                       tibble::tibble(id = 1:nrow(newdata))))
+
+    if(type %in% c('quantile','all')){
+      if(type == 'quantile' & is.null(quantile)){
+        stop('quantile must be provided for quantile prediction')
+      }else if(!is.null(quantile)){
+        q_boot <- purrr::map(object$bootstraps, function(b)
+          tibble::tibble(q = quantiles_from_hurdle(quantile, b, newdata = newdata),
+                         id = 1:nrow(newdata)))
+      }else{
+        q_boot <- NULL
+      }
+    }else{
+      q_boot <- NULL
+    }
+
+    prediction_boot <- purrr::map(object$bootstraps, function(b)
+      tibble::tibble(pred = predict(b, type = 'r', newdata = newdata),
+                     id = 1:nrow(newdata)))
+
+  }
+
+
+  if(pred == 'original'){
+    if(type %in% c('quantile','all')){
+      if(type == 'quantile' & is.null(quantile)){
+        stop('quantile must be provided for quantile prediction')
+      }else if(!is.null(quantile)){
+        q <- quantiles_from_hurdle(quantile,object$full_run,newdata = newdata)
+      }else{
+        q <- NULL
+      }
+    }
+    ## Estimate component probabilities for all individuals
+    prbs <- prob_from_hurdle(object$full_run,
+                             newdata = newdata)
+    ## Estimate mu_nb for all individuals
+    cnts <- tibble::tibble(count = as.numeric(count_from_znb(object$full_run,
+                               newdata = newdata)))
+
+    predicted <- if(is.null(newdata)){
+      predict(object$full_run, type = 'r')
+    }else{
+      predict(object$full_run, type = 'r', newdata = newdata)
+    }
+
+  }else if(pred=='bootstrap_median'){
+    prbs <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(median) %>% dplyr::select(-"id")
+    cnts <- cnts_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(median) %>% dplyr::select(-"id")
+
+    if(!is.null(q_boot)){
+      q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize_all(median) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)
+    }else{
+      q <- NULL
+    }
+
+    predicted <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>% dplyr::summarize(predicted = median(.data$pred)) %>% dplyr::pull(.data$predicted)
+
+  }else if(pred=='bootstrap_mean'){
+    warning('Bootstrapped mean predictions are experimental and may yield infinite values')
+    prbs <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(mean) %>% dplyr::select(-"id")
+    cnts <- cnts_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+      dplyr::summarize_all(mean) %>% dplyr::select(-"id")
+
+    if(!is.null(q_boot)){
+      q <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize_all(mean) %>% dplyr::select(-"id") %>% dplyr::pull(.data$q)
+    }else{
+      q <- NULL
+    }
+    predicted <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>% dplyr::summarize(predicted = mean(.data$pred)) %>% dplyr::pull(.data$predicted)
+
+  }
+
+
+  if(confint){
+    if(type %in% c('states','all')){
+      stop("Confidence interval prediction only available for vector predictions (not 'states' or 'all')")
+    }
+    qs <- c((1-conf_level)/2,1-(1-conf_level)/2)
+
+    if(type == 'predicted'){
+      ci <- prediction_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pred,qs[1]),
+                         ci_ub = quantile(.data$pred,qs[2])) %>%
+        dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(predicted=predicted),ci))
+    }
+
+    if(type == 'counts'){
+      ci <- cnts_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$count,qs[1]),
+                         ci_ub = quantile(.data$count,qs[2])) %>% dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(count=cnts$count),ci))
+
+    }
+    if(type == 'zi'){
+      ci <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pr_zc,qs[1]),
+                         ci_ub = quantile(.data$pr_zc,qs[2])) %>% dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(pr_zc=prbs$pr_zc),ci))
+    }
+
+    if(type == 'count_state'){
+      ci <- prbs_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$pr_count,qs[1]),
+                         ci_ub = quantile(.data$pr_count,qs[2])) %>% dplyr::select(-"id")
+      return(dplyr::bind_cols(tibble::tibble(pr_count=prbs$pr_count),ci))
+    }
+    if(type == 'quantile'){
+      warning('Confidence interval prediction with Quantiles may yield unstable results')
+      ci <- q_boot %>% dplyr::bind_rows() %>% dplyr::group_by(.data$id) %>%
+        dplyr::summarize(ci_lb = quantile(.data$q,qs[1]),
+                         ci_ub = quantile(.data$q,qs[2])) %>% dplyr::select(-"id")
+      q_name <- paste0('q',100*quantile)
+      return(dplyr::bind_cols(tibble::tibble(!!q_name:=q),ci))
+    }
+
   }else{
     if(type == "predicted"){
       return(predicted)

@@ -106,6 +106,14 @@ print.evinb <- function(x, ...) {
 #' from \code{\link{compare_fit}()} (round10 I.4, audit §5.9) -- previously
 #' only the compared-model names and bootstrap count.
 #'
+#' @section Hurdle sign convention (round12 B2): when a \code{hurdle} slot is
+#'   present, its zero-component coefficients (see \code{tidy(x$hurdle,
+#'   component = "zero")}) are \code{pscl::hurdle()}'s own, unnegated -- these
+#'   model \eqn{P(Y > 0)}, the exact opposite sign convention from evinf's own
+#'   zero-state coefficients (\eqn{P(\text{zero state})}). A side-by-side
+#'   coefficient table showing flipped signs on that row is expected, not a
+#'   disagreement between the models; see \code{\link{evinf_family}}.
+#'
 #' @param x An \code{evzinbcomp} object returned by \code{\link{compare_models}}.
 #' @param metrics Metrics for the \code{compare_fit()} table; see there.
 #' @param ... Not used

@@ -113,6 +113,35 @@ coefficient_extractor.zinbboot <- function(object, component = c('all','count','
 #' @examples
 #' \donttest{
 #' data(genevzinb2)
+#' model <- evzinb(y~x1+x2+x3,data=genevzinb2,
+#'                  family = evinf_family(zero = "hurdle"), n_bootstraps = 5)
+#' hurdle_comp <- compare_models(model)
+#' coefficient_extractor(hurdle_comp$hurdle)
+#' }
+coefficient_extractor.hurdleboot <- function(object, component = c('all','count','zero'), ...){
+
+  component <- normalize_component(component, c('all','count','zero'))
+
+  object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
+
+  count_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('count') %>% dplyr::bind_rows()
+  zero_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows()
+
+  if(component == 'count'){
+    return(count_boot)
+  }else if(component == 'zero'){
+    return(zero_boot)
+  }else{
+    dplyr::bind_rows(count_boot %>% dplyr::mutate(.component = 'count'),
+                     zero_boot %>% dplyr::mutate(.component = 'zero'))
+  }
+}
+
+#' @rdname coefficient_extractor
+#' @export
+#' @examples
+#' \donttest{
+#' data(genevzinb2)
 #' model <- evzinb(y~x1+x2+x3,data=genevzinb2, n_bootstraps = 5)
 #' zinb_comp <- compare_models(model)
 #' coefficient_extractor(zinb_comp$nb)
