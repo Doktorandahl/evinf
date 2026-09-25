@@ -10,6 +10,21 @@ readiness review and prepares the package for submission.
 
 ## Bug fixes
 
+* `lr_test()` no longer crashes on R < 4.4 when restricting a variable that
+  is a model component's only term (a single-covariate model, or
+  `formula_zi`/`formula_evi`/`formula_pareto` each carrying just one term).
+  Round 11 believed this fixed and blamed a stale install, but it is
+  R-version dependent: `formula_var_remover()`'s `stats::drop.terms()` call
+  goes through `reformulate()` with a zero-length `termlabels` when every
+  term of a component is dropped, which errors ("'termlabels' must be a
+  character vector of length at least one") on R < 4.4; newer R tolerates
+  it, which is why round 11's own reproduction (run on R 4.5.2) did not
+  reproduce the bug. `formula_var_remover()` now builds the emptied formula
+  directly from the terms object in that case -- keeping the response,
+  every `offset()` term, and the intercept setting -- instead of relying on
+  `drop.terms()`'s version-dependent tolerance. `DESCRIPTION`'s declared
+  `R (>= 4.1.0)` floor is unchanged; a CI job pinned to R 4.3 (the declared
+  floor) now guards against this class of regression (round12 A1/A4).
 * `predict()` (and `fitted()`, `predict_grid()`, `marginal_effects()`, and
   the `marginaleffects` `get_predict()` method) now validate `...`: an
   argument name that is not a known `predict()` argument at all errors,

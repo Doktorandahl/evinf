@@ -249,3 +249,65 @@ test_that("lr_test() keeps the offset when the count component empties (round11 
   expect_true(!is.null(attr(stats::terms(reduced$nb), "offset")))
   expect_true(grepl("offset\\(log\\(ex\\)\\)", deparse(reduced$nb)))
 })
+
+# round12 A1/A3: on R < 4.4, stats::drop.terms() errors when dropping every
+# term ("'termlabels' must be a character vector of length at least one"),
+# because it goes through reformulate() with a zero-length termlabels. Newer
+# R tolerates it, which is why the round11 A1 tests above (all routed
+# through a model fit) did not catch this on R 4.5. These test
+# formula_var_remover() directly, with no model fit behind them, so the
+# emptied-component path is exercised on every R version the test suite
+# runs on -- see dev/review_round11.md §1.
+
+test_that("formula_var_remover() empties the count component directly (round12 A3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  formulas <- list(formula_nb = y ~ x1, formula_zi = NULL,
+                   formula_evi = ~x2, formula_pareto = ~x3)
+  out <- formula_var_remover(formulas, "x1", genevzinb2)
+
+  expect_false("x1" %in% all.vars(out$formulas$nb))
+  expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 1L)
+  expect_equal(attr(stats::terms(out$formulas$nb), "response"), 1L)
+  # x1 was the count component's only term -> its one design column is gone;
+  # the other three components are untouched.
+  expect_equal(out$df, 1L)
+})
+
+test_that("formula_var_remover() empties a one-sided component directly (round12 A3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  formulas <- list(formula_nb = y ~ x2, formula_zi = ~x1,
+                   formula_evi = ~x3, formula_pareto = ~x3)
+  out <- formula_var_remover(formulas, "x1", genevzinb2)
+
+  expect_equal(out$formulas$zi, stats::as.formula("~1"))
+  expect_equal(attr(stats::terms(out$formulas$zi), "response"), 0L)
+  expect_equal(out$df, 1L)
+})
+
+test_that("formula_var_remover() keeps an offset() when emptying that component (round12 A3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  d$ex <- stats::runif(nrow(d), 0.5, 2)
+  formulas <- list(formula_nb = y ~ x1 + offset(log(ex)), formula_zi = NULL,
+                   formula_evi = ~x2, formula_pareto = ~x3)
+  out <- formula_var_remover(formulas, "x1", d)
+
+  expect_false("x1" %in% all.vars(out$formulas$nb))
+  expect_true(!is.null(attr(stats::terms(out$formulas$nb), "offset")))
+  expect_true(grepl("offset\\(log\\(ex\\)\\)", deparse(out$formulas$nb)))
+  expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 1L)
+  # the offset contributes no design-matrix column, before or after emptying
+  expect_equal(out$df, 1L)
+})
+
+test_that("formula_var_remover() keeps a no-intercept ('- 1') emptied component intercept-free (round12 A3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  formulas <- list(formula_nb = y ~ x1 - 1, formula_zi = NULL,
+                   formula_evi = ~x2, formula_pareto = ~x3)
+  out <- formula_var_remover(formulas, "x1", genevzinb2)
+
+  expect_equal(out$formulas$nb, stats::as.formula("y ~ 0"))
+  expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 0L)
+  # y ~ x1 - 1 has one design column (x1, no intercept); y ~ 0 has none.
+  expect_equal(out$df, 1L)
+})
