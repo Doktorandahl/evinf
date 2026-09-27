@@ -82,23 +82,31 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
   }
 
   if(inherits(object, 'evinb')){
+    # round13 D: collect the defaulted argument names and emit one message
+    # naming all of them, instead of one identical message per argument.
+    # stop() on an explicit TRUE keeps its own exact text, per argument.
+    defaulted_args <- character(0)
     if(missing(zinb_comparison)){
-      message('compare_models(): evinb models have no zero-inflation component; setting zinb_comparison = FALSE.')
       zinb_comparison <- FALSE
+      defaulted_args <- c(defaulted_args, 'zinb_comparison')
     }else if(isTRUE(zinb_comparison)){
       stop('compare_models(): zinb_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
     }
     if(missing(zip_comparison)){
-      message('compare_models(): evinb models have no zero-inflation component; setting zip_comparison = FALSE.')
       zip_comparison <- FALSE
+      defaulted_args <- c(defaulted_args, 'zip_comparison')
     }else if(isTRUE(zip_comparison)){
       stop('compare_models(): zip_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
     }
     if(missing(hurdle_comparison)){
-      message('compare_models(): evinb models have no zero-inflation component; setting hurdle_comparison = FALSE.')
       hurdle_comparison <- FALSE
+      defaulted_args <- c(defaulted_args, 'hurdle_comparison')
     }else if(isTRUE(hurdle_comparison)){
       stop('compare_models(): hurdle_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
+    }
+    if(length(defaulted_args) > 0){
+      message('compare_models(): evinb models have no zero-inflation component; setting ',
+              paste(defaulted_args, collapse = ', '), ' = FALSE.')
     }
   }
 
