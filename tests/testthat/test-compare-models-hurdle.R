@@ -97,6 +97,39 @@ test_that("tidy()/glance()/predict()/coefficient_extractor() are registered for 
   expect_equal(states$pr_zc + states$pr_count, rep(1, nrow(states)), tolerance = 1e-8)
 })
 
+# round13 C1: pscl::hurdle()'s own zero-hurdle coefficients model P(Y > 0);
+# tidy()/coefficient_extractor() on $hurdle now negate the zero component
+# onto evinf's own P(zero state) scale, so a modelsummary()-style table's
+# zero block reads directly against every other competitor's (see C.4's
+# amended NEWS bullet). The count component, and predict() (already
+# normalised in round12 B1), are untouched.
+test_that("tidy(cmp$hurdle, component = 'zero') is the exact negative of pscl::hurdle()'s own coefficients (round13 C1)", {
+  m <- fit_evzinb_hurdle_fast()
+  comp <- suppressWarnings(compare_models(m, multicore = FALSE))
+  fit <- comp$hurdle$full_run
+  pscl_coef <- coef(fit)
+
+  zero_td <- tidy(comp$hurdle, component = "zero")
+  zero_pscl <- unname(pscl_coef[grep("^zero_", names(pscl_coef))])
+  expect_equal(unname(zero_td$estimate), -zero_pscl)
+
+  count_td <- tidy(comp$hurdle, component = "count")
+  count_pscl <- unname(pscl_coef[grep("^count_", names(pscl_coef))])
+  expect_equal(unname(count_td$estimate), count_pscl)
+
+  ce <- coefficient_extractor(comp$hurdle, component = "zero")
+  raw_zero_boot <- purrr::map(comp$hurdle$bootstraps, "coefficients") %>% purrr::map("zero") %>% dplyr::bind_rows()
+  expect_equal(as.data.frame(ce), as.data.frame(-raw_zero_boot))
+
+  # CI bounds are the swapped negatives of the un-negated (raw pscl-scale) draws.
+  zero_ci <- tidy(comp$hurdle, component = "zero", confint = "bootstrapped")
+  qs <- c(0.025, 0.975)
+  raw_low  <- vapply(raw_zero_boot, stats::quantile, numeric(1), probs = qs[1])
+  raw_high <- vapply(raw_zero_boot, stats::quantile, numeric(1), probs = qs[2])
+  expect_equal(zero_ci$conf.low, unname(-raw_high))
+  expect_equal(zero_ci$conf.high, unname(-raw_low))
+})
+
 test_that("predict.hurdleboot(type = 'zi') is P(zero state), matching predict.zinbboot()'s direction", {
   # round12 B2: pscl::hurdle()'s own zero-hurdle component models P(Y > 0) --
   # the opposite of predict(type = 'zi')'s documented meaning everywhere else
@@ -173,6 +206,56 @@ test_that("a weighted hurdle fit's competitor is weighted, matching a pscl::hurd
   expect_equal(unname(coef(comp$hurdle$full_run)), unname(coef(hand)), tolerance = 1e-4)
   expect_equal(as.numeric(logLik(comp$hurdle$full_run)), as.numeric(logLik(hand)),
                tolerance = 1e-4)
+})
+
+# round13 B1/B3: every fixture above uses y ~ x1 + x2 + x3 with no separate
+# formula_zi, so the count and zero RHSs are always identical -- exactly why
+# znb_formula_extractor()'s list(nb=, zi=) branch (hit only when they
+# differ) went unexercised and its `[,-1]` intercept-stripping bug shipped
+# alongside predict.hurdleboot() itself. This fixture is asymmetric.
+test_that("predict() on an asymmetric-formula hurdle competitor works for every type (round13 B1/B3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  m <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2, formula_zi = ~x1, data = genevzinb2,
+    family = evinf_family(zero = "hurdle"),
+    control = evinf_control(c.lim = c(50, 1000), init.C = 200),
+    n_bootstraps = 4, boot_seed = 1, multicore = FALSE, verbose = FALSE
+  )))
+  comp <- suppressWarnings(compare_models(m, multicore = FALSE))
+  fit <- comp$hurdle$full_run
+
+  for (pr in c("original", "bootstrap_median")) {
+    expect_true(all(is.finite(predict(comp$hurdle, type = "predicted", pred = pr))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "counts", pred = pr))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "zi", pred = pr))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "count_state", pred = pr))))
+    expect_true(all(is.finite(unlist(predict(comp$hurdle, type = "states", pred = pr)))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "quantile", quantile = 0.5, pred = pr))))
+    expect_true(all(is.finite(unlist(predict(comp$hurdle, type = "all", quantile = 0.5, pred = pr)))))
+  }
+
+  states <- predict(comp$hurdle, type = "states")
+  expect_equal(states$pr_zc + states$pr_count, rep(1, nrow(states)), tolerance = 1e-8)
+
+  # pscl::hurdle()'s own zero-hurdle coefficients model P(Y > 0); prob_from_hurdle()
+  # flips them back to P(zero state), so the hand-computed check is negated
+  # relative to the raw plogis(), unlike the ZINB/ZIP case (round12 B1).
+  hand_pr_y0 <- as.numeric(stats::plogis(model.matrix(~x1, genevzinb2) %*% fit$coefficients$zero))
+  expect_equal(states$pr_zc, 1 - hand_pr_y0, tolerance = 1e-8)
+
+  expect_equal(
+    as.numeric(predict(comp$hurdle, type = "counts")),
+    as.numeric(predict(fit, type = "count", newdata = genevzinb2))
+  )
+
+  # brute-force inversion of F(y) = p0 + (1 - p0)(F_c(y) - f_c(0))/(1 - f_c(0))
+  cnts <- as.numeric(predict(comp$hurdle, type = "counts"))
+  q0 <- stats::dnbinom(0, mu = cnts, size = fit$theta)
+  for (qq in c(0.05, 0.5, 0.9)) {
+    target <- q0 + (1 - q0) * pmax(qq - states$pr_zc, 0) / (1 - states$pr_zc)
+    want <- ifelse(qq - states$pr_zc > 0, stats::qnbinom(target, mu = cnts, size = fit$theta), 0)
+    expect_equal(as.numeric(predict(comp$hurdle, type = "quantile", quantile = qq)), want)
+  }
 })
 
 test_that("an offset model's hurdle competitor keeps the offset", {

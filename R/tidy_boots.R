@@ -138,11 +138,14 @@ evinf_boot_confint <- function(tab, boot_long, confint, conf_level, err_df) {
 #' @param ... Other arguments to be passed to tidy
 #' @param component Which component should be shown?
 #'
-#' @details \code{component = 'zero'} reports \code{pscl::hurdle()}'s own
-#'   zero-hurdle coefficients, unnegated -- these model \eqn{P(Y > 0)}, the
-#'   exact opposite sign convention from evinf's own zero-state coefficients
-#'   (\eqn{P(\text{zero state})}); see \code{\link{evinf_family}} and
-#'   \code{\link{compare_models}}.
+#' @details \code{pscl::hurdle()} fits its own zero-hurdle coefficients on
+#'   \eqn{P(Y > 0)}; \code{component = 'zero'} here reports them negated, so
+#'   the signs are the exact negatives of what \code{pscl::hurdle()} itself
+#'   prints and the whole \code{$hurdle} slot reads on evinf's own
+#'   \eqn{P(\text{zero state})} scale (round13 C1; verified exact, not an
+#'   approximation, in \code{test-compare-models-hurdle.R}).
+#'   \code{coef(x$full_run)} gives \code{pscl}'s own, unnegated, coefficients.
+#'   See \code{\link{evinf_family}} and \code{\link{compare_models}}.
 #'
 #' @return A tidy function for a bootstrapped hurdle model
 #'
@@ -180,6 +183,15 @@ tidy.hurdleboot <- function(x, component = c('all','count','zero'),coef_type = c
     nb_boot <- x$bootstraps %>% purrr::map('coefficients') %>% purrr::map('count') %>% dplyr::bind_rows() %>% tidyr::pivot_longer(dplyr::everything(),names_to = 'term')
 
     zi_boot <- x$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows() %>% tidyr::pivot_longer(dplyr::everything(),names_to = 'term')
+    # round13 C1: negate here, once, so every downstream summary (mean/
+    # median estimate, sd() standard error, bootstrap_p_value_calculator(),
+    # evinf_boot_confint()'s quantiles) is computed from draws already on
+    # evinf's own P(zero state) scale rather than pscl::hurdle()'s P(Y > 0).
+    # sd() and the two-sided p-value are invariant under negating both the
+    # draws and the estimate; percentile CIs flip and swap bounds, which is
+    # the intended effect -- see R/coef_extractor.R's matching negation of
+    # coefficient_extractor.hurdleboot()'s zero_boot.
+    zi_boot$value <- -zi_boot$value
 
 
   }
@@ -187,7 +199,7 @@ tidy.hurdleboot <- function(x, component = c('all','count','zero'),coef_type = c
 
   if(coef_type == 'original'){
     nb <- dplyr::tibble(term = names(x$full_run$coefficients$count),estimate = x$full_run$coefficients$count)
-    zi <- dplyr::tibble(term = names(x$full_run$coefficients$zero),estimate = x$full_run$coefficients$zero)
+    zi <- dplyr::tibble(term = names(x$full_run$coefficients$zero),estimate = -x$full_run$coefficients$zero)
 
   }else if(coef_type == 'bootstrap_mean'){
     nb <- dplyr::tibble(term = names(x$full_run$coefficients$count)) %>% dplyr::left_join(nb_boot %>% dplyr::group_by(.data$term) %>%

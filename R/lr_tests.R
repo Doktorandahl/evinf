@@ -240,10 +240,17 @@ formula_var_remover <- function(formulas, vars, data){
     # every R version.
     if (length(drop_idx) == length(tl)) {
       variables <- attr(tt, 'variables')
-      resp <- if (attr(tt, 'response') == 1) deparse(variables[[2]]) else NULL
+      # round13 A1: deparse's default width.cutoff = 60 returns a
+      # character vector of length > 1 for a long response/offset
+      # expression, which vapply(character(1)) cannot hold and which
+      # stats::as.formula() below would silently mishandle (plus the
+      # length > 1 deprecation warning round10 audit0.10 §1.7 removed
+      # elsewhere). paste(deparse(x), collapse = ' ') always returns a
+      # single string -- same idiom as deparse_rhs() in R/zinb_comparison.R.
+      resp <- if (attr(tt, 'response') == 1) paste(deparse(variables[[2]]), collapse = ' ') else NULL
       offset_idx <- attr(tt, 'offset')
       offset_terms <- if (is.null(offset_idx)) character(0) else
-        vapply(offset_idx, function(i) deparse(variables[[i + 1]]), character(1))
+        vapply(offset_idx, function(i) paste(deparse(variables[[i + 1]]), collapse = ' '), character(1))
       rhs <- paste(c(if (attr(tt, 'intercept') == 1) '1' else '0', offset_terms),
                   collapse = ' + ')
       return(stats::as.formula(paste(resp, '~', rhs), env = environment(f)))

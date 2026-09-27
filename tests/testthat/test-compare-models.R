@@ -28,6 +28,54 @@ test_that("compare_models() supports evinb and renames the first slot (audit 1.6
                "not available")
 })
 
+# round13 B1/B3: znb_formula_extractor() returns list(nb=, zi=) whenever the
+# count and zero RHSs differ, and prob_from_znb()/count_from_znb() used to
+# drop that branch's intercept column with `[,-1]` -- the design matrix was
+# then always one column short of the coefficient vector and every
+# predict() on $zinb/$zip errored with "non-conformable arguments". The
+# fixture above (line 5) already has an asymmetric formula_zi = ~x1 but the
+# audit 1.2 test only checks bootstrap coefficient lengths, never predict()
+# -- this is the gap.
+test_that("predict() on an asymmetric-formula ZINB/ZIP competitor works for every type (round13 B1/B3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  m <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2, formula_zi = ~x1, data = genevzinb2,
+    control = evinf_control(c.lim = c(50, 1000), init.C = 200),
+    n_bootstraps = 4, boot_seed = 123, multicore = FALSE, verbose = FALSE
+  )))
+  comp <- suppressWarnings(suppressMessages(
+    compare_models(m, zip_comparison = TRUE, poisson_comparison = FALSE)
+  ))
+
+  expect_all_types_finite <- function(slot) {
+    for (pr in c("original", "bootstrap_median")) {
+      expect_true(all(is.finite(predict(slot, type = "predicted", pred = pr))))
+      expect_true(all(is.finite(predict(slot, type = "counts", pred = pr))))
+      expect_true(all(is.finite(predict(slot, type = "zi", pred = pr))))
+      expect_true(all(is.finite(predict(slot, type = "count_state", pred = pr))))
+      expect_true(all(is.finite(unlist(predict(slot, type = "states", pred = pr)))))
+      expect_true(all(is.finite(predict(slot, type = "quantile", quantile = 0.5, pred = pr))))
+      expect_true(all(is.finite(unlist(predict(slot, type = "all", quantile = 0.5, pred = pr)))))
+    }
+  }
+  expect_all_types_finite(comp$zinb)
+  expect_all_types_finite(comp$zip)
+
+  for (slot in c("zinb", "zip")) {
+    fit <- comp[[slot]]$full_run
+    states <- predict(comp[[slot]], type = "states")
+    expect_equal(states$pr_zc + states$pr_count, rep(1, nrow(states)), tolerance = 1e-8)
+
+    hand_pr_zc <- as.numeric(stats::plogis(model.matrix(~x1, genevzinb2) %*% fit$coefficients$zero))
+    expect_equal(states$pr_zc, hand_pr_zc, tolerance = 1e-8)
+
+    expect_equal(
+      as.numeric(predict(comp[[slot]], type = "counts")),
+      as.numeric(predict(fit, type = "count", newdata = genevzinb2))
+    )
+  }
+})
+
 test_that("predict.nbboot()/predict.zinbboot() are registered (audit 2.5)", {
   m <- fit_evzinb_fast(n_bootstraps = 5)
   comp <- suppressWarnings(suppressMessages(compare_models(m)))

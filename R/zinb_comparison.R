@@ -33,16 +33,17 @@ inv <- function(x){
 #'   row) and what it buys over the like-for-like hurdle. Not available for
 #'   \code{evinb} objects, with the same defaults-to-\code{FALSE}-with-a-
 #'   message / errors-if-\code{TRUE} behaviour as \code{zinb_comparison}.
-#'   \strong{Sign convention:} \code{pscl::hurdle()}'s zero-hurdle component
-#'   models \eqn{P(Y > 0)}, while evinf's zero equation (and every other
-#'   competitor's zero/zero-inflation component in this table) models
+#'   \strong{Sign convention:} \code{pscl::hurdle()} fits its own zero-hurdle
+#'   component on \eqn{P(Y > 0)}, while evinf's zero equation (and every
+#'   other competitor's zero/zero-inflation component in this table) models
 #'   \eqn{P(\text{zero state})} -- the two are exact negations of each other
 #'   on the coefficient scale, not an approximation (see
-#'   \code{\link{evinf_family}}). \code{tidy()} on the \code{$hurdle} slot
-#'   reports \code{pscl}'s coefficients as fitted, unnegated, so a
-#'   side-by-side coefficient table will show the zero-component signs
-#'   flipped relative to every other row -- that is expected, not a
-#'   disagreement between the models.
+#'   \code{\link{evinf_family}}). \code{tidy()}/\code{coefficient_extractor()}
+#'   on the \code{$hurdle} slot report the zero component negated onto this
+#'   same \eqn{P(\text{zero state})} scale (round13 C1), so a side-by-side
+#'   coefficient table's zero row reads directly against every other row --
+#'   \code{coef(cmp$hurdle$full_run)} gives \code{pscl::hurdle()}'s own,
+#'   unnegated, coefficients.
 #' @inheritParams evzinb
 #'
 #' @inheritSection evzinb Parallel processing
@@ -81,23 +82,31 @@ compare_models <- function(object, nb_comparison = TRUE, zinb_comparison = TRUE,
   }
 
   if(inherits(object, 'evinb')){
+    # round13 D: collect the defaulted argument names and emit one message
+    # naming all of them, instead of one identical message per argument.
+    # stop() on an explicit TRUE keeps its own exact text, per argument.
+    defaulted_args <- character(0)
     if(missing(zinb_comparison)){
-      message('compare_models(): evinb models have no zero-inflation component; setting zinb_comparison = FALSE.')
       zinb_comparison <- FALSE
+      defaulted_args <- c(defaulted_args, 'zinb_comparison')
     }else if(isTRUE(zinb_comparison)){
       stop('compare_models(): zinb_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
     }
     if(missing(zip_comparison)){
-      message('compare_models(): evinb models have no zero-inflation component; setting zip_comparison = FALSE.')
       zip_comparison <- FALSE
+      defaulted_args <- c(defaulted_args, 'zip_comparison')
     }else if(isTRUE(zip_comparison)){
       stop('compare_models(): zip_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
     }
     if(missing(hurdle_comparison)){
-      message('compare_models(): evinb models have no zero-inflation component; setting hurdle_comparison = FALSE.')
       hurdle_comparison <- FALSE
+      defaulted_args <- c(defaulted_args, 'hurdle_comparison')
     }else if(isTRUE(hurdle_comparison)){
       stop('compare_models(): hurdle_comparison is not available for evinb objects. There is no zero-inflation component to compare.')
+    }
+    if(length(defaulted_args) > 0){
+      message('compare_models(): evinb models have no zero-inflation component; setting ',
+              paste(defaulted_args, collapse = ', '), ' = FALSE.')
     }
   }
 
@@ -543,7 +552,12 @@ if(is.null(newdata)){
       if(is(forms, 'formula')){
       xdata_zi <- model.matrix(znb_formula_extractor(znb$formula),newdata)
       }else{
-        xdata_zi <- model.matrix(forms$zi,newdata)[,-1]
+        # round13 B1: znb$coefficients$zero carries the intercept, so
+        # stripping column 1 here made the design matrix always one column
+        # short of the coefficient vector whenever the count and zero RHSs
+        # differ -- the symmetric branch above never subsets, which is why
+        # this went unnoticed.
+        xdata_zi <- model.matrix(forms$zi,newdata)
       }
     }else{
   xdata_zi <- cbind(1,as.matrix(newdata))
@@ -568,7 +582,8 @@ count_from_znb <- function(znb,
     if(is(forms,'formula')){
       xdata_nb <- model.matrix(znb_formula_extractor(znb$formula),newdata)
     }else{
-      xdata_nb <- model.matrix(forms$nb,newdata)[,-1]
+      # round13 B1: same fix as prob_from_znb() above -- keep the intercept.
+      xdata_nb <- model.matrix(forms$nb,newdata)
     }
   }else{
     xdata_nb <- cbind(1,as.matrix(newdata))

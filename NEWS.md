@@ -24,7 +24,26 @@ readiness review and prepares the package for submission.
   every `offset()` term, and the intercept setting -- instead of relying on
   `drop.terms()`'s version-dependent tolerance. `DESCRIPTION`'s declared
   `R (>= 4.1.0)` floor is unchanged; a CI job pinned to R 4.3 (the declared
-  floor) now guards against this class of regression (round12 A1/A4).
+  floor) now guards against this class of regression (round12 A1/A4). That
+  same emptied-formula branch deparsed the response and each `offset()`
+  term at `deparse()`'s default `width.cutoff = 60`, so a response or
+  offset expression longer than that came back as a character vector of
+  length > 1 -- a hard error from `vapply(..., character(1))` for a long
+  offset, and both a wrong formula and the length > 1 `formula()`
+  deprecation warning (round10 audit0.10 §1.7) for a long response. Both
+  sites now use `paste(deparse(x), collapse = ' ')`, matching the existing
+  `deparse_rhs()` idiom in `R/zinb_comparison.R` (round13 A1).
+* `predict()` on a `compare_models()` competitor (`$zinb`, `$zip`, or the
+  new `$hurdle`) errored with "non-conformable arguments" whenever the
+  fitted model's zero-inflation/zero-hurdle formula differed from its count
+  formula -- the interesting case for a zero-inflated model, and the one
+  most likely to appear in an applied example. `znb_formula_extractor()`
+  returns separate count/zero formulas in that case, and `prob_from_znb()`/
+  `count_from_znb()` were dropping the intercept column from the resulting
+  design matrix (`model.matrix(...)[,-1]`) while the fitted coefficients
+  still included it, leaving the design matrix always one column short.
+  Pre-existing, but only surfaced by round12's new `predict.hurdleboot()`
+  (round13 B1).
 * `predict()` (and `fitted()`, `predict_grid()`, `marginal_effects()`, and
   the `marginaleffects` `get_predict()` method) now validate `...`: an
   argument name that is not a known `predict()` argument at all errors,
@@ -74,12 +93,18 @@ readiness review and prepares the package for submission.
   so it flows into `compare_fit()`, `oob_evaluation()`,
   `print.evzinbcomp()` and `modelsummary()` without special-casing; the
   winsorised/razorised variants get the same treatment as every other
-  competitor. `pscl::hurdle()`'s zero-hurdle component models P(Y > 0), the
-  exact opposite sign convention from evinf's own zero equation
-  (P(zero state)) -- documented in `?compare_models`,
-  `?evinf_family` and `?print.evzinbcomp` so a side-by-side coefficient
-  table's flipped zero-component signs read as expected, not as a
-  disagreement between the models (round12 B1/B2).
+  competitor. `pscl::hurdle()` fits its own zero-hurdle component on
+  P(Y > 0), the exact opposite sign convention from evinf's own zero
+  equation (P(zero state)); `tidy()`/`coefficient_extractor()` on the
+  `$hurdle` slot report the zero component negated onto this same
+  P(zero state) scale -- point estimates and bootstrap draws alike, so
+  standard errors, p-values and confidence intervals come out correctly
+  too -- so a `modelsummary()`-style table's zero block reads directly
+  against every other competitor's, the one comparison the feature exists
+  to make. `coef(cmp$hurdle$full_run)` still gives `pscl::hurdle()`'s own,
+  unnegated, coefficients. Documented in `?compare_models`,
+  `?evinf_family`, `?print.evzinbcomp` and `?tidy.hurdleboot`
+  (round12 B1, round13 C1).
 * `predict()`/`fitted()` gain `clamp_alpha_pl` for `type = "explog"`
   (also reachable through `type = "all"`, `predict_grid()` and
   `marginal_effects()`): `FALSE` (the default) uses the fitted `alpha_pl`
