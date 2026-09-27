@@ -543,7 +543,12 @@ if(is.null(newdata)){
       if(is(forms, 'formula')){
       xdata_zi <- model.matrix(znb_formula_extractor(znb$formula),newdata)
       }else{
-        xdata_zi <- model.matrix(forms$zi,newdata)[,-1]
+        # round13 B1: znb$coefficients$zero carries the intercept, so
+        # stripping column 1 here made the design matrix always one column
+        # short of the coefficient vector whenever the count and zero RHSs
+        # differ -- the symmetric branch above never subsets, which is why
+        # this went unnoticed.
+        xdata_zi <- model.matrix(forms$zi,newdata)
       }
     }else{
   xdata_zi <- cbind(1,as.matrix(newdata))
@@ -568,7 +573,8 @@ count_from_znb <- function(znb,
     if(is(forms,'formula')){
       xdata_nb <- model.matrix(znb_formula_extractor(znb$formula),newdata)
     }else{
-      xdata_nb <- model.matrix(forms$nb,newdata)[,-1]
+      # round13 B1: same fix as prob_from_znb() above -- keep the intercept.
+      xdata_nb <- model.matrix(forms$nb,newdata)
     }
   }else{
     xdata_nb <- cbind(1,as.matrix(newdata))

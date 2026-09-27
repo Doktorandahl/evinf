@@ -175,6 +175,56 @@ test_that("a weighted hurdle fit's competitor is weighted, matching a pscl::hurd
                tolerance = 1e-4)
 })
 
+# round13 B1/B3: every fixture above uses y ~ x1 + x2 + x3 with no separate
+# formula_zi, so the count and zero RHSs are always identical -- exactly why
+# znb_formula_extractor()'s list(nb=, zi=) branch (hit only when they
+# differ) went unexercised and its `[,-1]` intercept-stripping bug shipped
+# alongside predict.hurdleboot() itself. This fixture is asymmetric.
+test_that("predict() on an asymmetric-formula hurdle competitor works for every type (round13 B1/B3)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  m <- suppressWarnings(suppressMessages(evzinb(
+    y ~ x1 + x2, formula_zi = ~x1, data = genevzinb2,
+    family = evinf_family(zero = "hurdle"),
+    control = evinf_control(c.lim = c(50, 1000), init.C = 200),
+    n_bootstraps = 4, boot_seed = 1, multicore = FALSE, verbose = FALSE
+  )))
+  comp <- suppressWarnings(compare_models(m, multicore = FALSE))
+  fit <- comp$hurdle$full_run
+
+  for (pr in c("original", "bootstrap_median")) {
+    expect_true(all(is.finite(predict(comp$hurdle, type = "predicted", pred = pr))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "counts", pred = pr))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "zi", pred = pr))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "count_state", pred = pr))))
+    expect_true(all(is.finite(unlist(predict(comp$hurdle, type = "states", pred = pr)))))
+    expect_true(all(is.finite(predict(comp$hurdle, type = "quantile", quantile = 0.5, pred = pr))))
+    expect_true(all(is.finite(unlist(predict(comp$hurdle, type = "all", quantile = 0.5, pred = pr)))))
+  }
+
+  states <- predict(comp$hurdle, type = "states")
+  expect_equal(states$pr_zc + states$pr_count, rep(1, nrow(states)), tolerance = 1e-8)
+
+  # pscl::hurdle()'s own zero-hurdle coefficients model P(Y > 0); prob_from_hurdle()
+  # flips them back to P(zero state), so the hand-computed check is negated
+  # relative to the raw plogis(), unlike the ZINB/ZIP case (round12 B1).
+  hand_pr_y0 <- as.numeric(stats::plogis(model.matrix(~x1, genevzinb2) %*% fit$coefficients$zero))
+  expect_equal(states$pr_zc, 1 - hand_pr_y0, tolerance = 1e-8)
+
+  expect_equal(
+    as.numeric(predict(comp$hurdle, type = "counts")),
+    as.numeric(predict(fit, type = "count", newdata = genevzinb2))
+  )
+
+  # brute-force inversion of F(y) = p0 + (1 - p0)(F_c(y) - f_c(0))/(1 - f_c(0))
+  cnts <- as.numeric(predict(comp$hurdle, type = "counts"))
+  q0 <- stats::dnbinom(0, mu = cnts, size = fit$theta)
+  for (qq in c(0.05, 0.5, 0.9)) {
+    target <- q0 + (1 - q0) * pmax(qq - states$pr_zc, 0) / (1 - states$pr_zc)
+    want <- ifelse(qq - states$pr_zc > 0, stats::qnbinom(target, mu = cnts, size = fit$theta), 0)
+    expect_equal(as.numeric(predict(comp$hurdle, type = "quantile", quantile = qq)), want)
+  }
+})
+
 test_that("an offset model's hurdle competitor keeps the offset", {
   data(genevzinb2, package = "evinf", envir = environment())
   set.seed(42)

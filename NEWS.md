@@ -33,6 +33,17 @@ readiness review and prepares the package for submission.
   deprecation warning (round10 audit0.10 §1.7) for a long response. Both
   sites now use `paste(deparse(x), collapse = ' ')`, matching the existing
   `deparse_rhs()` idiom in `R/zinb_comparison.R` (round13 A1).
+* `predict()` on a `compare_models()` competitor (`$zinb`, `$zip`, or the
+  new `$hurdle`) errored with "non-conformable arguments" whenever the
+  fitted model's zero-inflation/zero-hurdle formula differed from its count
+  formula -- the interesting case for a zero-inflated model, and the one
+  most likely to appear in an applied example. `znb_formula_extractor()`
+  returns separate count/zero formulas in that case, and `prob_from_znb()`/
+  `count_from_znb()` were dropping the intercept column from the resulting
+  design matrix (`model.matrix(...)[,-1]`) while the fitted coefficients
+  still included it, leaving the design matrix always one column short.
+  Pre-existing, but only surfaced by round12's new `predict.hurdleboot()`
+  (round13 B1).
 * `predict()` (and `fitted()`, `predict_grid()`, `marginal_effects()`, and
   the `marginaleffects` `get_predict()` method) now validate `...`: an
   argument name that is not a known `predict()` argument at all errors,
