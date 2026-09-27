@@ -311,3 +311,81 @@ test_that("formula_var_remover() keeps a no-intercept ('- 1') emptied component 
   # y ~ x1 - 1 has one design column (x1, no intercept); y ~ 0 has none.
   expect_equal(out$df, 1L)
 })
+
+# round13 A1: the empty-terms guard above deparses the response and each
+# offset() term at deparse()'s default width.cutoff = 60, so a long
+# expression came back as a character vector of length > 1 -- a hard error
+# from vapply(character(1)) for the offset, and formula(paste(resp, '~',
+# rhs)) both warning and building the wrong formula for the response (the
+# round10 audit0.10 §1.7 deprecation class). All the round12 A3 tests above
+# use short names, so none of them reach the cutoff.
+
+test_that("formula_var_remover() keeps a long offset() expression intact past deparse's 60-char cutoff (round13 A1)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  d$a_very_long_exposure_variable_name_for_testing_deparse_width <- stats::runif(nrow(d), 0.5, 2)
+  d$another_long_exposure_variable_name_for_testing <- stats::runif(nrow(d), 0.5, 2)
+  f <- y ~ x1 + offset(log(a_very_long_exposure_variable_name_for_testing_deparse_width *
+                           another_long_exposure_variable_name_for_testing))
+  formulas <- list(formula_nb = f, formula_zi = NULL,
+                   formula_evi = ~x2, formula_pareto = ~x3)
+
+  out <- formula_var_remover(formulas, "x1", d)
+
+  expect_false("x1" %in% all.vars(out$formulas$nb))
+  expect_true(!is.null(attr(stats::terms(out$formulas$nb), "offset")))
+  expect_true(all(c("a_very_long_exposure_variable_name_for_testing_deparse_width",
+                    "another_long_exposure_variable_name_for_testing") %in%
+                    all.vars(out$formulas$nb)))
+  expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 1L)
+  # the offset contributes no design-matrix column, before or after emptying
+  expect_equal(out$df, 1L)
+})
+
+test_that("formula_var_remover() keeps a long response intact and warning-free past deparse's 60-char cutoff (round13 A1)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  d$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa <- stats::rnorm(nrow(d))
+  d$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb <- stats::rnorm(nrow(d))
+  d$cccccccccccccccccccccccccccccc <- stats::rnorm(nrow(d))
+  f <- I(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb +
+         cccccccccccccccccccccccccccccc) ~ x1
+  formulas <- list(formula_nb = f, formula_zi = NULL,
+                   formula_evi = ~x2, formula_pareto = ~x3)
+
+  out <- expect_no_warning(formula_var_remover(formulas, "x1", d))
+
+  expect_false("x1" %in% all.vars(out$formulas$nb))
+  expect_true(all(c("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "cccccccccccccccccccccccccccccc") %in% all.vars(out$formulas$nb)))
+  expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 1L)
+  expect_equal(out$df, 1L)
+})
+
+test_that("formula_var_remover() handles a long response and a long offset in the same call (round13 A1)", {
+  data(genevzinb2, package = "evinf", envir = environment())
+  d <- genevzinb2
+  d$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa <- stats::rnorm(nrow(d))
+  d$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb <- stats::rnorm(nrow(d))
+  d$cccccccccccccccccccccccccccccc <- stats::rnorm(nrow(d))
+  d$a_very_long_exposure_variable_name_for_testing_deparse_width <- stats::runif(nrow(d), 0.5, 2)
+  d$another_long_exposure_variable_name_for_testing <- stats::runif(nrow(d), 0.5, 2)
+  f <- I(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb +
+         cccccccccccccccccccccccccccccc) ~ x1 +
+    offset(log(a_very_long_exposure_variable_name_for_testing_deparse_width *
+               another_long_exposure_variable_name_for_testing))
+  formulas <- list(formula_nb = f, formula_zi = NULL,
+                   formula_evi = ~x2, formula_pareto = ~x3)
+
+  out <- expect_no_warning(formula_var_remover(formulas, "x1", d))
+
+  expect_false("x1" %in% all.vars(out$formulas$nb))
+  expect_true(!is.null(attr(stats::terms(out$formulas$nb), "offset")))
+  expect_true(all(c("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "cccccccccccccccccccccccccccccc",
+                    "a_very_long_exposure_variable_name_for_testing_deparse_width",
+                    "another_long_exposure_variable_name_for_testing") %in%
+                    all.vars(out$formulas$nb)))
+  expect_equal(attr(stats::terms(out$formulas$nb), "intercept"), 1L)
+  expect_equal(out$df, 1L)
+})

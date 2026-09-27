@@ -24,7 +24,15 @@ readiness review and prepares the package for submission.
   every `offset()` term, and the intercept setting -- instead of relying on
   `drop.terms()`'s version-dependent tolerance. `DESCRIPTION`'s declared
   `R (>= 4.1.0)` floor is unchanged; a CI job pinned to R 4.3 (the declared
-  floor) now guards against this class of regression (round12 A1/A4).
+  floor) now guards against this class of regression (round12 A1/A4). That
+  same emptied-formula branch deparsed the response and each `offset()`
+  term at `deparse()`'s default `width.cutoff = 60`, so a response or
+  offset expression longer than that came back as a character vector of
+  length > 1 -- a hard error from `vapply(..., character(1))` for a long
+  offset, and both a wrong formula and the length > 1 `formula()`
+  deprecation warning (round10 audit0.10 §1.7) for a long response. Both
+  sites now use `paste(deparse(x), collapse = ' ')`, matching the existing
+  `deparse_rhs()` idiom in `R/zinb_comparison.R` (round13 A1).
 * `predict()` (and `fitted()`, `predict_grid()`, `marginal_effects()`, and
   the `marginaleffects` `get_predict()` method) now validate `...`: an
   argument name that is not a known `predict()` argument at all errors,
