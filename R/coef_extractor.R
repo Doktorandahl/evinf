@@ -125,7 +125,10 @@ coefficient_extractor.hurdleboot <- function(object, component = c('all','count'
   object$bootstraps <- object$bootstraps %>% purrr::discard(~'try-error' %in% class(.x))
 
   count_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('count') %>% dplyr::bind_rows()
-  zero_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows()
+  # round13 C1: negate onto evinf's own P(zero state) scale, matching
+  # tidy.hurdleboot()'s negation of the same draws.
+  zero_boot <- object$bootstraps %>% purrr::map('coefficients') %>% purrr::map('zero') %>% dplyr::bind_rows() %>%
+    dplyr::mutate(dplyr::across(dplyr::everything(), ~ -.x))
 
   if(component == 'count'){
     return(count_boot)

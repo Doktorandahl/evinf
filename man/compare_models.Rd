@@ -50,16 +50,17 @@ extreme-value state buys over the standard toolkit model (the ZINB/ZIP
 row) and what it buys over the like-for-like hurdle. Not available for
 \code{evinb} objects, with the same defaults-to-\code{FALSE}-with-a-
 message / errors-if-\code{TRUE} behaviour as \code{zinb_comparison}.
-\strong{Sign convention:} \code{pscl::hurdle()}'s zero-hurdle component
-models \eqn{P(Y > 0)}, while evinf's zero equation (and every other
-competitor's zero/zero-inflation component in this table) models
+\strong{Sign convention:} \code{pscl::hurdle()} fits its own zero-hurdle
+component on \eqn{P(Y > 0)}, while evinf's zero equation (and every
+other competitor's zero/zero-inflation component in this table) models
 \eqn{P(\text{zero state})} -- the two are exact negations of each other
 on the coefficient scale, not an approximation (see
-\code{\link{evinf_family}}). \code{tidy()} on the \code{$hurdle} slot
-reports \code{pscl}'s coefficients as fitted, unnegated, so a
-side-by-side coefficient table will show the zero-component signs
-flipped relative to every other row -- that is expected, not a
-disagreement between the models.}
+\code{\link{evinf_family}}). \code{tidy()}/\code{coefficient_extractor()}
+on the \code{$hurdle} slot report the zero component negated onto this
+same \eqn{P(\text{zero state})} scale (round13 C1), so a side-by-side
+coefficient table's zero row reads directly against every other row --
+\code{coef(cmp$hurdle$full_run)} gives \code{pscl::hurdle()}'s own,
+unnegated, coefficients.}
 
 \item{winsorize}{Should winsorizing be done in the comparisons?}
 

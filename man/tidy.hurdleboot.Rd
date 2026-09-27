@@ -45,11 +45,14 @@ A tidy function for a bootstrapped hurdle model
 Tidy function for hurdleboot
 }
 \details{
-\code{component = 'zero'} reports \code{pscl::hurdle()}'s own
-  zero-hurdle coefficients, unnegated -- these model \eqn{P(Y > 0)}, the
-  exact opposite sign convention from evinf's own zero-state coefficients
-  (\eqn{P(\text{zero state})}); see \code{\link{evinf_family}} and
-  \code{\link{compare_models}}.
+\code{pscl::hurdle()} fits its own zero-hurdle coefficients on
+  \eqn{P(Y > 0)}; \code{component = 'zero'} here reports them negated, so
+  the signs are the exact negatives of what \code{pscl::hurdle()} itself
+  prints and the whole \code{$hurdle} slot reads on evinf's own
+  \eqn{P(\text{zero state})} scale (round13 C1; verified exact, not an
+  approximation, in \code{test-compare-models-hurdle.R}).
+  \code{coef(x$full_run)} gives \code{pscl}'s own, unnegated, coefficients.
+  See \code{\link{evinf_family}} and \code{\link{compare_models}}.
 }
 \examples{
 \donttest{

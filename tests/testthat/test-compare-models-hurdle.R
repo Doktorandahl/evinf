@@ -97,6 +97,39 @@ test_that("tidy()/glance()/predict()/coefficient_extractor() are registered for 
   expect_equal(states$pr_zc + states$pr_count, rep(1, nrow(states)), tolerance = 1e-8)
 })
 
+# round13 C1: pscl::hurdle()'s own zero-hurdle coefficients model P(Y > 0);
+# tidy()/coefficient_extractor() on $hurdle now negate the zero component
+# onto evinf's own P(zero state) scale, so a modelsummary()-style table's
+# zero block reads directly against every other competitor's (see C.4's
+# amended NEWS bullet). The count component, and predict() (already
+# normalised in round12 B1), are untouched.
+test_that("tidy(cmp$hurdle, component = 'zero') is the exact negative of pscl::hurdle()'s own coefficients (round13 C1)", {
+  m <- fit_evzinb_hurdle_fast()
+  comp <- suppressWarnings(compare_models(m, multicore = FALSE))
+  fit <- comp$hurdle$full_run
+  pscl_coef <- coef(fit)
+
+  zero_td <- tidy(comp$hurdle, component = "zero")
+  zero_pscl <- unname(pscl_coef[grep("^zero_", names(pscl_coef))])
+  expect_equal(unname(zero_td$estimate), -zero_pscl)
+
+  count_td <- tidy(comp$hurdle, component = "count")
+  count_pscl <- unname(pscl_coef[grep("^count_", names(pscl_coef))])
+  expect_equal(unname(count_td$estimate), count_pscl)
+
+  ce <- coefficient_extractor(comp$hurdle, component = "zero")
+  raw_zero_boot <- purrr::map(comp$hurdle$bootstraps, "coefficients") %>% purrr::map("zero") %>% dplyr::bind_rows()
+  expect_equal(as.data.frame(ce), as.data.frame(-raw_zero_boot))
+
+  # CI bounds are the swapped negatives of the un-negated (raw pscl-scale) draws.
+  zero_ci <- tidy(comp$hurdle, component = "zero", confint = "bootstrapped")
+  qs <- c(0.025, 0.975)
+  raw_low  <- vapply(raw_zero_boot, stats::quantile, numeric(1), probs = qs[1])
+  raw_high <- vapply(raw_zero_boot, stats::quantile, numeric(1), probs = qs[2])
+  expect_equal(zero_ci$conf.low, unname(-raw_high))
+  expect_equal(zero_ci$conf.high, unname(-raw_low))
+})
+
 test_that("predict.hurdleboot(type = 'zi') is P(zero state), matching predict.zinbboot()'s direction", {
   # round12 B2: pscl::hurdle()'s own zero-hurdle component models P(Y > 0) --
   # the opposite of predict(type = 'zi')'s documented meaning everywhere else

@@ -39,10 +39,13 @@ truncated-count state, a geometric count) do not add more arguments to
   corresponding \code{pscl::hurdle(..., dist = "negbin")} zero
   coefficients, everything else about the fit being equal (verified in
   \code{test-hurdle.R}). \code{\link{compare_models}(hurdle_comparison =
-  TRUE)} fits exactly that \code{pscl::hurdle()} competitor and reports its
-  coefficients unnegated, as \code{pscl} estimated them -- see its
-  \code{hurdle_comparison} argument for the same sign-convention note
-  applied to a side-by-side coefficient table. This is a clean
+  TRUE)} fits exactly that \code{pscl::hurdle()} competitor; \code{tidy()}/
+  \code{coefficient_extractor()} on its \code{$hurdle} slot report the
+  zero component negated onto this same \eqn{P(\text{zero state})} scale
+  (round13 C1), so a side-by-side coefficient table reads directly --
+  \code{coef(cmp$hurdle$full_run)} gives \code{pscl}'s own, unnegated,
+  coefficients. See its \code{hurdle_comparison} argument for the same
+  sign-convention note. This is a clean
   reparameterisation because a
   hurdle's zero state owns every zero outright. \code{zero = "mixture"}
   (the default) has no such simple relationship to
